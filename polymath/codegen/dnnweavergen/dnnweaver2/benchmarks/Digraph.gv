@@ -1,0 +1,725 @@
+digraph {
+	"conv0/Convolution
+shape=(1, 416, 416, 16)
+dtype=FXP64 (42,22)" [fillcolor=cyan style=filled]
+	"inputs/data
+shape = (1, 416, 416, 3)
+dtype = FXP16 (8,8)" [fillcolor=gray shape=rectangle style=filled]
+	"inputs/data
+shape = (1, 416, 416, 3)
+dtype = FXP16 (8,8)" -> "conv0/Convolution
+shape=(1, 416, 416, 16)
+dtype=FXP64 (42,22)"
+	"conv0/weights
+shape = (16, 3, 3, 3)
+dtype = FXP16 (2,14)" [fillcolor=gray shape=rectangle style=filled]
+	"conv0/weights
+shape = (16, 3, 3, 3)
+dtype = FXP16 (2,14)" -> "conv0/Convolution
+shape=(1, 416, 416, 16)
+dtype=FXP64 (42,22)"
+	"conv0/biases
+shape = (16,)
+dtype = FXP32 (10,22)" [fillcolor=gray shape=rectangle style=filled]
+	"conv0/biases
+shape = (16,)
+dtype = FXP32 (10,22)" -> "conv0/Convolution
+shape=(1, 416, 416, 16)
+dtype=FXP64 (42,22)"
+	"conv0/TypeCastOp
+shape=(1, 416, 416, 16)
+dtype=FXP16 (4,12)" [fillcolor=cyan style=filled]
+	"conv0/Convolution
+shape=(1, 416, 416, 16)
+dtype=FXP64 (42,22)" -> "conv0/TypeCastOp
+shape=(1, 416, 416, 16)
+dtype=FXP16 (4,12)"
+	"conv0/batch_norm/BatchNorm
+shape=(1, 416, 416, 16)
+dtype=FXP32 (11,21)" [fillcolor=cyan style=filled]
+	"conv0/TypeCastOp
+shape=(1, 416, 416, 16)
+dtype=FXP16 (4,12)" -> "conv0/batch_norm/BatchNorm
+shape=(1, 416, 416, 16)
+dtype=FXP32 (11,21)"
+	"conv0/batch_norm/mean
+shape = (16,)
+dtype = FXP16 (4,12)" [fillcolor=gray shape=rectangle style=filled]
+	"conv0/batch_norm/mean
+shape = (16,)
+dtype = FXP16 (4,12)" -> "conv0/batch_norm/BatchNorm
+shape=(1, 416, 416, 16)
+dtype=FXP32 (11,21)"
+	"conv0/batch_norm/scale
+shape = (16,)
+dtype = FXP16 (7,9)" [fillcolor=gray shape=rectangle style=filled]
+	"conv0/batch_norm/scale
+shape = (16,)
+dtype = FXP16 (7,9)" -> "conv0/batch_norm/BatchNorm
+shape=(1, 416, 416, 16)
+dtype=FXP32 (11,21)"
+	"conv0/batch_norm/TypeCastOp
+shape=(1, 416, 416, 16)
+dtype=FXP16 (8,8)" [fillcolor=cyan style=filled]
+	"conv0/batch_norm/BatchNorm
+shape=(1, 416, 416, 16)
+dtype=FXP32 (11,21)" -> "conv0/batch_norm/TypeCastOp
+shape=(1, 416, 416, 16)
+dtype=FXP16 (8,8)"
+	"conv0/leakyReLU/LeakyReLU
+shape=(1, 416, 416, 16)
+dtype=FXP16 (8,8)" [fillcolor=cyan style=filled]
+	"conv0/batch_norm/TypeCastOp
+shape=(1, 416, 416, 16)
+dtype=FXP16 (8,8)" -> "conv0/leakyReLU/LeakyReLU
+shape=(1, 416, 416, 16)
+dtype=FXP16 (8,8)"
+	"conv0/leakyReLU/alpha
+shape = (1,)
+dtype = FP32" [fillcolor=gray shape=rectangle style=filled]
+	"conv0/leakyReLU/alpha
+shape = (1,)
+dtype = FP32" -> "conv0/leakyReLU/LeakyReLU
+shape=(1, 416, 416, 16)
+dtype=FXP16 (8,8)"
+	"pool0/MaxPooling
+shape=(1, 208, 208, 16)
+dtype=FXP16 (8,8)" [fillcolor=cyan style=filled]
+	"conv0/leakyReLU/LeakyReLU
+shape=(1, 416, 416, 16)
+dtype=FXP16 (8,8)" -> "pool0/MaxPooling
+shape=(1, 208, 208, 16)
+dtype=FXP16 (8,8)"
+	"conv1/Convolution
+shape=(1, 208, 208, 32)
+dtype=FXP64 (42,22)" [fillcolor=cyan style=filled]
+	"pool0/MaxPooling
+shape=(1, 208, 208, 16)
+dtype=FXP16 (8,8)" -> "conv1/Convolution
+shape=(1, 208, 208, 32)
+dtype=FXP64 (42,22)"
+	"conv1/weights
+shape = (32, 3, 3, 16)
+dtype = FXP16 (2,14)" [fillcolor=gray shape=rectangle style=filled]
+	"conv1/weights
+shape = (32, 3, 3, 16)
+dtype = FXP16 (2,14)" -> "conv1/Convolution
+shape=(1, 208, 208, 32)
+dtype=FXP64 (42,22)"
+	"conv1/biases
+shape = (32,)
+dtype = FXP32 (10,22)" [fillcolor=gray shape=rectangle style=filled]
+	"conv1/biases
+shape = (32,)
+dtype = FXP32 (10,22)" -> "conv1/Convolution
+shape=(1, 208, 208, 32)
+dtype=FXP64 (42,22)"
+	"conv1/TypeCastOp
+shape=(1, 208, 208, 32)
+dtype=FXP16 (8,8)" [fillcolor=cyan style=filled]
+	"conv1/Convolution
+shape=(1, 208, 208, 32)
+dtype=FXP64 (42,22)" -> "conv1/TypeCastOp
+shape=(1, 208, 208, 32)
+dtype=FXP16 (8,8)"
+	"conv1/batch_norm/BatchNorm
+shape=(1, 208, 208, 32)
+dtype=FXP32 (10,22)" [fillcolor=cyan style=filled]
+	"conv1/TypeCastOp
+shape=(1, 208, 208, 32)
+dtype=FXP16 (8,8)" -> "conv1/batch_norm/BatchNorm
+shape=(1, 208, 208, 32)
+dtype=FXP32 (10,22)"
+	"conv1/batch_norm/mean
+shape = (32,)
+dtype = FXP16 (8,8)" [fillcolor=gray shape=rectangle style=filled]
+	"conv1/batch_norm/mean
+shape = (32,)
+dtype = FXP16 (8,8)" -> "conv1/batch_norm/BatchNorm
+shape=(1, 208, 208, 32)
+dtype=FXP32 (10,22)"
+	"conv1/batch_norm/scale
+shape = (32,)
+dtype = FXP16 (2,14)" [fillcolor=gray shape=rectangle style=filled]
+	"conv1/batch_norm/scale
+shape = (32,)
+dtype = FXP16 (2,14)" -> "conv1/batch_norm/BatchNorm
+shape=(1, 208, 208, 32)
+dtype=FXP32 (10,22)"
+	"conv1/batch_norm/TypeCastOp
+shape=(1, 208, 208, 32)
+dtype=FXP16 (8,8)" [fillcolor=cyan style=filled]
+	"conv1/batch_norm/BatchNorm
+shape=(1, 208, 208, 32)
+dtype=FXP32 (10,22)" -> "conv1/batch_norm/TypeCastOp
+shape=(1, 208, 208, 32)
+dtype=FXP16 (8,8)"
+	"conv1/leakyReLU/LeakyReLU
+shape=(1, 208, 208, 32)
+dtype=FXP16 (8,8)" [fillcolor=cyan style=filled]
+	"conv1/batch_norm/TypeCastOp
+shape=(1, 208, 208, 32)
+dtype=FXP16 (8,8)" -> "conv1/leakyReLU/LeakyReLU
+shape=(1, 208, 208, 32)
+dtype=FXP16 (8,8)"
+	"conv1/leakyReLU/alpha
+shape = (1,)
+dtype = FP32" [fillcolor=gray shape=rectangle style=filled]
+	"conv1/leakyReLU/alpha
+shape = (1,)
+dtype = FP32" -> "conv1/leakyReLU/LeakyReLU
+shape=(1, 208, 208, 32)
+dtype=FXP16 (8,8)"
+	"pool1/MaxPooling
+shape=(1, 104, 104, 32)
+dtype=FXP16 (8,8)" [fillcolor=cyan style=filled]
+	"conv1/leakyReLU/LeakyReLU
+shape=(1, 208, 208, 32)
+dtype=FXP16 (8,8)" -> "pool1/MaxPooling
+shape=(1, 104, 104, 32)
+dtype=FXP16 (8,8)"
+	"conv2/Convolution
+shape=(1, 104, 104, 64)
+dtype=FXP64 (42,22)" [fillcolor=cyan style=filled]
+	"pool1/MaxPooling
+shape=(1, 104, 104, 32)
+dtype=FXP16 (8,8)" -> "conv2/Convolution
+shape=(1, 104, 104, 64)
+dtype=FXP64 (42,22)"
+	"conv2/weights
+shape = (64, 3, 3, 32)
+dtype = FXP16 (2,14)" [fillcolor=gray shape=rectangle style=filled]
+	"conv2/weights
+shape = (64, 3, 3, 32)
+dtype = FXP16 (2,14)" -> "conv2/Convolution
+shape=(1, 104, 104, 64)
+dtype=FXP64 (42,22)"
+	"conv2/biases
+shape = (64,)
+dtype = FXP32 (10,22)" [fillcolor=gray shape=rectangle style=filled]
+	"conv2/biases
+shape = (64,)
+dtype = FXP32 (10,22)" -> "conv2/Convolution
+shape=(1, 104, 104, 64)
+dtype=FXP64 (42,22)"
+	"conv2/TypeCastOp
+shape=(1, 104, 104, 64)
+dtype=FXP16 (6,10)" [fillcolor=cyan style=filled]
+	"conv2/Convolution
+shape=(1, 104, 104, 64)
+dtype=FXP64 (42,22)" -> "conv2/TypeCastOp
+shape=(1, 104, 104, 64)
+dtype=FXP16 (6,10)"
+	"conv2/batch_norm/BatchNorm
+shape=(1, 104, 104, 64)
+dtype=FXP32 (9,23)" [fillcolor=cyan style=filled]
+	"conv2/TypeCastOp
+shape=(1, 104, 104, 64)
+dtype=FXP16 (6,10)" -> "conv2/batch_norm/BatchNorm
+shape=(1, 104, 104, 64)
+dtype=FXP32 (9,23)"
+	"conv2/batch_norm/mean
+shape = (64,)
+dtype = FXP16 (6,10)" [fillcolor=gray shape=rectangle style=filled]
+	"conv2/batch_norm/mean
+shape = (64,)
+dtype = FXP16 (6,10)" -> "conv2/batch_norm/BatchNorm
+shape=(1, 104, 104, 64)
+dtype=FXP32 (9,23)"
+	"conv2/batch_norm/scale
+shape = (64,)
+dtype = FXP16 (3,13)" [fillcolor=gray shape=rectangle style=filled]
+	"conv2/batch_norm/scale
+shape = (64,)
+dtype = FXP16 (3,13)" -> "conv2/batch_norm/BatchNorm
+shape=(1, 104, 104, 64)
+dtype=FXP32 (9,23)"
+	"conv2/batch_norm/TypeCastOp
+shape=(1, 104, 104, 64)
+dtype=FXP16 (7,9)" [fillcolor=cyan style=filled]
+	"conv2/batch_norm/BatchNorm
+shape=(1, 104, 104, 64)
+dtype=FXP32 (9,23)" -> "conv2/batch_norm/TypeCastOp
+shape=(1, 104, 104, 64)
+dtype=FXP16 (7,9)"
+	"conv2/leakyReLU/LeakyReLU
+shape=(1, 104, 104, 64)
+dtype=FXP16 (7,9)" [fillcolor=cyan style=filled]
+	"conv2/batch_norm/TypeCastOp
+shape=(1, 104, 104, 64)
+dtype=FXP16 (7,9)" -> "conv2/leakyReLU/LeakyReLU
+shape=(1, 104, 104, 64)
+dtype=FXP16 (7,9)"
+	"conv2/leakyReLU/alpha
+shape = (1,)
+dtype = FP32" [fillcolor=gray shape=rectangle style=filled]
+	"conv2/leakyReLU/alpha
+shape = (1,)
+dtype = FP32" -> "conv2/leakyReLU/LeakyReLU
+shape=(1, 104, 104, 64)
+dtype=FXP16 (7,9)"
+	"pool2/MaxPooling
+shape=(1, 52, 52, 64)
+dtype=FXP16 (7,9)" [fillcolor=cyan style=filled]
+	"conv2/leakyReLU/LeakyReLU
+shape=(1, 104, 104, 64)
+dtype=FXP16 (7,9)" -> "pool2/MaxPooling
+shape=(1, 52, 52, 64)
+dtype=FXP16 (7,9)"
+	"conv3/Convolution
+shape=(1, 52, 52, 128)
+dtype=FXP64 (41,23)" [fillcolor=cyan style=filled]
+	"pool2/MaxPooling
+shape=(1, 52, 52, 64)
+dtype=FXP16 (7,9)" -> "conv3/Convolution
+shape=(1, 52, 52, 128)
+dtype=FXP64 (41,23)"
+	"conv3/weights
+shape = (128, 3, 3, 64)
+dtype = FXP16 (2,14)" [fillcolor=gray shape=rectangle style=filled]
+	"conv3/weights
+shape = (128, 3, 3, 64)
+dtype = FXP16 (2,14)" -> "conv3/Convolution
+shape=(1, 52, 52, 128)
+dtype=FXP64 (41,23)"
+	"conv3/biases
+shape = (128,)
+dtype = FXP32 (9,23)" [fillcolor=gray shape=rectangle style=filled]
+	"conv3/biases
+shape = (128,)
+dtype = FXP32 (9,23)" -> "conv3/Convolution
+shape=(1, 52, 52, 128)
+dtype=FXP64 (41,23)"
+	"conv3/TypeCastOp
+shape=(1, 52, 52, 128)
+dtype=FXP16 (6,10)" [fillcolor=cyan style=filled]
+	"conv3/Convolution
+shape=(1, 52, 52, 128)
+dtype=FXP64 (41,23)" -> "conv3/TypeCastOp
+shape=(1, 52, 52, 128)
+dtype=FXP16 (6,10)"
+	"conv3/batch_norm/BatchNorm
+shape=(1, 52, 52, 128)
+dtype=FXP32 (9,23)" [fillcolor=cyan style=filled]
+	"conv3/TypeCastOp
+shape=(1, 52, 52, 128)
+dtype=FXP16 (6,10)" -> "conv3/batch_norm/BatchNorm
+shape=(1, 52, 52, 128)
+dtype=FXP32 (9,23)"
+	"conv3/batch_norm/mean
+shape = (128,)
+dtype = FXP16 (6,10)" [fillcolor=gray shape=rectangle style=filled]
+	"conv3/batch_norm/mean
+shape = (128,)
+dtype = FXP16 (6,10)" -> "conv3/batch_norm/BatchNorm
+shape=(1, 52, 52, 128)
+dtype=FXP32 (9,23)"
+	"conv3/batch_norm/scale
+shape = (128,)
+dtype = FXP16 (3,13)" [fillcolor=gray shape=rectangle style=filled]
+	"conv3/batch_norm/scale
+shape = (128,)
+dtype = FXP16 (3,13)" -> "conv3/batch_norm/BatchNorm
+shape=(1, 52, 52, 128)
+dtype=FXP32 (9,23)"
+	"conv3/batch_norm/TypeCastOp
+shape=(1, 52, 52, 128)
+dtype=FXP16 (6,10)" [fillcolor=cyan style=filled]
+	"conv3/batch_norm/BatchNorm
+shape=(1, 52, 52, 128)
+dtype=FXP32 (9,23)" -> "conv3/batch_norm/TypeCastOp
+shape=(1, 52, 52, 128)
+dtype=FXP16 (6,10)"
+	"conv3/leakyReLU/LeakyReLU
+shape=(1, 52, 52, 128)
+dtype=FXP16 (6,10)" [fillcolor=cyan style=filled]
+	"conv3/batch_norm/TypeCastOp
+shape=(1, 52, 52, 128)
+dtype=FXP16 (6,10)" -> "conv3/leakyReLU/LeakyReLU
+shape=(1, 52, 52, 128)
+dtype=FXP16 (6,10)"
+	"conv3/leakyReLU/alpha
+shape = (1,)
+dtype = FP32" [fillcolor=gray shape=rectangle style=filled]
+	"conv3/leakyReLU/alpha
+shape = (1,)
+dtype = FP32" -> "conv3/leakyReLU/LeakyReLU
+shape=(1, 52, 52, 128)
+dtype=FXP16 (6,10)"
+	"pool3/MaxPooling
+shape=(1, 26, 26, 128)
+dtype=FXP16 (6,10)" [fillcolor=cyan style=filled]
+	"conv3/leakyReLU/LeakyReLU
+shape=(1, 52, 52, 128)
+dtype=FXP16 (6,10)" -> "pool3/MaxPooling
+shape=(1, 26, 26, 128)
+dtype=FXP16 (6,10)"
+	"conv4/Convolution
+shape=(1, 26, 26, 256)
+dtype=FXP64 (40,24)" [fillcolor=cyan style=filled]
+	"pool3/MaxPooling
+shape=(1, 26, 26, 128)
+dtype=FXP16 (6,10)" -> "conv4/Convolution
+shape=(1, 26, 26, 256)
+dtype=FXP64 (40,24)"
+	"conv4/weights
+shape = (256, 3, 3, 128)
+dtype = FXP16 (2,14)" [fillcolor=gray shape=rectangle style=filled]
+	"conv4/weights
+shape = (256, 3, 3, 128)
+dtype = FXP16 (2,14)" -> "conv4/Convolution
+shape=(1, 26, 26, 256)
+dtype=FXP64 (40,24)"
+	"conv4/biases
+shape = (256,)
+dtype = FXP32 (8,24)" [fillcolor=gray shape=rectangle style=filled]
+	"conv4/biases
+shape = (256,)
+dtype = FXP32 (8,24)" -> "conv4/Convolution
+shape=(1, 26, 26, 256)
+dtype=FXP64 (40,24)"
+	"conv4/TypeCastOp
+shape=(1, 26, 26, 256)
+dtype=FXP16 (5,11)" [fillcolor=cyan style=filled]
+	"conv4/Convolution
+shape=(1, 26, 26, 256)
+dtype=FXP64 (40,24)" -> "conv4/TypeCastOp
+shape=(1, 26, 26, 256)
+dtype=FXP16 (5,11)"
+	"conv4/batch_norm/BatchNorm
+shape=(1, 26, 26, 256)
+dtype=FXP32 (8,24)" [fillcolor=cyan style=filled]
+	"conv4/TypeCastOp
+shape=(1, 26, 26, 256)
+dtype=FXP16 (5,11)" -> "conv4/batch_norm/BatchNorm
+shape=(1, 26, 26, 256)
+dtype=FXP32 (8,24)"
+	"conv4/batch_norm/mean
+shape = (256,)
+dtype = FXP16 (5,11)" [fillcolor=gray shape=rectangle style=filled]
+	"conv4/batch_norm/mean
+shape = (256,)
+dtype = FXP16 (5,11)" -> "conv4/batch_norm/BatchNorm
+shape=(1, 26, 26, 256)
+dtype=FXP32 (8,24)"
+	"conv4/batch_norm/scale
+shape = (256,)
+dtype = FXP16 (3,13)" [fillcolor=gray shape=rectangle style=filled]
+	"conv4/batch_norm/scale
+shape = (256,)
+dtype = FXP16 (3,13)" -> "conv4/batch_norm/BatchNorm
+shape=(1, 26, 26, 256)
+dtype=FXP32 (8,24)"
+	"conv4/batch_norm/TypeCastOp
+shape=(1, 26, 26, 256)
+dtype=FXP16 (6,10)" [fillcolor=cyan style=filled]
+	"conv4/batch_norm/BatchNorm
+shape=(1, 26, 26, 256)
+dtype=FXP32 (8,24)" -> "conv4/batch_norm/TypeCastOp
+shape=(1, 26, 26, 256)
+dtype=FXP16 (6,10)"
+	"conv4/leakyReLU/LeakyReLU
+shape=(1, 26, 26, 256)
+dtype=FXP16 (6,10)" [fillcolor=cyan style=filled]
+	"conv4/batch_norm/TypeCastOp
+shape=(1, 26, 26, 256)
+dtype=FXP16 (6,10)" -> "conv4/leakyReLU/LeakyReLU
+shape=(1, 26, 26, 256)
+dtype=FXP16 (6,10)"
+	"conv4/leakyReLU/alpha
+shape = (1,)
+dtype = FP32" [fillcolor=gray shape=rectangle style=filled]
+	"conv4/leakyReLU/alpha
+shape = (1,)
+dtype = FP32" -> "conv4/leakyReLU/LeakyReLU
+shape=(1, 26, 26, 256)
+dtype=FXP16 (6,10)"
+	"pool4/MaxPooling
+shape=(1, 13, 13, 256)
+dtype=FXP16 (6,10)" [fillcolor=cyan style=filled]
+	"conv4/leakyReLU/LeakyReLU
+shape=(1, 26, 26, 256)
+dtype=FXP16 (6,10)" -> "pool4/MaxPooling
+shape=(1, 13, 13, 256)
+dtype=FXP16 (6,10)"
+	"conv5/Convolution
+shape=(1, 13, 13, 512)
+dtype=FXP64 (40,24)" [fillcolor=cyan style=filled]
+	"pool4/MaxPooling
+shape=(1, 13, 13, 256)
+dtype=FXP16 (6,10)" -> "conv5/Convolution
+shape=(1, 13, 13, 512)
+dtype=FXP64 (40,24)"
+	"conv5/weights
+shape = (512, 3, 3, 256)
+dtype = FXP16 (2,14)" [fillcolor=gray shape=rectangle style=filled]
+	"conv5/weights
+shape = (512, 3, 3, 256)
+dtype = FXP16 (2,14)" -> "conv5/Convolution
+shape=(1, 13, 13, 512)
+dtype=FXP64 (40,24)"
+	"conv5/biases
+shape = (512,)
+dtype = FXP32 (8,24)" [fillcolor=gray shape=rectangle style=filled]
+	"conv5/biases
+shape = (512,)
+dtype = FXP32 (8,24)" -> "conv5/Convolution
+shape=(1, 13, 13, 512)
+dtype=FXP64 (40,24)"
+	"conv5/TypeCastOp
+shape=(1, 13, 13, 512)
+dtype=FXP16 (4,12)" [fillcolor=cyan style=filled]
+	"conv5/Convolution
+shape=(1, 13, 13, 512)
+dtype=FXP64 (40,24)" -> "conv5/TypeCastOp
+shape=(1, 13, 13, 512)
+dtype=FXP16 (4,12)"
+	"conv5/batch_norm/BatchNorm
+shape=(1, 13, 13, 512)
+dtype=FXP32 (7,25)" [fillcolor=cyan style=filled]
+	"conv5/TypeCastOp
+shape=(1, 13, 13, 512)
+dtype=FXP16 (4,12)" -> "conv5/batch_norm/BatchNorm
+shape=(1, 13, 13, 512)
+dtype=FXP32 (7,25)"
+	"conv5/batch_norm/mean
+shape = (512,)
+dtype = FXP16 (4,12)" [fillcolor=gray shape=rectangle style=filled]
+	"conv5/batch_norm/mean
+shape = (512,)
+dtype = FXP16 (4,12)" -> "conv5/batch_norm/BatchNorm
+shape=(1, 13, 13, 512)
+dtype=FXP32 (7,25)"
+	"conv5/batch_norm/scale
+shape = (512,)
+dtype = FXP16 (3,13)" [fillcolor=gray shape=rectangle style=filled]
+	"conv5/batch_norm/scale
+shape = (512,)
+dtype = FXP16 (3,13)" -> "conv5/batch_norm/BatchNorm
+shape=(1, 13, 13, 512)
+dtype=FXP32 (7,25)"
+	"conv5/batch_norm/TypeCastOp
+shape=(1, 13, 13, 512)
+dtype=FXP16 (5,11)" [fillcolor=cyan style=filled]
+	"conv5/batch_norm/BatchNorm
+shape=(1, 13, 13, 512)
+dtype=FXP32 (7,25)" -> "conv5/batch_norm/TypeCastOp
+shape=(1, 13, 13, 512)
+dtype=FXP16 (5,11)"
+	"conv5/leakyReLU/LeakyReLU
+shape=(1, 13, 13, 512)
+dtype=FXP16 (5,11)" [fillcolor=cyan style=filled]
+	"conv5/batch_norm/TypeCastOp
+shape=(1, 13, 13, 512)
+dtype=FXP16 (5,11)" -> "conv5/leakyReLU/LeakyReLU
+shape=(1, 13, 13, 512)
+dtype=FXP16 (5,11)"
+	"conv5/leakyReLU/alpha
+shape = (1,)
+dtype = FP32" [fillcolor=gray shape=rectangle style=filled]
+	"conv5/leakyReLU/alpha
+shape = (1,)
+dtype = FP32" -> "conv5/leakyReLU/LeakyReLU
+shape=(1, 13, 13, 512)
+dtype=FXP16 (5,11)"
+	"pool5/MaxPooling
+shape=(1, 13, 13, 512)
+dtype=FXP16 (5,11)" [fillcolor=cyan style=filled]
+	"conv5/leakyReLU/LeakyReLU
+shape=(1, 13, 13, 512)
+dtype=FXP16 (5,11)" -> "pool5/MaxPooling
+shape=(1, 13, 13, 512)
+dtype=FXP16 (5,11)"
+	"conv6/Convolution
+shape=(1, 13, 13, 1024)
+dtype=FXP64 (39,25)" [fillcolor=cyan style=filled]
+	"pool5/MaxPooling
+shape=(1, 13, 13, 512)
+dtype=FXP16 (5,11)" -> "conv6/Convolution
+shape=(1, 13, 13, 1024)
+dtype=FXP64 (39,25)"
+	"conv6/weights
+shape = (1024, 3, 3, 512)
+dtype = FXP16 (2,14)" [fillcolor=gray shape=rectangle style=filled]
+	"conv6/weights
+shape = (1024, 3, 3, 512)
+dtype = FXP16 (2,14)" -> "conv6/Convolution
+shape=(1, 13, 13, 1024)
+dtype=FXP64 (39,25)"
+	"conv6/biases
+shape = (1024,)
+dtype = FXP32 (7,25)" [fillcolor=gray shape=rectangle style=filled]
+	"conv6/biases
+shape = (1024,)
+dtype = FXP32 (7,25)" -> "conv6/Convolution
+shape=(1, 13, 13, 1024)
+dtype=FXP64 (39,25)"
+	"conv6/TypeCastOp
+shape=(1, 13, 13, 1024)
+dtype=FXP16 (4,12)" [fillcolor=cyan style=filled]
+	"conv6/Convolution
+shape=(1, 13, 13, 1024)
+dtype=FXP64 (39,25)" -> "conv6/TypeCastOp
+shape=(1, 13, 13, 1024)
+dtype=FXP16 (4,12)"
+	"conv6/batch_norm/BatchNorm
+shape=(1, 13, 13, 1024)
+dtype=FXP32 (9,23)" [fillcolor=cyan style=filled]
+	"conv6/TypeCastOp
+shape=(1, 13, 13, 1024)
+dtype=FXP16 (4,12)" -> "conv6/batch_norm/BatchNorm
+shape=(1, 13, 13, 1024)
+dtype=FXP32 (9,23)"
+	"conv6/batch_norm/mean
+shape = (1024,)
+dtype = FXP16 (4,12)" [fillcolor=gray shape=rectangle style=filled]
+	"conv6/batch_norm/mean
+shape = (1024,)
+dtype = FXP16 (4,12)" -> "conv6/batch_norm/BatchNorm
+shape=(1, 13, 13, 1024)
+dtype=FXP32 (9,23)"
+	"conv6/batch_norm/scale
+shape = (1024,)
+dtype = FXP16 (5,11)" [fillcolor=gray shape=rectangle style=filled]
+	"conv6/batch_norm/scale
+shape = (1024,)
+dtype = FXP16 (5,11)" -> "conv6/batch_norm/BatchNorm
+shape=(1, 13, 13, 1024)
+dtype=FXP32 (9,23)"
+	"conv6/batch_norm/TypeCastOp
+shape=(1, 13, 13, 1024)
+dtype=FXP16 (7,9)" [fillcolor=cyan style=filled]
+	"conv6/batch_norm/BatchNorm
+shape=(1, 13, 13, 1024)
+dtype=FXP32 (9,23)" -> "conv6/batch_norm/TypeCastOp
+shape=(1, 13, 13, 1024)
+dtype=FXP16 (7,9)"
+	"conv6/leakyReLU/LeakyReLU
+shape=(1, 13, 13, 1024)
+dtype=FXP16 (7,9)" [fillcolor=cyan style=filled]
+	"conv6/batch_norm/TypeCastOp
+shape=(1, 13, 13, 1024)
+dtype=FXP16 (7,9)" -> "conv6/leakyReLU/LeakyReLU
+shape=(1, 13, 13, 1024)
+dtype=FXP16 (7,9)"
+	"conv6/leakyReLU/alpha
+shape = (1,)
+dtype = FP32" [fillcolor=gray shape=rectangle style=filled]
+	"conv6/leakyReLU/alpha
+shape = (1,)
+dtype = FP32" -> "conv6/leakyReLU/LeakyReLU
+shape=(1, 13, 13, 1024)
+dtype=FXP16 (7,9)"
+	"conv7/Convolution
+shape=(1, 13, 13, 1024)
+dtype=FXP64 (41,23)" [fillcolor=cyan style=filled]
+	"conv6/leakyReLU/LeakyReLU
+shape=(1, 13, 13, 1024)
+dtype=FXP16 (7,9)" -> "conv7/Convolution
+shape=(1, 13, 13, 1024)
+dtype=FXP64 (41,23)"
+	"conv7/weights
+shape = (1024, 3, 3, 1024)
+dtype = FXP16 (2,14)" [fillcolor=gray shape=rectangle style=filled]
+	"conv7/weights
+shape = (1024, 3, 3, 1024)
+dtype = FXP16 (2,14)" -> "conv7/Convolution
+shape=(1, 13, 13, 1024)
+dtype=FXP64 (41,23)"
+	"conv7/biases
+shape = (1024,)
+dtype = FXP32 (9,23)" [fillcolor=gray shape=rectangle style=filled]
+	"conv7/biases
+shape = (1024,)
+dtype = FXP32 (9,23)" -> "conv7/Convolution
+shape=(1, 13, 13, 1024)
+dtype=FXP64 (41,23)"
+	"conv7/TypeCastOp
+shape=(1, 13, 13, 1024)
+dtype=FXP16 (5,11)" [fillcolor=cyan style=filled]
+	"conv7/Convolution
+shape=(1, 13, 13, 1024)
+dtype=FXP64 (41,23)" -> "conv7/TypeCastOp
+shape=(1, 13, 13, 1024)
+dtype=FXP16 (5,11)"
+	"conv7/batch_norm/BatchNorm
+shape=(1, 13, 13, 1024)
+dtype=FXP32 (7,25)" [fillcolor=cyan style=filled]
+	"conv7/TypeCastOp
+shape=(1, 13, 13, 1024)
+dtype=FXP16 (5,11)" -> "conv7/batch_norm/BatchNorm
+shape=(1, 13, 13, 1024)
+dtype=FXP32 (7,25)"
+	"conv7/batch_norm/mean
+shape = (1024,)
+dtype = FXP16 (5,11)" [fillcolor=gray shape=rectangle style=filled]
+	"conv7/batch_norm/mean
+shape = (1024,)
+dtype = FXP16 (5,11)" -> "conv7/batch_norm/BatchNorm
+shape=(1, 13, 13, 1024)
+dtype=FXP32 (7,25)"
+	"conv7/batch_norm/scale
+shape = (1024,)
+dtype = FXP16 (2,14)" [fillcolor=gray shape=rectangle style=filled]
+	"conv7/batch_norm/scale
+shape = (1024,)
+dtype = FXP16 (2,14)" -> "conv7/batch_norm/BatchNorm
+shape=(1, 13, 13, 1024)
+dtype=FXP32 (7,25)"
+	"conv7/batch_norm/TypeCastOp
+shape=(1, 13, 13, 1024)
+dtype=FXP16 (4,12)" [fillcolor=cyan style=filled]
+	"conv7/batch_norm/BatchNorm
+shape=(1, 13, 13, 1024)
+dtype=FXP32 (7,25)" -> "conv7/batch_norm/TypeCastOp
+shape=(1, 13, 13, 1024)
+dtype=FXP16 (4,12)"
+	"conv7/leakyReLU/LeakyReLU
+shape=(1, 13, 13, 1024)
+dtype=FXP16 (4,12)" [fillcolor=cyan style=filled]
+	"conv7/batch_norm/TypeCastOp
+shape=(1, 13, 13, 1024)
+dtype=FXP16 (4,12)" -> "conv7/leakyReLU/LeakyReLU
+shape=(1, 13, 13, 1024)
+dtype=FXP16 (4,12)"
+	"conv7/leakyReLU/alpha
+shape = (1,)
+dtype = FP32" [fillcolor=gray shape=rectangle style=filled]
+	"conv7/leakyReLU/alpha
+shape = (1,)
+dtype = FP32" -> "conv7/leakyReLU/LeakyReLU
+shape=(1, 13, 13, 1024)
+dtype=FXP16 (4,12)"
+	"conv8/Convolution
+shape=(1, 13, 13, 125)
+dtype=FXP64 (38,26)" [fillcolor=cyan style=filled]
+	"conv7/leakyReLU/LeakyReLU
+shape=(1, 13, 13, 1024)
+dtype=FXP16 (4,12)" -> "conv8/Convolution
+shape=(1, 13, 13, 125)
+dtype=FXP64 (38,26)"
+	"conv8/weights
+shape = (125, 1, 1, 1024)
+dtype = FXP16 (2,14)" [fillcolor=gray shape=rectangle style=filled]
+	"conv8/weights
+shape = (125, 1, 1, 1024)
+dtype = FXP16 (2,14)" -> "conv8/Convolution
+shape=(1, 13, 13, 125)
+dtype=FXP64 (38,26)"
+	"conv8/biases
+shape = (125,)
+dtype = FXP32 (6,26)" [fillcolor=gray shape=rectangle style=filled]
+	"conv8/biases
+shape = (125,)
+dtype = FXP32 (6,26)" -> "conv8/Convolution
+shape=(1, 13, 13, 125)
+dtype=FXP64 (38,26)"
+	"conv8/TypeCastOp
+shape=(1, 13, 13, 125)
+dtype=FXP16 (5,11)" [fillcolor=pink style=filled]
+	"conv8/Convolution
+shape=(1, 13, 13, 125)
+dtype=FXP64 (38,26)" -> "conv8/TypeCastOp
+shape=(1, 13, 13, 125)
+dtype=FXP16 (5,11)"
+}

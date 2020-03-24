@@ -1,0 +1,332 @@
+[
+  {
+    "children": [
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+    ],
+    "dataType": null,
+    "dist2sink": 9,
+    "id": 0,
+    "operation": "source",
+    "parents": []
+  },
+  {
+    "children": [],
+    "dataType": null,
+    "dist2sink": 0,
+    "id": 1,
+    "operation": "sink",
+    "parents": [
+      24,
+      22,
+      20
+    ]
+  },
+  {
+    "children": [
+      19,
+      21,
+      23
+    ],
+    "dataType": "constant",
+    "dist2sink": 3,
+    "id": 2,
+    "operation": "mu",
+    "parents": [
+      0
+    ]
+  },
+  {
+    "children": [
+      10,
+      16
+    ],
+    "dataType": "model_input",
+    "dist2sink": 8,
+    "id": 3,
+    "operation": "x[0]",
+    "parents": [
+      0
+    ]
+  },
+  {
+    "children": [
+      11,
+      17
+    ],
+    "dataType": "model_input",
+    "dist2sink": 8,
+    "id": 4,
+    "operation": "x[1]",
+    "parents": [
+      0
+    ]
+  },
+  {
+    "children": [
+      12,
+      18
+    ],
+    "dataType": "model_input",
+    "dist2sink": 7,
+    "id": 5,
+    "operation": "x[2]",
+    "parents": [
+      0
+    ]
+  },
+  {
+    "children": [
+      15
+    ],
+    "dataType": "model_output",
+    "dist2sink": 5,
+    "id": 6,
+    "operation": "y",
+    "parents": [
+      0
+    ]
+  },
+  {
+    "children": [
+      10,
+      20
+    ],
+    "dataType": "model",
+    "dist2sink": 8,
+    "id": 7,
+    "operation": "w[0]",
+    "parents": [
+      0
+    ]
+  },
+  {
+    "children": [
+      11,
+      22
+    ],
+    "dataType": "model",
+    "dist2sink": 8,
+    "id": 8,
+    "operation": "w[1]",
+    "parents": [
+      0
+    ]
+  },
+  {
+    "children": [
+      12,
+      24
+    ],
+    "dataType": "model",
+    "dist2sink": 7,
+    "id": 9,
+    "operation": "w[2]",
+    "parents": [
+      0
+    ]
+  },
+  {
+    "children": [
+      13
+    ],
+    "dataType": null,
+    "dist2sink": 7,
+    "id": 10,
+    "operation": "*",
+    "parents": [
+      7,
+      3
+    ]
+  },
+  {
+    "children": [
+      13
+    ],
+    "dataType": null,
+    "dist2sink": 7,
+    "id": 11,
+    "operation": "*",
+    "parents": [
+      8,
+      4
+    ]
+  },
+  {
+    "children": [
+      14
+    ],
+    "dataType": null,
+    "dist2sink": 6,
+    "id": 12,
+    "operation": "*",
+    "parents": [
+      9,
+      5
+    ]
+  },
+  {
+    "children": [
+      14
+    ],
+    "dataType": null,
+    "dist2sink": 6,
+    "id": 13,
+    "operation": "+",
+    "parents": [
+      10,
+      11
+    ]
+  },
+  {
+    "children": [
+      15
+    ],
+    "dataType": null,
+    "dist2sink": 5,
+    "id": 14,
+    "operation": "+",
+    "parents": [
+      13,
+      12
+    ]
+  },
+  {
+    "children": [
+      16,
+      17,
+      18
+    ],
+    "dataType": null,
+    "dist2sink": 4,
+    "id": 15,
+    "operation": "-",
+    "parents": [
+      14,
+      6
+    ]
+  },
+  {
+    "children": [
+      19
+    ],
+    "dataType": null,
+    "dist2sink": 3,
+    "id": 16,
+    "operation": "*",
+    "parents": [
+      15,
+      3
+    ]
+  },
+  {
+    "children": [
+      21
+    ],
+    "dataType": null,
+    "dist2sink": 3,
+    "id": 17,
+    "operation": "*",
+    "parents": [
+      15,
+      4
+    ]
+  },
+  {
+    "children": [
+      23
+    ],
+    "dataType": null,
+    "dist2sink": 3,
+    "id": 18,
+    "operation": "*",
+    "parents": [
+      15,
+      5
+    ]
+  },
+  {
+    "children": [
+      20
+    ],
+    "dataType": null,
+    "dist2sink": 2,
+    "id": 19,
+    "operation": "*",
+    "parents": [
+      2,
+      16
+    ]
+  },
+  {
+    "children": [
+      1
+    ],
+    "dataType": "model",
+    "dist2sink": 1,
+    "id": 20,
+    "operation": "-",
+    "parents": [
+      7,
+      19
+    ]
+  },
+  {
+    "children": [
+      22
+    ],
+    "dataType": null,
+    "dist2sink": 2,
+    "id": 21,
+    "operation": "*",
+    "parents": [
+      2,
+      17
+    ]
+  },
+  {
+    "children": [
+      1
+    ],
+    "dataType": "model",
+    "dist2sink": 1,
+    "id": 22,
+    "operation": "-",
+    "parents": [
+      8,
+      21
+    ]
+  },
+  {
+    "children": [
+      24
+    ],
+    "dataType": null,
+    "dist2sink": 2,
+    "id": 23,
+    "operation": "*",
+    "parents": [
+      2,
+      18
+    ]
+  },
+  {
+    "children": [
+      1
+    ],
+    "dataType": "model",
+    "dist2sink": 1,
+    "id": 24,
+    "operation": "-",
+    "parents": [
+      9,
+      23
+    ]
+  }
+]

@@ -1,0 +1,14 @@
+{
+    "name": "polymath",
+    "description": "A Programming stack for ",
+    "version": "0.1.0",
+    "author": "Sean Kinzer",
+    "author_email": "skinzer@eng.ucsd.edu",
+    "license": "License :: OSI Approved :: Apache Software License",
+    "classifiers": [
+        "Development Status :: 3 - Alpha",
+        "Programming Language :: Python :: 3"
+    ],
+    "url": "https://github.com/heactlab/polymath",
+    "python_requires": ">=3.6.0"
+}

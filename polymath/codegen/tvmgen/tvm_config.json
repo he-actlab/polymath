@@ -1,0 +1,721 @@
+{
+  "import_name": "tvm.relay",
+  "input_init" : {
+    "arg_type" : "variable",
+    "init_func" : "tvm.relay.var",
+    "init_func_args": [
+      "name"
+    ],
+    "init_func_kw" : {
+      "shape" : "shape"
+    }
+  },
+  "output_wrapper" : {
+    "func_name" : "tvm.relay.Function",
+    "func_args" : [{"func_name" :  "tvm.relay.analysis.free_vars",
+                    "func_args" :  "value"}, "value"]
+  },
+  "graph_execution" : {
+    "func_name" : "codegen.tvmgen.utils.execute_graph"
+  },
+  "ops": {
+    "conv2d": {
+      "op_name": "tvm.relay.nn.conv2d",
+      "positional_arguments": [
+        "x",
+        "weights"
+      ],
+      "keyword_arguments": {
+        "strides": "strides",
+        "padding": "padding"
+      },
+      "op_output": [
+        "result"
+      ],
+      "arg_map": {
+        "x": {
+          "key": "x",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "tvm.relay.var",
+          "init_func_args": [
+            "name"
+          ],
+          "init_func_kw" : {
+            "shape" : "shape"
+          }
+        },
+        "weights": {
+          "key": "kernels",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "tvm.relay.var",
+          "init_func_args": [
+            "name"
+          ],
+          "init_func_kw" : {
+            "shape" : "shape"
+          }
+        },
+        "result": {
+          "key": "result",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": null,
+          "init_func_args": null,
+          "init_func_kw" : {}
+        },
+        "strides": {
+          "key": "strides",
+          "type": "tuple",
+          "arg_type" : "parameter",
+          "location": null,
+          "init_func": "builtins.tuple",
+          "init_func_args": [["name","name"]],
+          "init_func_kw" : {}
+        },
+        "padding": {
+          "key": "padding",
+          "type": "tuple",
+          "arg_type" : "parameter",
+          "location": null,
+          "init_func": "builtins.tuple",
+          "init_func_args": [["name","name"]],
+          "init_func_kw" : {}
+        }
+      }
+    },
+    "relu": {
+      "op_name": "tvm.relay.nn.relu",
+      "positional_arguments": [
+        "in"
+      ],
+      "keyword_arguments": {},
+      "op_output": [
+        "out"
+      ],
+      "arg_map": {
+        "in": {
+          "key": "in",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "tvm.relay.var",
+          "init_func_args": [
+            "name"
+          ],
+          "init_func_kw" : {
+            "shape" : "shape"
+          }
+        },
+        "out": {
+          "key": "out",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "tvm.relay.var",
+          "init_func_args": [
+            "name"
+          ],
+          "init_func_kw" : {
+            "shape" : "shape"
+          }
+        }
+      }
+    },
+    "leaky_relu": {
+      "op_name": "tvm.relay.nn.leaky_relu",
+      "positional_arguments": [
+        "in"
+      ],
+      "keyword_arguments": {"alpha":  "alpha"},
+      "op_output": [
+        "out"
+      ],
+      "arg_map": {
+        "in": {
+          "key": "in",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "tvm.relay.var",
+          "init_func_args": [
+            "name"
+          ],
+          "init_func_kw" : {
+            "shape" : "shape"
+          }
+        },
+        "alpha": {
+          "key": "alpha",
+          "type": "float",
+          "arg_type" : "parameter",
+          "location": null,
+          "init_func": "builtins.float",
+          "init_func_args": ["name"],
+          "init_func_kw" : {}
+        },
+        "out": {
+          "key": "out",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "tvm.relay.var",
+          "init_func_args": [
+            "name"
+          ],
+          "init_func_kw" : {
+            "shape" : "shape"
+          }
+        }
+      }
+    },
+    "sigmoid": {
+      "op_name": "tvm.relay.nn.sigmoid",
+      "positional_arguments": [
+        "in"
+      ],
+      "keyword_arguments": {},
+      "op_output": [
+        "out"
+      ],
+      "arg_map": {
+        "in": {
+          "key": "in",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "tvm.relay.var",
+          "init_func_args": [
+            "name"
+          ],
+          "init_func_kw" : {
+            "shape" : "shape"
+          }
+        },
+        "out": {
+          "key": "out",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": null,
+          "init_func_args": null,
+          "init_func_kw" : {}
+        }
+      }
+    },
+    "dense": {
+      "op_name": "tvm.relay.nn.dense",
+      "positional_arguments": [
+        "in",
+        "weights"
+      ],
+      "keyword_arguments": {},
+      "op_output": [
+        "out"
+      ],
+      "arg_map": {
+        "in": {
+          "key": "in",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "tvm.relay.var",
+          "init_func_args": [
+            "name"
+          ],
+          "init_func_kw" : {
+            "shape" : "shape"
+          }
+        },
+        "weights": {
+          "key": "weights",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "tvm.relay.var",
+          "init_func_args": [
+            "name"
+          ],
+          "init_func_kw" : {
+            "shape" : "shape"
+          }
+        },
+        "out": {
+          "key": "out",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": null,
+          "init_func_args": null,
+          "init_func_kw" : {}
+
+        }
+      }
+    },
+    "batch_flatten": {
+      "op_name": "tvm.relay.nn.batch_flatten",
+      "positional_arguments": [
+        "in"
+      ],
+      "keyword_arguments": {},
+      "op_output": [
+        "out"
+      ],
+      "arg_map": {
+        "in": {
+          "key": "in",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "tvm.relay.var",
+          "init_func_args": [
+            "name"
+          ],
+          "init_func_kw" : {
+            "shape" : "shape"
+          }
+        },
+        "out": {
+          "key": "out",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": null,
+          "init_func_args": null,
+          "init_func_kw" : {}
+        }
+      }
+    },
+    "avg_pool2d": {
+      "op_name": "tvm.relay.nn.avg_pool2d",
+      "positional_arguments": [
+        "in"
+      ],
+      "keyword_arguments": {
+        "pool_size": "pool_size",
+        "padding": "padding",
+        "strides": "strides"
+      },
+      "op_output": [
+        "out"
+      ],
+      "arg_map": {
+        "in": {
+          "key": "in",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "tvm.relay.var",
+          "init_func_args": [
+            "name"
+          ],
+          "init_func_kw" : {
+            "shape" : "shape"
+          }
+        },
+        "out": {
+          "key": "out",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": null,
+          "init_func_args": null,
+          "init_func_kw" : {}
+        },
+        "pool_size": {
+          "key":"pool_size",
+          "type": "tuple",
+          "arg_type" : "parameter",
+          "location": null,
+          "init_func": "builtins.tuple",
+          "init_func_args": [["name", "name"]],
+          "init_func_kw" : {}
+        },
+        "padding": {
+          "key":"padding",
+          "type": "tuple",
+          "arg_type" : "parameter",
+          "location": null,
+          "init_func": "builtins.tuple",
+          "init_func_args": [["name", "name"]],
+          "init_func_kw" : {}
+        },
+        "strides": {
+          "key": "strides",
+          "type": "tuple",
+          "arg_type" : "parameter",
+          "location": null,
+          "init_func": "builtins.tuple",
+          "init_func_args": [["name", "name"]],
+          "init_func_kw" : {}
+        }
+      }
+    },
+    "global_pool": {
+      "op_name": "tvm.relay.nn.global_avg_pool2d",
+      "positional_arguments": [
+        "in"
+      ],
+      "keyword_arguments": {
+      },
+      "op_output": [
+        "out"
+      ],
+      "arg_map": {
+        "in": {
+          "key": "data",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "tvm.relay.var",
+          "init_func_args": [
+            "name"
+          ],
+          "init_func_kw" : {
+            "shape" : "shape"
+          }
+        },
+        "out": {
+          "key": "out",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": null,
+          "init_func_args": null,
+          "init_func_kw" : {}
+        }
+      }
+    },
+    "softmax": {
+      "op_name": "tvm.relay.nn.softmax",
+      "positional_arguments": [
+        "y"
+      ],
+      "keyword_arguments": {},
+      "op_output": [
+        "out"
+      ],
+      "arg_map": {
+        "y": {
+          "key": "y",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "tvm.relay.var",
+          "init_func_args": [
+            "name"
+          ],
+          "init_func_kw" : {
+            "shape" : "shape"
+          }
+        },
+        "out": {
+          "key_name" : "out",
+          "key": "out",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": null,
+          "init_func_args": null,
+          "init_func_kw" : {}
+        }
+      }
+    },
+    "batch_norm": {
+      "op_name": "tvm.relay.nn.batch_norm",
+      "positional_arguments": [
+        "data",
+        "gamma",
+        "beta",
+        "in_moving_mean",
+        "in_moving_var"
+      ],
+      "keyword_arguments": {
+        "epsilon": "epsilon",
+        "scale": "scale"
+      },
+      "op_output": [
+        "norm_data",
+        "out_moving_mean",
+        "out_moving_var"
+      ],
+      "arg_map": {
+        "data": {
+          "key": "data",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "tvm.relay.var",
+          "init_func_args": [
+            "name"
+          ],
+          "init_func_kw" : {
+            "shape" : "shape"
+          }
+        },
+        "in_moving_mean": {
+          "key": "moving_mean",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "tvm.relay.var",
+          "init_func_args": [
+            "name"
+          ],
+          "init_func_kw" : {
+            "shape" : "shape"
+          }
+        },
+        "in_moving_var": {
+          "key": "moving_var",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "tvm.relay.var",
+          "init_func_args": [
+            "name"
+          ],
+          "init_func_kw" : {
+            "shape" : "shape"
+          }
+        },
+        "out_moving_var": {
+          "key": "moving_var",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": null,
+          "init_func_args": null,
+          "init_func_kw" : {}
+        },
+        "norm_data": {
+          "key": "out",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": null,
+          "init_func_args": null,
+          "init_func_kw" : {}
+        },
+        "out_moving_mean": {
+          "key": "moving_mean",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": null,
+          "init_func_args": null,
+          "init_func_kw" : {}
+        },
+        "gamma": {
+          "key": "gamma",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "tvm.relay.var",
+          "init_func_args": [
+            "name"
+          ],
+          "init_func_kw" : {
+            "shape" : "shape"
+          }
+        },
+        "beta": {
+          "key": "beta",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "tvm.relay.var",
+          "init_func_args": [
+            "name"
+          ],
+          "init_func_kw" : {
+            "shape" : "shape"
+          }
+        },
+        "epsilon": {
+          "key": "epsilon",
+          "type": "float",
+          "arg_type" : "parameter",
+          "location": null,
+          "init_func": null,
+          "init_func_args": null,
+          "init_func_kw" : {}
+        },
+        "scale": {
+          "key": "scale",
+          "type": "bool",
+          "arg_type" : "parameter",
+          "location": null,
+          "init_func": null,
+          "init_func_args": null,
+          "init_func_kw" : {}
+        }
+      }
+    },
+    "max_pool2d": {
+      "op_name": "tvm.relay.nn.max_pool2d",
+      "positional_arguments": [
+        "in"
+      ],
+      "keyword_arguments": {
+        "pool_size": "pool_size",
+        "padding": "padding",
+        "strides": "strides"
+      },
+      "op_output": [
+        "out"
+      ],
+      "arg_map": {
+        "in": {
+          "key": "in",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "tvm.relay.var",
+          "init_func_args": [
+            "name"
+          ],
+          "init_func_kw" : {
+            "shape" : "shape"
+          }
+        },
+        "out": {
+          "key": "out",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": null,
+          "init_func_args": null,
+          "init_func_kw" : {}
+        },
+        "pool_size": {
+          "key":"pool_size",
+          "type": "tuple",
+          "arg_type" : "parameter",
+          "location": null,
+          "init_func": "builtins.tuple",
+          "init_func_args": [["name", "name"]],
+          "init_func_kw" : {}
+        },
+        "padding": {
+          "key":"padding",
+          "type": "tuple",
+          "arg_type" : "parameter",
+          "location": null,
+          "init_func": "builtins.tuple",
+          "init_func_args": [["name", "name"]],
+          "init_func_kw" : {}
+        },
+        "strides": {
+          "key": "strides",
+          "type": "tuple",
+          "arg_type" : "parameter",
+          "location": null,
+          "init_func": "builtins.tuple",
+          "init_func_args": [["name", "name"]],
+          "init_func_kw" : {}
+        }
+      }
+    },
+    "add_elementwise": {
+      "op_name": "tvm.relay.add",
+      "positional_arguments": [
+        "op1", "op2"
+      ],
+      "keyword_arguments": {},
+      "op_output": [
+        "out"
+      ],
+      "arg_map": {
+        "op1": {
+          "key": "op1",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "tvm.relay.var",
+          "init_func_args": [
+            "name"
+          ],
+          "init_func_kw" : {
+            "shape" : "shape"
+          }
+        },
+        "op2": {
+          "key": "op2",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "tvm.relay.var",
+          "init_func_args": [
+            "name"
+          ],
+          "init_func_kw" : {
+            "shape" : "shape"
+          }
+        },
+        "out": {
+          "key": "out",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": null,
+          "init_func_args": null,
+          "init_func_kw" : {}
+        }
+      }
+    },
+    "add_bias": {
+      "op_name": "tvm.relay.nn.bias_add",
+      "positional_arguments": [
+        "in",
+        "bias"
+      ],
+      "keyword_arguments": {},
+      "op_output": [
+        "out"
+      ],
+      "arg_map": {
+        "in": {
+          "key": "in",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "tvm.relay.var",
+          "init_func_args": [
+            "name"
+          ],
+          "init_func_kw" : {
+            "shape" : "shape"
+          }
+        },
+        "bias": {
+          "key": "bias",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "tvm.relay.var",
+          "init_func_args": [
+            "name"
+          ],
+          "init_func_kw" : {
+            "shape" : "shape"
+          }
+        },
+        "out": {
+          "key": "out",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": null,
+          "init_func_args": null,
+          "init_func_kw" : {}
+
+        }
+      }
+    }
+  }
+}

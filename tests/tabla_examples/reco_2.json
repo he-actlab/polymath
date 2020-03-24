@@ -1,0 +1,1316 @@
+[
+  {
+    "children": [
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30
+    ],
+    "dataType": null,
+    "dist2sink": 9,
+    "id": 0,
+    "operation": "source",
+    "parents": []
+  },
+  {
+    "children": [],
+    "dataType": null,
+    "dist2sink": 0,
+    "id": 1,
+    "operation": "sink",
+    "parents": [
+      96,
+      94,
+      92,
+      90,
+      88,
+      86,
+      84,
+      82,
+      80,
+      78,
+      76,
+      74
+    ]
+  },
+  {
+    "children": [
+      73,
+      75,
+      77,
+      79,
+      81,
+      83,
+      85,
+      87,
+      89,
+      91,
+      93,
+      95
+    ],
+    "dataType": "constant",
+    "dist2sink": 3,
+    "id": 2,
+    "operation": "mu",
+    "parents": [
+      0
+    ]
+  },
+  {
+    "children": [
+      44,
+      48,
+      52,
+      67,
+      69,
+      71
+    ],
+    "dataType": "model_input",
+    "dist2sink": 8,
+    "id": 3,
+    "operation": "x1[0]",
+    "parents": [
+      0
+    ]
+  },
+  {
+    "children": [
+      45,
+      49,
+      53,
+      68,
+      70,
+      72
+    ],
+    "dataType": "model_input",
+    "dist2sink": 8,
+    "id": 4,
+    "operation": "x1[1]",
+    "parents": [
+      0
+    ]
+  },
+  {
+    "children": [
+      32,
+      36,
+      40,
+      61,
+      63,
+      65
+    ],
+    "dataType": "model_input",
+    "dist2sink": 8,
+    "id": 5,
+    "operation": "x2[0]",
+    "parents": [
+      0
+    ]
+  },
+  {
+    "children": [
+      33,
+      37,
+      41,
+      62,
+      64,
+      66
+    ],
+    "dataType": "model_input",
+    "dist2sink": 8,
+    "id": 6,
+    "operation": "x2[1]",
+    "parents": [
+      0
+    ]
+  },
+  {
+    "children": [
+      31
+    ],
+    "dataType": "model_output",
+    "dist2sink": 6,
+    "id": 7,
+    "operation": "r1[0]",
+    "parents": [
+      0
+    ]
+  },
+  {
+    "children": [
+      35
+    ],
+    "dataType": "model_output",
+    "dist2sink": 6,
+    "id": 8,
+    "operation": "r1[1]",
+    "parents": [
+      0
+    ]
+  },
+  {
+    "children": [
+      39
+    ],
+    "dataType": "model_output",
+    "dist2sink": 6,
+    "id": 9,
+    "operation": "r1[2]",
+    "parents": [
+      0
+    ]
+  },
+  {
+    "children": [
+      55
+    ],
+    "dataType": "model_output",
+    "dist2sink": 5,
+    "id": 10,
+    "operation": "y1[0]",
+    "parents": [
+      0
+    ]
+  },
+  {
+    "children": [
+      56
+    ],
+    "dataType": "model_output",
+    "dist2sink": 5,
+    "id": 11,
+    "operation": "y1[1]",
+    "parents": [
+      0
+    ]
+  },
+  {
+    "children": [
+      57
+    ],
+    "dataType": "model_output",
+    "dist2sink": 5,
+    "id": 12,
+    "operation": "y1[2]",
+    "parents": [
+      0
+    ]
+  },
+  {
+    "children": [
+      43
+    ],
+    "dataType": "model_output",
+    "dist2sink": 6,
+    "id": 13,
+    "operation": "r2[0]",
+    "parents": [
+      0
+    ]
+  },
+  {
+    "children": [
+      47
+    ],
+    "dataType": "model_output",
+    "dist2sink": 6,
+    "id": 14,
+    "operation": "r2[1]",
+    "parents": [
+      0
+    ]
+  },
+  {
+    "children": [
+      51
+    ],
+    "dataType": "model_output",
+    "dist2sink": 6,
+    "id": 15,
+    "operation": "r2[2]",
+    "parents": [
+      0
+    ]
+  },
+  {
+    "children": [
+      58
+    ],
+    "dataType": "model_output",
+    "dist2sink": 5,
+    "id": 16,
+    "operation": "y2[0]",
+    "parents": [
+      0
+    ]
+  },
+  {
+    "children": [
+      59
+    ],
+    "dataType": "model_output",
+    "dist2sink": 5,
+    "id": 17,
+    "operation": "y2[1]",
+    "parents": [
+      0
+    ]
+  },
+  {
+    "children": [
+      60
+    ],
+    "dataType": "model_output",
+    "dist2sink": 5,
+    "id": 18,
+    "operation": "y2[2]",
+    "parents": [
+      0
+    ]
+  },
+  {
+    "children": [
+      32,
+      74
+    ],
+    "dataType": "model",
+    "dist2sink": 8,
+    "id": 19,
+    "operation": "w1[0][0]",
+    "parents": [
+      0
+    ]
+  },
+  {
+    "children": [
+      33,
+      76
+    ],
+    "dataType": "model",
+    "dist2sink": 8,
+    "id": 20,
+    "operation": "w1[0][1]",
+    "parents": [
+      0
+    ]
+  },
+  {
+    "children": [
+      36,
+      78
+    ],
+    "dataType": "model",
+    "dist2sink": 8,
+    "id": 21,
+    "operation": "w1[1][0]",
+    "parents": [
+      0
+    ]
+  },
+  {
+    "children": [
+      37,
+      80
+    ],
+    "dataType": "model",
+    "dist2sink": 8,
+    "id": 22,
+    "operation": "w1[1][1]",
+    "parents": [
+      0
+    ]
+  },
+  {
+    "children": [
+      40,
+      82
+    ],
+    "dataType": "model",
+    "dist2sink": 8,
+    "id": 23,
+    "operation": "w1[2][0]",
+    "parents": [
+      0
+    ]
+  },
+  {
+    "children": [
+      41,
+      84
+    ],
+    "dataType": "model",
+    "dist2sink": 8,
+    "id": 24,
+    "operation": "w1[2][1]",
+    "parents": [
+      0
+    ]
+  },
+  {
+    "children": [
+      44,
+      86
+    ],
+    "dataType": "model",
+    "dist2sink": 8,
+    "id": 25,
+    "operation": "w2[0][0]",
+    "parents": [
+      0
+    ]
+  },
+  {
+    "children": [
+      45,
+      88
+    ],
+    "dataType": "model",
+    "dist2sink": 8,
+    "id": 26,
+    "operation": "w2[0][1]",
+    "parents": [
+      0
+    ]
+  },
+  {
+    "children": [
+      48,
+      90
+    ],
+    "dataType": "model",
+    "dist2sink": 8,
+    "id": 27,
+    "operation": "w2[1][0]",
+    "parents": [
+      0
+    ]
+  },
+  {
+    "children": [
+      49,
+      92
+    ],
+    "dataType": "model",
+    "dist2sink": 8,
+    "id": 28,
+    "operation": "w2[1][1]",
+    "parents": [
+      0
+    ]
+  },
+  {
+    "children": [
+      52,
+      94
+    ],
+    "dataType": "model",
+    "dist2sink": 8,
+    "id": 29,
+    "operation": "w2[2][0]",
+    "parents": [
+      0
+    ]
+  },
+  {
+    "children": [
+      53,
+      96
+    ],
+    "dataType": "model",
+    "dist2sink": 8,
+    "id": 30,
+    "operation": "w2[2][1]",
+    "parents": [
+      0
+    ]
+  },
+  {
+    "children": [
+      55
+    ],
+    "dataType": null,
+    "dist2sink": 5,
+    "id": 31,
+    "operation": "*",
+    "parents": [
+      34,
+      7
+    ]
+  },
+  {
+    "children": [
+      34
+    ],
+    "dataType": null,
+    "dist2sink": 7,
+    "id": 32,
+    "operation": "*",
+    "parents": [
+      19,
+      5
+    ]
+  },
+  {
+    "children": [
+      34
+    ],
+    "dataType": null,
+    "dist2sink": 7,
+    "id": 33,
+    "operation": "*",
+    "parents": [
+      20,
+      6
+    ]
+  },
+  {
+    "children": [
+      31
+    ],
+    "dataType": null,
+    "dist2sink": 6,
+    "id": 34,
+    "operation": "+",
+    "parents": [
+      32,
+      33
+    ]
+  },
+  {
+    "children": [
+      56
+    ],
+    "dataType": null,
+    "dist2sink": 5,
+    "id": 35,
+    "operation": "*",
+    "parents": [
+      38,
+      8
+    ]
+  },
+  {
+    "children": [
+      38
+    ],
+    "dataType": null,
+    "dist2sink": 7,
+    "id": 36,
+    "operation": "*",
+    "parents": [
+      21,
+      5
+    ]
+  },
+  {
+    "children": [
+      38
+    ],
+    "dataType": null,
+    "dist2sink": 7,
+    "id": 37,
+    "operation": "*",
+    "parents": [
+      22,
+      6
+    ]
+  },
+  {
+    "children": [
+      35
+    ],
+    "dataType": null,
+    "dist2sink": 6,
+    "id": 38,
+    "operation": "+",
+    "parents": [
+      36,
+      37
+    ]
+  },
+  {
+    "children": [
+      57
+    ],
+    "dataType": null,
+    "dist2sink": 5,
+    "id": 39,
+    "operation": "*",
+    "parents": [
+      42,
+      9
+    ]
+  },
+  {
+    "children": [
+      42
+    ],
+    "dataType": null,
+    "dist2sink": 7,
+    "id": 40,
+    "operation": "*",
+    "parents": [
+      23,
+      5
+    ]
+  },
+  {
+    "children": [
+      42
+    ],
+    "dataType": null,
+    "dist2sink": 7,
+    "id": 41,
+    "operation": "*",
+    "parents": [
+      24,
+      6
+    ]
+  },
+  {
+    "children": [
+      39
+    ],
+    "dataType": null,
+    "dist2sink": 6,
+    "id": 42,
+    "operation": "+",
+    "parents": [
+      40,
+      41
+    ]
+  },
+  {
+    "children": [
+      58
+    ],
+    "dataType": null,
+    "dist2sink": 5,
+    "id": 43,
+    "operation": "*",
+    "parents": [
+      46,
+      13
+    ]
+  },
+  {
+    "children": [
+      46
+    ],
+    "dataType": null,
+    "dist2sink": 7,
+    "id": 44,
+    "operation": "*",
+    "parents": [
+      3,
+      25
+    ]
+  },
+  {
+    "children": [
+      46
+    ],
+    "dataType": null,
+    "dist2sink": 7,
+    "id": 45,
+    "operation": "*",
+    "parents": [
+      4,
+      26
+    ]
+  },
+  {
+    "children": [
+      43
+    ],
+    "dataType": null,
+    "dist2sink": 6,
+    "id": 46,
+    "operation": "+",
+    "parents": [
+      44,
+      45
+    ]
+  },
+  {
+    "children": [
+      59
+    ],
+    "dataType": null,
+    "dist2sink": 5,
+    "id": 47,
+    "operation": "*",
+    "parents": [
+      50,
+      14
+    ]
+  },
+  {
+    "children": [
+      50
+    ],
+    "dataType": null,
+    "dist2sink": 7,
+    "id": 48,
+    "operation": "*",
+    "parents": [
+      3,
+      27
+    ]
+  },
+  {
+    "children": [
+      50
+    ],
+    "dataType": null,
+    "dist2sink": 7,
+    "id": 49,
+    "operation": "*",
+    "parents": [
+      4,
+      28
+    ]
+  },
+  {
+    "children": [
+      47
+    ],
+    "dataType": null,
+    "dist2sink": 6,
+    "id": 50,
+    "operation": "+",
+    "parents": [
+      48,
+      49
+    ]
+  },
+  {
+    "children": [
+      60
+    ],
+    "dataType": null,
+    "dist2sink": 5,
+    "id": 51,
+    "operation": "*",
+    "parents": [
+      54,
+      15
+    ]
+  },
+  {
+    "children": [
+      54
+    ],
+    "dataType": null,
+    "dist2sink": 7,
+    "id": 52,
+    "operation": "*",
+    "parents": [
+      3,
+      29
+    ]
+  },
+  {
+    "children": [
+      54
+    ],
+    "dataType": null,
+    "dist2sink": 7,
+    "id": 53,
+    "operation": "*",
+    "parents": [
+      4,
+      30
+    ]
+  },
+  {
+    "children": [
+      51
+    ],
+    "dataType": null,
+    "dist2sink": 6,
+    "id": 54,
+    "operation": "+",
+    "parents": [
+      52,
+      53
+    ]
+  },
+  {
+    "children": [
+      61,
+      62
+    ],
+    "dataType": null,
+    "dist2sink": 4,
+    "id": 55,
+    "operation": "-",
+    "parents": [
+      31,
+      10
+    ]
+  },
+  {
+    "children": [
+      63,
+      64
+    ],
+    "dataType": null,
+    "dist2sink": 4,
+    "id": 56,
+    "operation": "-",
+    "parents": [
+      35,
+      11
+    ]
+  },
+  {
+    "children": [
+      65,
+      66
+    ],
+    "dataType": null,
+    "dist2sink": 4,
+    "id": 57,
+    "operation": "-",
+    "parents": [
+      39,
+      12
+    ]
+  },
+  {
+    "children": [
+      67,
+      68
+    ],
+    "dataType": null,
+    "dist2sink": 4,
+    "id": 58,
+    "operation": "-",
+    "parents": [
+      43,
+      16
+    ]
+  },
+  {
+    "children": [
+      69,
+      70
+    ],
+    "dataType": null,
+    "dist2sink": 4,
+    "id": 59,
+    "operation": "-",
+    "parents": [
+      47,
+      17
+    ]
+  },
+  {
+    "children": [
+      71,
+      72
+    ],
+    "dataType": null,
+    "dist2sink": 4,
+    "id": 60,
+    "operation": "-",
+    "parents": [
+      51,
+      18
+    ]
+  },
+  {
+    "children": [
+      73
+    ],
+    "dataType": "gradient",
+    "dist2sink": 3,
+    "id": 61,
+    "operation": "*",
+    "parents": [
+      55,
+      5
+    ]
+  },
+  {
+    "children": [
+      75
+    ],
+    "dataType": "gradient",
+    "dist2sink": 3,
+    "id": 62,
+    "operation": "*",
+    "parents": [
+      55,
+      6
+    ]
+  },
+  {
+    "children": [
+      77
+    ],
+    "dataType": "gradient",
+    "dist2sink": 3,
+    "id": 63,
+    "operation": "*",
+    "parents": [
+      56,
+      5
+    ]
+  },
+  {
+    "children": [
+      79
+    ],
+    "dataType": "gradient",
+    "dist2sink": 3,
+    "id": 64,
+    "operation": "*",
+    "parents": [
+      56,
+      6
+    ]
+  },
+  {
+    "children": [
+      81
+    ],
+    "dataType": "gradient",
+    "dist2sink": 3,
+    "id": 65,
+    "operation": "*",
+    "parents": [
+      57,
+      5
+    ]
+  },
+  {
+    "children": [
+      83
+    ],
+    "dataType": "gradient",
+    "dist2sink": 3,
+    "id": 66,
+    "operation": "*",
+    "parents": [
+      57,
+      6
+    ]
+  },
+  {
+    "children": [
+      85
+    ],
+    "dataType": "gradient",
+    "dist2sink": 3,
+    "id": 67,
+    "operation": "*",
+    "parents": [
+      58,
+      3
+    ]
+  },
+  {
+    "children": [
+      87
+    ],
+    "dataType": "gradient",
+    "dist2sink": 3,
+    "id": 68,
+    "operation": "*",
+    "parents": [
+      58,
+      4
+    ]
+  },
+  {
+    "children": [
+      89
+    ],
+    "dataType": "gradient",
+    "dist2sink": 3,
+    "id": 69,
+    "operation": "*",
+    "parents": [
+      59,
+      3
+    ]
+  },
+  {
+    "children": [
+      91
+    ],
+    "dataType": "gradient",
+    "dist2sink": 3,
+    "id": 70,
+    "operation": "*",
+    "parents": [
+      59,
+      4
+    ]
+  },
+  {
+    "children": [
+      93
+    ],
+    "dataType": "gradient",
+    "dist2sink": 3,
+    "id": 71,
+    "operation": "*",
+    "parents": [
+      60,
+      3
+    ]
+  },
+  {
+    "children": [
+      95
+    ],
+    "dataType": "gradient",
+    "dist2sink": 3,
+    "id": 72,
+    "operation": "*",
+    "parents": [
+      60,
+      4
+    ]
+  },
+  {
+    "children": [
+      74
+    ],
+    "dataType": null,
+    "dist2sink": 2,
+    "id": 73,
+    "operation": "*",
+    "parents": [
+      2,
+      61
+    ]
+  },
+  {
+    "children": [
+      1
+    ],
+    "dataType": "model",
+    "dist2sink": 1,
+    "id": 74,
+    "operation": "-",
+    "parents": [
+      19,
+      73
+    ]
+  },
+  {
+    "children": [
+      76
+    ],
+    "dataType": null,
+    "dist2sink": 2,
+    "id": 75,
+    "operation": "*",
+    "parents": [
+      2,
+      62
+    ]
+  },
+  {
+    "children": [
+      1
+    ],
+    "dataType": "model",
+    "dist2sink": 1,
+    "id": 76,
+    "operation": "-",
+    "parents": [
+      20,
+      75
+    ]
+  },
+  {
+    "children": [
+      78
+    ],
+    "dataType": null,
+    "dist2sink": 2,
+    "id": 77,
+    "operation": "*",
+    "parents": [
+      2,
+      63
+    ]
+  },
+  {
+    "children": [
+      1
+    ],
+    "dataType": "model",
+    "dist2sink": 1,
+    "id": 78,
+    "operation": "-",
+    "parents": [
+      21,
+      77
+    ]
+  },
+  {
+    "children": [
+      80
+    ],
+    "dataType": null,
+    "dist2sink": 2,
+    "id": 79,
+    "operation": "*",
+    "parents": [
+      2,
+      64
+    ]
+  },
+  {
+    "children": [
+      1
+    ],
+    "dataType": "model",
+    "dist2sink": 1,
+    "id": 80,
+    "operation": "-",
+    "parents": [
+      22,
+      79
+    ]
+  },
+  {
+    "children": [
+      82
+    ],
+    "dataType": null,
+    "dist2sink": 2,
+    "id": 81,
+    "operation": "*",
+    "parents": [
+      2,
+      65
+    ]
+  },
+  {
+    "children": [
+      1
+    ],
+    "dataType": "model",
+    "dist2sink": 1,
+    "id": 82,
+    "operation": "-",
+    "parents": [
+      23,
+      81
+    ]
+  },
+  {
+    "children": [
+      84
+    ],
+    "dataType": null,
+    "dist2sink": 2,
+    "id": 83,
+    "operation": "*",
+    "parents": [
+      2,
+      66
+    ]
+  },
+  {
+    "children": [
+      1
+    ],
+    "dataType": "model",
+    "dist2sink": 1,
+    "id": 84,
+    "operation": "-",
+    "parents": [
+      24,
+      83
+    ]
+  },
+  {
+    "children": [
+      86
+    ],
+    "dataType": null,
+    "dist2sink": 2,
+    "id": 85,
+    "operation": "*",
+    "parents": [
+      2,
+      67
+    ]
+  },
+  {
+    "children": [
+      1
+    ],
+    "dataType": "model",
+    "dist2sink": 1,
+    "id": 86,
+    "operation": "-",
+    "parents": [
+      25,
+      85
+    ]
+  },
+  {
+    "children": [
+      88
+    ],
+    "dataType": null,
+    "dist2sink": 2,
+    "id": 87,
+    "operation": "*",
+    "parents": [
+      2,
+      68
+    ]
+  },
+  {
+    "children": [
+      1
+    ],
+    "dataType": "model",
+    "dist2sink": 1,
+    "id": 88,
+    "operation": "-",
+    "parents": [
+      26,
+      87
+    ]
+  },
+  {
+    "children": [
+      90
+    ],
+    "dataType": null,
+    "dist2sink": 2,
+    "id": 89,
+    "operation": "*",
+    "parents": [
+      2,
+      69
+    ]
+  },
+  {
+    "children": [
+      1
+    ],
+    "dataType": "model",
+    "dist2sink": 1,
+    "id": 90,
+    "operation": "-",
+    "parents": [
+      27,
+      89
+    ]
+  },
+  {
+    "children": [
+      92
+    ],
+    "dataType": null,
+    "dist2sink": 2,
+    "id": 91,
+    "operation": "*",
+    "parents": [
+      2,
+      70
+    ]
+  },
+  {
+    "children": [
+      1
+    ],
+    "dataType": "model",
+    "dist2sink": 1,
+    "id": 92,
+    "operation": "-",
+    "parents": [
+      28,
+      91
+    ]
+  },
+  {
+    "children": [
+      94
+    ],
+    "dataType": null,
+    "dist2sink": 2,
+    "id": 93,
+    "operation": "*",
+    "parents": [
+      2,
+      71
+    ]
+  },
+  {
+    "children": [
+      1
+    ],
+    "dataType": "model",
+    "dist2sink": 1,
+    "id": 94,
+    "operation": "-",
+    "parents": [
+      29,
+      93
+    ]
+  },
+  {
+    "children": [
+      96
+    ],
+    "dataType": null,
+    "dist2sink": 2,
+    "id": 95,
+    "operation": "*",
+    "parents": [
+      2,
+      72
+    ]
+  },
+  {
+    "children": [
+      1
+    ],
+    "dataType": "model",
+    "dist2sink": 1,
+    "id": 96,
+    "operation": "-",
+    "parents": [
+      30,
+      95
+    ]
+  }
+]

@@ -1,0 +1,102 @@
+import polymath as pm
+from pathlib import Path
+import numpy as np
+import pytest
+from .util import logistic, linear, reco, svm, compare_tabla_dfg, set_shape_and_lower
+
+@pytest.mark.parametrize('m_',[
+    3, 55
+])
+def test_linear_reg(m_):
+    shape_dict = {"m": m_}
+    graph, input_info, out_info, keys = linear(m=m_, coarse=True)
+    coarse_eval = graph(keys, input_info)
+    assert np.allclose(coarse_eval, out_info["w"])
+
+    cwd = Path(f"{__file__}").parent
+    base_path = f"{cwd}/pmlang_examples"
+    full_path = f"{base_path}/outputs"
+    tabla_path = f"{full_path}/{graph.name}_tabla.json"
+
+    tabla_ir, tabla_graph = pm.generate_tabla(graph, shape_dict, tabla_path)
+    validation_path = f"{cwd}/tabla_examples/{graph.name}_{m_}.json"
+    compare_tabla_dfg(validation_path, tabla_ir, tabla_graph)
+
+@pytest.mark.parametrize('m_',[
+    784
+])
+def test_linear_reg_embedded_values(m_):
+    shape_dict = {"m": m_}
+    graph, input_info, out_info, keys = linear(m=m_, coarse=True)
+    _, input_info, out_info, keys = linear(m=m_, coarse=False)
+    cwd = Path(f"{__file__}").parent
+    base_path = f"{cwd}/pmlang_examples"
+    full_path = f"{base_path}/outputs"
+    tabla_path = f"{full_path}/{graph.name}_tacc_tabla.json"
+
+    tabla_ir, tabla_graph = pm.generate_tabla(graph,
+                                              shape_dict,
+                                              tabla_path,
+                                              context_dict=input_info, add_kwargs=True)
+
+
+    # validation_path = f"{cwd}/tabla_examples/{graph.name}_{m_}.json"
+    # compare_tabla_dfg(validation_path, tabla_ir, tabla_graph)
+
+@pytest.mark.parametrize('m_',[
+    3, 54
+])
+def test_svm(m_):
+    shape_dict = {"m": m_}
+    graph, input_info, out_info, keys = svm(m=m_, coarse=True)
+    coarse_eval = graph(keys, input_info)
+    assert np.allclose(coarse_eval, out_info["w"])
+
+    cwd = Path(f"{__file__}").parent
+    base_path = f"{cwd}/pmlang_examples"
+    full_path = f"{base_path}/outputs"
+    tabla_path = f"{full_path}/{graph.name}_tabla.json"
+    tabla_ir, tabla_graph = pm.generate_tabla(graph, shape_dict, tabla_path)
+    validation_path = f"{cwd}/tabla_examples/{graph.name}_{m_}.json"
+    compare_tabla_dfg(validation_path, tabla_ir, tabla_graph)
+
+
+
+@pytest.mark.parametrize('m_',[
+    3, 54
+])
+def test_logistic_reg(m_):
+    shape_dict = {"m": m_}
+    graph, input_info, out_info, keys = logistic(m_=m_, coarse=True)
+    coarse_eval = graph(keys, input_info)
+    assert np.allclose(coarse_eval, out_info["w"])
+
+    cwd = Path(f"{__file__}").parent
+    base_path = f"{cwd}/pmlang_examples"
+    full_path = f"{base_path}/outputs"
+    tabla_path = f"{full_path}/{graph.name}_tabla.json"
+
+    tabla_ir, tabla_graph = pm.generate_tabla(graph, shape_dict, tabla_path)
+    # validation_path = f"{cwd}/tabla_examples/{graph.name}_{m_}.json"
+    # compare_tabla_dfg(validation_path, tabla_ir, tabla_graph)
+
+
+@pytest.mark.parametrize('m_, n_,k_', [
+    (54, 54, 3),
+])
+def test_reco_state_write(m_, n_, k_):
+    shape_dict = {"m": m_, "n": n_, "k": k_}
+    graph, input_info, out_info, keys = reco(m_=m_, n_=n_, k_=k_, coarse=True)
+    coarse_eval = graph(keys, input_info)
+    assert np.allclose(coarse_eval[0], out_info["w1"])
+    assert np.allclose(coarse_eval[1], out_info["w2"])
+    cwd = Path(f"{__file__}").parent
+    base_path = f"{cwd}/pmlang_examples"
+    full_path = f"{base_path}/outputs"
+    tabla_path = f"{full_path}/{graph.name}_tabla.json"
+    lowered = set_shape_and_lower(graph, shape_dict)
+    tabla_ir, tabla_graph = pm.generate_tabla(graph, shape_dict, tabla_path)
+    # validation_path = f"{cwd}/tabla_examples/{graph.name}_{k_}.json"
+    # compare_tabla_dfg(validation_path, tabla_ir, tabla_graph)
+
+

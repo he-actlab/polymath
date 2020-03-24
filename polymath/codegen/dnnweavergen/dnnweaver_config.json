@@ -1,0 +1,749 @@
+{
+  "import_name": "cmstack.codegen.dnnweavergen",
+  "passes" : ["map_nodes"],
+  "initialize_graph" : {
+                  "func_name" : "cmstack.codegen.dnnweavergen.dnnweaver2.graph.Graph",
+                  "func_args" :  ["name"],
+                  "func_kwargs":  {"dataset": "imagenet"}
+            },
+  "input_init" : {
+    "arg_type" : "variable",
+    "init_func" : "cmstack.codegen.dnnweavergen.utils.dnnweaver_init_data",
+    "init_func_args": [
+      "graph",
+      "scope"
+    ],
+    "init_func_kw" : {
+      "shape" : "shape",
+      "name" : "name",
+      "trainable" : false
+    }
+  },
+  "graph_execution" : {
+    "func_name" : "cmstack.codegen.dnnweavergen.utils.execute_graph"
+  },
+  "ops": {
+    "conv2d": {
+      "op_name": "cmstack.codegen.dnnweavergen.utils.dnnweaver_conv2d",
+      "positional_arguments": [
+        "graph",
+        "scope",
+        "x",
+        "weights",
+        "bias"
+      ],
+      "keyword_arguments": {
+        "pad": "padding"
+      },
+      "op_output": [
+        "result"
+      ],
+      "arg_map": {
+        "x": {
+          "key": "x",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "cmstack.codegen.dnnweavergen.dnnweaver2.dnnweaver_init_data",
+          "init_func_args": [
+            "graph",
+            "relative_scope"
+          ],
+          "init_func_kw" : {
+            "shape" : "shape",
+            "name" : "name"
+          }
+        },
+        "weights": {
+          "key": "kernels",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "cmstack.codegen.dnnweavergen.utils.dnnweaver_init_weight",
+          "init_func_args": [
+            "graph",
+            "relative_scope"
+          ],
+          "init_func_kw" : {
+            "name": "name",
+            "shape" : "shape"
+          }
+        },
+        "bias": {
+          "key": "bias",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "cmstack.codegen.dnnweavergen.utils.dnnweaver_init_bias",
+          "init_func_args": [
+            "graph",
+            "relative_scope"
+          ],
+          "init_func_kw" : {
+            "name": "name",
+            "shape" : "shape"
+          }
+        },
+        "result": {
+          "key": "result",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": null,
+          "init_func_args": null,
+          "init_func_kw" : {}
+        },
+        "padding": {
+          "key": "padding",
+          "type": "tuple",
+          "arg_type" : "parameter",
+          "location": null,
+          "init_func": "builtins.tuple",
+          "init_func_args": [["name","name"]],
+          "init_func_kw" : {}
+        }
+      }
+    },
+    "relu": {
+      "op_name": "cmstack.codegen.dnnweavergen.utils.dnnweaver_relu",
+      "positional_arguments": [
+        "in"
+      ],
+      "keyword_arguments": {},
+      "op_output": [
+        "out"
+      ],
+      "arg_map": {
+        "in": {
+          "key": "in",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "cmstack.codegen.dnnweavergen.dnnweaver2.get_tensor",
+          "init_func_args": [
+            "name"
+          ],
+          "init_func_kw" : {
+            "shape" : "shape"
+          }
+        },
+        "out": {
+          "key": "out",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "cmstack.codegen.dnnweavergen.dnnweaver2.get_tensor",
+          "init_func_args": [
+            "name"
+          ],
+          "init_func_kw" : {
+            "shape" : "shape"
+          }
+        }
+      }
+    },
+    "leaky_relu": {
+      "op_name": "cmstack.codegen.dnnweavergen.utils.dnnweaver_leaky_relu",
+      "positional_arguments": [
+        "graph",
+        "scope",
+        "in"
+      ],
+      "keyword_arguments": {},
+      "op_output": [
+        "out"
+      ],
+      "arg_map": {
+        "in": {
+          "key": "in",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "cmstack.codegen.dnnweavergen.dnnweaver2.get_tensor",
+          "init_func_args": [
+          ],
+          "init_func_kw" : {
+            "name" : "name",
+            "shape" : "shape"
+          }
+        },
+        "alpha": {
+          "key": "alpha",
+          "type": "float",
+          "arg_type" : "parameter",
+          "location": null,
+          "init_func": "builtins.float",
+          "init_func_args": ["name"],
+          "init_func_kw" : {}
+        },
+        "out": {
+          "key": "out",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "cmstack.codegen.dnnweavergen.dnnweaver2.get_tensor",
+          "init_func_args": [
+          ],
+          "init_func_kw" : {
+            "name" : "name",
+            "shape" : "shape"
+          }
+        }
+      }
+    },
+    "sigmoid": {
+      "op_name": "cmstack.codegen.dnnweavergen.utils.dnnweaver_nyi",
+      "positional_arguments": [
+        "key"
+      ],
+      "keyword_arguments": {},
+      "op_output": [
+        "out"
+      ],
+      "arg_map": {
+        "in": {
+          "key": "in",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "cmstack.codegen.dnnweavergen.dnnweaver2.get_tensor",
+          "init_func_args": [
+            "name"
+          ],
+          "init_func_kw" : {
+            "shape" : "shape"
+          }
+        },
+        "out": {
+          "key": "out",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": null,
+          "init_func_args": null,
+          "init_func_kw" : {}
+        }
+      }
+    },
+    "dense": {
+      "op_name": "cmstack.codegen.dnnweavergen.utils.dnnweaver_nyi",
+      "positional_arguments": [
+        "key",
+        "in",
+        "weights"
+      ],
+      "keyword_arguments": {},
+      "op_output": [
+        "out"
+      ],
+      "arg_map": {
+        "in": {
+          "key": "in",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "cmstack.codegen.dnnweavergen.dnnweaver2.get_tensor",
+          "init_func_args": [
+            "name"
+          ],
+          "init_func_kw" : {
+            "shape" : "shape"
+          }
+        },
+        "weights": {
+          "key": "weights",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "cmstack.codegen.dnnweavergen.dnnweaver2.get_tensor",
+          "init_func_args": [
+            "name"
+          ],
+          "init_func_kw" : {
+            "shape" : "shape"
+          }
+        },
+        "out": {
+          "key": "out",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": null,
+          "init_func_args": null,
+          "init_func_kw" : {}
+
+        }
+      }
+    },
+    "batch_flatten": {
+      "op_name": "cmstack.codegen.dnnweavergen.utils.dnnweaver_nyi",
+      "positional_arguments": [
+        "key",
+        "in"
+      ],
+      "keyword_arguments": {},
+      "op_output": [
+        "out"
+      ],
+      "arg_map": {
+        "in": {
+          "key": "in",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "cmstack.codegen.dnnweavergen.dnnweaver2.get_tensor",
+          "init_func_args": [
+            "name"
+          ],
+          "init_func_kw" : {
+            "shape" : "shape"
+          }
+        },
+        "out": {
+          "key": "out",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": null,
+          "init_func_args": null,
+          "init_func_kw" : {}
+        }
+      }
+    },
+    "avg_pool2d": {
+      "op_name": "cmstack.codegen.dnnweavergen.utils.dnnweaver_nyi",
+      "positional_arguments": [
+        "key",
+        "in"
+      ],
+      "keyword_arguments": {
+        "pool_size": "pool_size",
+        "padding": "padding",
+        "strides": "strides"
+      },
+      "op_output": [
+        "out"
+      ],
+      "arg_map": {
+        "in": {
+          "key": "in",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "cmstack.codegen.dnnweavergen.dnnweaver2.get_tensor",
+          "init_func_args": [
+            "name"
+          ],
+          "init_func_kw" : {
+            "shape" : "shape"
+          }
+        },
+        "out": {
+          "key": "out",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": null,
+          "init_func_args": null,
+          "init_func_kw" : {}
+        },
+        "pool_size": {
+          "key":"pool_size",
+          "type": "tuple",
+          "arg_type" : "parameter",
+          "location": null,
+          "init_func": "builtins.tuple",
+          "init_func_args": [["name", "name"]],
+          "init_func_kw" : {}
+        },
+        "padding": {
+          "key":"padding",
+          "type": "tuple",
+          "arg_type" : "parameter",
+          "location": null,
+          "init_func": "builtins.tuple",
+          "init_func_args": [["name", "name"]],
+          "init_func_kw" : {}
+        },
+        "strides": {
+          "key": "strides",
+          "type": "tuple",
+          "arg_type" : "parameter",
+          "location": null,
+          "init_func": "builtins.tuple",
+          "init_func_args": [["name", "name"]],
+          "init_func_kw" : {}
+        }
+      }
+    },
+    "global_pool": {
+      "op_name": "cmstack.codegen.dnnweavergen.utils.dnnweaver_nyi",
+      "positional_arguments": [
+        "key",
+        "in"
+      ],
+      "keyword_arguments": {
+      },
+      "op_output": [
+        "out"
+      ],
+      "arg_map": {
+        "in": {
+          "key": "data",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "cmstack.codegen.dnnweavergen.dnnweaver2.get_tensor",
+          "init_func_args": [
+            "name"
+          ],
+          "init_func_kw" : {
+            "shape" : "shape"
+          }
+        },
+        "out": {
+          "key": "out",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": null,
+          "init_func_args": null,
+          "init_func_kw" : {}
+        }
+      }
+    },
+    "softmax": {
+      "op_name": "cmstack.codegen.dnnweavergen.utils.dnnweaver_nyi",
+      "positional_arguments": [
+        "key",
+        "y"
+      ],
+      "keyword_arguments": {},
+      "op_output": [
+        "out"
+      ],
+      "arg_map": {
+        "y": {
+          "key": "y",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "cmstack.codegen.dnnweavergen.dnnweaver2.get_tensor",
+          "init_func_args": [
+            "name"
+          ],
+          "init_func_kw" : {
+            "shape" : "shape"
+          }
+        },
+        "out": {
+          "key_name" : "out",
+          "key": "out",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": null,
+          "init_func_args": null,
+          "init_func_kw" : {}
+        }
+      }
+    },
+    "batch_norm": {
+      "op_name": "cmstack.codegen.dnnweavergen.utils.dnnweaver_batch_norm",
+      "positional_arguments": [
+        "graph",
+        "scope",
+        "data"
+      ],
+      "keyword_arguments": {
+        "mean": "in_moving_mean",
+        "scale": "in_moving_var"
+      },
+      "op_output": [
+        "norm_data"
+      ],
+      "arg_map": {
+        "data": {
+          "key": "data",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "cmstack.codegen.dnnweavergen.dnnweaver2.get_tensor",
+          "init_func_args": [
+          ],
+          "init_func_kw" : {
+            "name" : "name",
+            "shape" : "shape"
+          }
+        },
+        "in_moving_mean": {
+          "key": "moving_mean",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "cmstack.codegen.dnnweavergen.utils.dnnweaver_init_mean",
+          "init_func_args": [
+            "graph",
+            "relative_scope",
+            "input_op"
+          ],
+          "init_func_kw" : {
+            "name": "name",
+            "shape" : "shape"
+          }
+        },
+        "in_moving_var": {
+          "key": "moving_var",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "cmstack.codegen.dnnweavergen.utils.dnnweaver_init_scale",
+          "init_func_args": [
+            "graph",
+            "relative_scope",
+            "input_op"
+          ],
+          "init_func_kw" : {
+            "name": "name",
+            "shape" : "shape"
+          }
+        },
+        "out_moving_var": {
+          "key": "moving_var",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": null,
+          "init_func_args": null,
+          "init_func_kw" : {}
+        },
+        "norm_data": {
+          "key": "out",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": null,
+          "init_func_args": null,
+          "init_func_kw" : {}
+        },
+        "out_moving_mean": {
+          "key": "moving_mean",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": null,
+          "init_func_args": null,
+          "init_func_kw" : {}
+        },
+        "gamma": {
+          "key": "gamma",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "cmstack.codegen.dnnweavergen.dnnweaver2.get_tensor",
+          "init_func_args": [
+          ],
+          "init_func_kw" : {
+            "name" : "name",
+            "shape" : "shape"
+          }
+        },
+        "beta": {
+          "key": "beta",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "cmstack.codegen.dnnweavergen.dnnweaver2.get_tensor",
+          "init_func_args": [
+          ],
+          "init_func_kw" : {
+            "name" : "name",
+            "shape" : "shape"
+          }
+        },
+        "epsilon": {
+          "key": "epsilon",
+          "type": "float",
+          "arg_type" : "parameter",
+          "location": null,
+          "init_func": null,
+          "init_func_args": null,
+          "init_func_kw" : {}
+        },
+        "scale": {
+          "key": "scale",
+          "type": "bool",
+          "arg_type" : "parameter",
+          "location": null,
+          "init_func": null,
+          "init_func_args": null,
+          "init_func_kw" : {}
+        }
+      }
+    },
+    "max_pool2d": {
+      "op_name": "cmstack.codegen.dnnweavergen.utils.dnnweaver_max_pool",
+      "positional_arguments": [
+        "graph",
+        "scope",
+        "in"
+      ],
+      "keyword_arguments": {
+        "pooling_kernel": "pool_size",
+        "pad": "padding",
+        "stride": "strides"
+      },
+      "op_output": [
+        "out"
+      ],
+      "arg_map": {
+        "in": {
+          "key": "in",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "cmstack.codegen.dnnweavergen.dnnweaver2.get_tensor",
+          "init_func_args": [
+          ],
+          "init_func_kw" : {
+            "name": "name",
+            "shape" : "shape"
+          }
+        },
+        "out": {
+          "key": "out",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": null,
+          "init_func_args": null,
+          "init_func_kw" : {}
+        },
+        "pool_size": {
+          "key":"pool_size",
+          "type": "tuple",
+          "arg_type" : "parameter",
+          "location": null,
+          "init_func": "builtins.tuple",
+          "init_func_args": [[1, "name", "name", 1]],
+          "init_func_kw" : {}
+        },
+        "padding": {
+          "key":"padding",
+          "type": "tuple",
+          "arg_type" : "parameter",
+          "location": null,
+          "init_func": "builtins.tuple",
+          "init_func_args": [["name",0]],
+          "init_func_kw" : {}
+        },
+        "strides": {
+          "key": "strides",
+          "type": "tuple",
+          "arg_type" : "parameter",
+          "location": null,
+          "init_func": "builtins.int",
+          "init_func_args": ["name"],
+          "init_func_kw" : {}
+        }
+      }
+    },
+    "add_elementwise": {
+      "op_name": "cmstack.codegen.dnnweavergen.utils.dnnweaver_nyi",
+      "positional_arguments": [
+        "key","op1", "op2"
+      ],
+      "keyword_arguments": {},
+      "op_output": [
+        "out"
+      ],
+      "arg_map": {
+        "op1": {
+          "key": "op1",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "cmstack.codegen.dnnweavergen.dnnweaver2.get_tensor",
+          "init_func_args": [
+            "name"
+          ],
+          "init_func_kw" : {
+            "shape" : "shape"
+          }
+        },
+        "op2": {
+          "key": "op2",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "cmstack.codegen.dnnweavergen.dnnweaver2.get_tensor",
+          "init_func_args": [
+            "name"
+          ],
+          "init_func_kw" : {
+            "shape" : "shape"
+          }
+        },
+        "out": {
+          "key": "out",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": null,
+          "init_func_args": null,
+          "init_func_kw" : {}
+        }
+      }
+    },
+    "add_bias": {
+      "op_name": "cmstack.codegen.dnnweavergen.utils.dnnweaver_nyi",
+      "positional_arguments": [
+        "key",
+        "in",
+        "bias"
+      ],
+      "keyword_arguments": {},
+      "op_output": [
+        "out"
+      ],
+      "arg_map": {
+        "in": {
+          "key": "in",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "cmstack.codegen.dnnweavergen.dnnweaver2.get_tensor",
+          "init_func_args": [
+            "name"
+          ],
+          "init_func_kw" : {
+            "shape" : "shape"
+          }
+        },
+        "bias": {
+          "key": "bias",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": "cmstack.codegen.dnnweavergen.dnnweaver2.get_tensor",
+          "init_func_args": [
+            "name"
+          ],
+          "init_func_kw" : {
+            "shape" : "shape"
+          }
+        },
+        "out": {
+          "key": "out",
+          "type": "tensor",
+          "arg_type" : "variable",
+          "location": null,
+          "init_func": null,
+          "init_func_args": null,
+          "init_func_kw" : {}
+
+        }
+      }
+    }
+  }
+}
