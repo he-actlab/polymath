@@ -23,7 +23,7 @@ def test_linear_reg(m_):
     compare_tabla_dfg(validation_path, tabla_ir, tabla_graph)
 
 @pytest.mark.parametrize('m_',[
-    784
+    54
 ])
 def test_linear_reg_embedded_values(m_):
     shape_dict = {"m": m_}
@@ -32,7 +32,30 @@ def test_linear_reg_embedded_values(m_):
     cwd = Path(f"{__file__}").parent
     base_path = f"{cwd}/pmlang_examples"
     full_path = f"{base_path}/outputs"
-    tabla_path = f"{full_path}/{graph.name}_tacc_tabla.json"
+    tabla_path = f"{full_path}/{graph.name}_{m_}_tabla.json"
+
+    tabla_ir, tabla_graph = pm.generate_tabla(graph,
+                                              shape_dict,
+                                              tabla_path,
+                                              context_dict=input_info, add_kwargs=True)
+
+    for k, n in tabla_graph.nodes.items():
+        print(f"{n.name}")
+    # pb_path = f"{full_path}"
+    # pm.pb_store(tabla_graph, pb_path)
+    # tg = pm.pb_load(pb_path)
+
+@pytest.mark.parametrize('m_',[
+    54
+])
+def test_logreg_reg_embedded_values(m_):
+    shape_dict = {"m": m_}
+    graph, input_info, out_info, keys = logistic(m_=m_, coarse=True)
+    _, input_info, out_info, keys = logistic(m_=m_, coarse=False)
+    cwd = Path(f"{__file__}").parent
+    base_path = f"{cwd}/pmlang_examples"
+    full_path = f"{base_path}/outputs"
+    tabla_path = f"{full_path}/{graph.name}_{m_}_tabla.json"
 
     tabla_ir, tabla_graph = pm.generate_tabla(graph,
                                               shape_dict,
@@ -40,8 +63,6 @@ def test_linear_reg_embedded_values(m_):
                                               context_dict=input_info, add_kwargs=True)
 
 
-    # validation_path = f"{cwd}/tabla_examples/{graph.name}_{m_}.json"
-    # compare_tabla_dfg(validation_path, tabla_ir, tabla_graph)
 
 @pytest.mark.parametrize('m_',[
     3, 54

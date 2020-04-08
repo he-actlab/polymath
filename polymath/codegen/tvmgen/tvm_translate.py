@@ -10,7 +10,7 @@ def generate_tvm(graph, input_dict, filepath, context_dict=None):
     shape_pass = pm.NormalizeGraph(shape_dict)
     lower_pass = pm.Lower(TVM_OPS)
     tvm_pass = TVMPass()
-    shaped, _ = shape_pass(graph)
-    lowered, _ = lower_pass(shaped)
-    result, _ = tvm_pass(lowered)
+    shaped = shape_pass(graph)
+    lowered = lower_pass(shaped)
+    result = tvm_pass(lowered)
     return tvm_pass.tvm_ir['tvm_code']

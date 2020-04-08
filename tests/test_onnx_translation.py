@@ -36,15 +36,15 @@ def test_load_linear_regressor(m_):
     assert op_counts(test_graph) == op_counts(graph)
 
     shape_val_pass = pm.NormalizeGraph(shape_dict)
-    new_graph, res = shape_val_pass(graph)
+    new_graph = shape_val_pass(graph)
     test_res = new_graph(keys, input_info)
     assert np.allclose(test_res, out_info["w"])
 
     test_graph_lowered, input_info, new_out_info, keys = linear(m=m_)
     flatten_pass = pm.Lower({})
     test_flatten_pass = pm.Lower({})
-    flattened_g, res_flat = flatten_pass(new_graph)
-    ref_lowered, _ = test_flatten_pass(test_graph_lowered, {})
+    flattened_g = flatten_pass(new_graph)
+    ref_lowered = test_flatten_pass(test_graph_lowered, {})
     assert len(ref_lowered.nodes.keys()) == len(flattened_g.nodes.keys())
     assert op_counts(ref_lowered) == op_counts(flattened_g)
 
@@ -68,7 +68,7 @@ def test_load_nested_linear_regressor(m_):
 
     test_graph, input_info, out_info, keys = linear(m=m_, coarse=True)
     shape_val_pass = pm.NormalizeGraph(shape_dict)
-    new_graph, res = shape_val_pass(graph)
+    new_graph = shape_val_pass(graph)
     test_res = new_graph("tw", input_info)
     assert np.allclose(test_res, (out_info["w"] - 4))
 
@@ -77,7 +77,7 @@ def test_load_nested_linear_regressor(m_):
     test_flatten_pass = pm.Lower({})
     keys = [f"tw/tw({i},)" for i in range(m_)]
 
-    flattened_g, res_flat = flatten_pass(new_graph)
+    flattened_g = flatten_pass(new_graph)
     pprint.pprint(list(flattened_g.nodes.keys()))
     all_vals = flattened_g(keys, input_info)
 
@@ -101,9 +101,9 @@ def test_translate_linear_regressor(m):
     base_path = f"{cwd}/pmlang_examples"
     full_path = f"{base_path}/outputs"
     tabla_path = f"{full_path}/{graph.name}{m}_tabla.json"
-    tabla_ir, tabla_graph = pm.generate_tabla(graph,
-                                              shape_dict,
-                                              tabla_path)
+    tabla_ir = pm.generate_tabla(graph,
+                                  shape_dict,
+                                  tabla_path)
 
 
 @pytest.mark.parametrize('m',[
@@ -178,7 +178,7 @@ def test_translate_dense(x_shape, w_shape):
     graph, input_info, out_info, keys = dense(x_shape, w_shape, coarse=False, debug_matrix=True)
 
     lower_pass = pm.Lower({})
-    lowered_graph, _ = lower_pass(graph)
+    lowered_graph = lower_pass(graph)
     res = lowered_graph(keys, input_info)
     assert np.allclose(np.asarray(res), out_info["y"])
 
@@ -197,7 +197,7 @@ def test_translate_multi_dense(x1_shape, w1_shape, w2_shape):
     graph, input_info, out_info, keys = two_layer_dense(x1_shape, w1_shape, w2_shape, coarse=False, debug_matrix=True)
 
     lower_pass = pm.Lower({})
-    lowered_graph, _ = lower_pass(graph)
+    lowered_graph = lower_pass(graph)
     res = lowered_graph(keys, input_info)
     assert np.allclose(np.asarray(res), out_info["y"])
 
@@ -259,7 +259,7 @@ def test_translate_conv(x_shape, w_shape, params):
     assert np.allclose(res0, out_info["out"])
     input_info['populate'] = False
     normalize_pass = pm.NormalizeGraph(input_info)
-    normalized, _ = normalize_pass(graph)
+    normalized = normalize_pass(graph)
 
 @pytest.mark.parametrize('x_shape', [
     (5, 5, 8, 8),

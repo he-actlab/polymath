@@ -61,7 +61,7 @@ class NonLinear(Node):
             kwargs.pop("target")
         if "domain" in kwargs:
             kwargs.pop("domain")
-        return self.target(val, **kwargs)
+        return self.target(val)
 
     @property
     def domain(self):

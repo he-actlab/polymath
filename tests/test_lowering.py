@@ -23,12 +23,12 @@ def test_single_dim():
     np_result = x_*w_
     assert np.allclose(coarse_eval, np_result)
     shape_pass = NormalizeGraph({"m": 3})
-    graph_shapes, shape_ctx = shape_pass(graph)
+    graph_shapes = shape_pass(graph)
 
     shape_res = graph_shapes("w", x=x_, w=w_)
     assert np.allclose(shape_res, np_result)
     lower_pass = Lower({})
-    lowered_graph, info = lower_pass(graph_shapes)
+    lowered_graph = lower_pass(graph_shapes)
     input_info = {f"w/w({i},)": w_[i] for i in range(len(w_))}
     input_info.update({f"x/x({i},)": x_[i] for i in range(len(x_))})
     fine_grained_eval = lowered_graph("w/w(1,)", input_info)
@@ -76,11 +76,11 @@ def test_multi_dim():
     np_result = x_*w_
     assert np.allclose(coarse_eval, np_result)
     shape_pass = NormalizeGraph({"m": m_, "n": n_})
-    graph_shapes, shape_ctx = shape_pass(graph)
+    graph_shapes = shape_pass(graph)
     shape_res = graph_shapes("w", x=x_, w=w_)
     assert np.allclose(shape_res, np_result)
     lower_pass = Lower({})
-    lowered_graph, res = lower_pass(graph_shapes)
+    lowered_graph = lower_pass(graph_shapes)
     input_info = {}
     for i in range(m_):
         for j in range(n_):
@@ -108,12 +108,12 @@ def test_single_dim_op_slice():
     assert np.allclose(coarse_eval, np_result)
 
     shape_pass = NormalizeGraph({"m": 3})
-    graph_shapes, shape_ctx = shape_pass(graph)
+    graph_shapes = shape_pass(graph)
     shape_res = graph_shapes("w", x=x_, w=w_)
 
     assert np.allclose(shape_res, np_result)
     lower_pass = Lower({})
-    lowered_graph, res = lower_pass(graph_shapes)
+    lowered_graph = lower_pass(graph_shapes)
     input_info = {f"w/w({i},)": w_[i] for i in range(len(w_))}
     input_info.update({f"x/x({i},)": x_[i] for i in range(len(x_))})
     fine_grained_eval = lowered_graph("w/w(2,)", input_info)
@@ -138,11 +138,11 @@ def test_multi_dim_op_slice():
     np_result = (x_*w_ - w_)*2.0
     assert np.allclose(coarse_eval, np_result)
     shape_pass = NormalizeGraph({"m": m_, "n": n_})
-    graph_shapes, shape_ctx = shape_pass(graph)
+    graph_shapes = shape_pass(graph)
     shape_res = graph_shapes("w", x=x_, w=w_)
     assert np.allclose(shape_res, np_result)
     lower_pass = Lower({})
-    lowered_graph, res = lower_pass(graph_shapes)
+    lowered_graph = lower_pass(graph_shapes)
     input_info = {}
     for i in range(m_):
         for j in range(n_):
@@ -167,12 +167,12 @@ def test_lower_group_op():
     assert np.allclose(graph("h", {"w": w_, "x": x_}), np_result)
     assert np.allclose(graph("h", w=w_, x=x_), np_result)
     shape_pass = NormalizeGraph({"m": m_, "n": n_})
-    graph_shapes, shape_ctx = shape_pass(graph)
+    graph_shapes = shape_pass(graph)
     shape_res = graph_shapes("h", x=x_, w=w_)
     assert np.allclose(shape_res, np_result)
 
     lower_pass = Lower({})
-    lowered_graph, res = lower_pass(graph_shapes)
+    lowered_graph = lower_pass(graph_shapes)
     input_info = {f"w/w({i},)": w_[i] for i in range(len(w_))}
     input_info.update({f"x/x({i},)": x_[i] for i in range(len(x_))})
     #
@@ -205,12 +205,12 @@ def test_single_dim_norm():
     np_result = x_*w_
     assert np.allclose(coarse_eval, np_result)
     shape_pass = NormalizeGraph({"m": 3})
-    graph_shapes, shape_ctx = shape_pass(graph)
+    graph_shapes = shape_pass(graph)
 
     shape_res = graph_shapes("w", x=x_, w=w_)
     assert np.allclose(shape_res, np_result)
     lower_pass = Lower({})
-    lowered_graph, _ = lower_pass(graph_shapes)
+    lowered_graph = lower_pass(graph_shapes)
     input_info = {f"w/w({i},)": w_[i] for i in range(len(w_))}
     input_info.update({f"x/x({i},)": x_[i] for i in range(len(x_))})
     fine_grained_eval = lowered_graph("w/w(1,)", input_info)
@@ -245,11 +245,11 @@ def test_multi_dim_norm():
     np_result = x_*w_
     assert np.allclose(coarse_eval, np_result)
     shape_pass = NormalizeGraph({"m": m_, "n": n_})
-    graph_shapes, shape_ctx = shape_pass(graph)
+    graph_shapes = shape_pass(graph)
     shape_res = graph_shapes("w", x=x_, w=w_)
     assert np.allclose(shape_res, np_result)
     lower_pass = pm.Lower({})
-    lowered_graph, _ = lower_pass(graph_shapes, {})
+    lowered_graph = lower_pass(graph_shapes, {})
     input_info = {}
     for i in range(m_):
         for j in range(n_):
@@ -264,7 +264,7 @@ def test_reco():
     k_ = 2
     graph, input_info, out_info, keys = reco(m_=m_, n_=n_, k_=k_, coarse=True)
     shape_val_pass = pm.NormalizeGraph({"m": m_, "n": n_, "k": k_})
-    new_graph, res = shape_val_pass(graph)
+    new_graph = shape_val_pass(graph)
 
     test_res = new_graph(keys, input_info)
     assert np.allclose(test_res[0], out_info["w1"])
@@ -272,7 +272,7 @@ def test_reco():
 
     graph, input_info, new_out_info, keys = reco(m_=m_, n_=n_, k_=k_)
     flatten_pass = pm.Lower({})
-    flattened_g, res_flat = flatten_pass(new_graph)
+    flattened_g = flatten_pass(new_graph)
 
     all_vals = flattened_g(keys, input_info)
     out1 = np.asarray(list(all_vals[0:6])).reshape(new_out_info["w2"].shape)
@@ -287,13 +287,13 @@ def test_svm(m_):
     shape_dict = {"m": m_}
     graph, input_info, out_info, keys = svm(**shape_dict, coarse=True)
     shape_val_pass = pm.NormalizeGraph(shape_dict)
-    new_graph, res = shape_val_pass(graph)
+    new_graph = shape_val_pass(graph)
     test_res = new_graph(keys, input_info)
     assert np.allclose(test_res, out_info["w"])
 
     graph, input_info, new_out_info, keys = svm(**shape_dict)
     flatten_pass = pm.Lower({})
-    flattened_g, res_flat = flatten_pass(new_graph)
+    flattened_g = flatten_pass(new_graph)
 
     all_vals = flattened_g(keys, input_info)
     assert np.allclose(new_out_info["w"], all_vals)
@@ -306,12 +306,12 @@ def test_linear(m_):
     shape_dict = {"m": m_}
     graph, input_info, out_info, keys = linear(**shape_dict, coarse=True)
     shape_val_pass = pm.NormalizeGraph(shape_dict)
-    new_graph, res = shape_val_pass(graph)
+    new_graph = shape_val_pass(graph)
     test_res = new_graph(keys, input_info)
     assert np.allclose(test_res, out_info["w"])
     graph, input_info, new_out_info, keys = linear(**shape_dict)
     flatten_pass = pm.Lower({})
-    flattened_g, res_flat = flatten_pass(new_graph)
+    flattened_g = flatten_pass(new_graph)
     all_vals = flattened_g(keys, input_info)
     assert np.allclose(new_out_info["w"], all_vals)
 

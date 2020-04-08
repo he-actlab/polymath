@@ -62,13 +62,13 @@ def test_visit():
     graph_res = graph("res", {"x": x, "y": y, "w": w})
 
     test_pass = CountNodes()
-    new_graph, res = test_pass(graph)
+    new_graph = test_pass(graph)
     orig_ops = [(n.name, n.op_name) for _, n in graph.nodes.items()]
     new_ops = [(n.name, n.op_name) for _, n in new_graph.nodes.items()]
     assert graph.func_hash() == new_graph.func_hash()
-    assert res["count"] == 17
-    assert res["global"] == 1
-    assert res["linear_reg"] == 16
+    assert test_pass.ctx["count"] == 17
+    assert test_pass.ctx["global"] == 1
+    assert test_pass.ctx["linear_reg"] == 16
     visit_res = new_graph("res", {"x": x, "y": y, "w": w})
     assert np.allclose(graph_res, actual_res)
     assert np.allclose(visit_res, actual_res)
@@ -83,11 +83,11 @@ def test_transform():
     graph_res = graph("res", {"x": x, "y": y, "w": w})
     test_pass = RemoveNode()
     test_count = CountNodes()
-    new_graph, res = test_pass(graph)
-    orig_graph, count_after = test_count(new_graph)
-    assert count_after["count"] == 17
-    assert count_after["global"] == 1
-    assert count_after["linear_reg"] == 16
+    new_graph = test_pass(graph)
+    orig_graph = test_count(new_graph)
+    assert test_count.ctx["count"] == 17
+    assert test_count.ctx["global"] == 1
+    assert test_count.ctx["linear_reg"] == 16
     # assert count_after["test_sub"] == 2
     visit_res = new_graph("res", {"x": x, "y": y, "w": w})
     assert np.allclose(graph_res, actual_res)
@@ -103,9 +103,9 @@ def test_fn_transform():
     graph_res = graph("res", {"x": x, "y": y, "w": w})
     test_pass = RemoveNode()
     test_count = CountNodes()
-    new_graph, res = test_pass(graph)
+    new_graph = test_pass(graph)
 
-    orig_graph, count_after = test_count(new_graph)
+    orig_graph = test_count(new_graph)
     visit_res = new_graph("res", {"x": x, "y": y, "w": w})
     assert np.allclose(graph_res, actual_res)
     assert np.allclose(visit_res, actual_res)
@@ -116,9 +116,9 @@ def test_shape_eval():
 
     shape_val_pass = NormalizeGraph({"m": 3})
     flatten_pass = Lower({})
-    new_graph, res = shape_val_pass(graph)
+    new_graph = shape_val_pass(graph)
     count_pass = CountNodes()
-    orig_graph, count_after = count_pass(new_graph)
+    orig_graph = count_pass(new_graph)
     assert new_graph["x"].shape == (3,)
 
 
@@ -139,15 +139,15 @@ def test_flatten_result_length():
     count_pass = CountNodes()
     flatten_pass = Lower({})
 
-    new_graph, res = shape_val_pass(graph)
+    new_graph = shape_val_pass(graph)
 
-    flattened_g, res_flat = flatten_pass(new_graph)
+    flattened_g = flatten_pass(new_graph)
     x = np.random.randint(0, 10, 10)
     y = np.random.randint(0, 10, 1)[0]
     w = np.random.randint(0, 10, 10)
     # flattened_res = flattened_g("w_out", {"x": x, "y": y, "w": w})
 
-    orig_graph, count_after = count_pass(flattened_g)
+    orig_graph = count_pass(flattened_g)
 
 def numpy_reco(input_dict):
 
@@ -247,11 +247,11 @@ def test_flatten_reco():
     shape_val_pass = NormalizeGraph({"m": m_, "n": n_, "k": k_})
     flatten_pass = Lower({})
 
-    new_graph, res = shape_val_pass(graph)
+    new_graph = shape_val_pass(graph)
     test_res = new_graph(["w1", "w2"], input_info)
     assert np.allclose(test_res[0], out_info["w1"])
     assert np.allclose(test_res[1], out_info["w2"])
-    flattened_g, res_flat = flatten_pass(new_graph)
+    flattened_g = flatten_pass(new_graph)
     input_info = {}
     input_info["m"] = m_
     input_info["n"] = n_

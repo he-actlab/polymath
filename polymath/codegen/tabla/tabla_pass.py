@@ -100,21 +100,21 @@ class TablaPass(pm.Pass):
 
     def add_dfg_params(self, node):
         node_info = self.get_dfg_node(node)
-        node.kwargs["children"] = node_info["children"]
-        node.kwargs["parents"] = node_info["parents"]
-        node.kwargs["tabla_dtype"] = node_info["dataType"]
-        node.kwargs["tabla_op"] = node_info["operation"]
-        node.kwargs["tabla_id"] = node_info["id"]
+        node.add_attribute("children", node_info["children"])
+        node.add_attribute("parents", node_info["parents"])
+        node.add_attribute("tabla_dtype", node_info["dataType"])
+        node.add_attribute("tabla_op", node_info["operation"])
+        node.add_attribute("tabla_id", node_info["id"])
+
         if len(self.test_values.keys()) > 0:
             if node.name in self.test_values:
-                node.kwargs["computed"] = self.test_values[node.name]
+                node.add_attribute("computed", self.test_values[node.name])
                 node_info["computed"] = int(self.test_values[node.name])
             else:
                 ctx_cpy = self.test_values.copy()
                 comp_res = node.graph(node, ctx_cpy)
                 self.test_values[node.name] = comp_res
                 node_info["computed"] = int(comp_res)
-
 
     def add_constants(self, node):
         for a in node.args:

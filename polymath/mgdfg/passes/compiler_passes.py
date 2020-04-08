@@ -155,7 +155,7 @@ class NormalizeGraph(Pass):
 
             eval_ready = all([not isinstance(i, pm.Node) for i in _flatten_iterable(node.args)])
             if eval_ready and isinstance(node, (pm.func_op, pm.index)):
-                res = node._evaluate(*node.args)
+                res = node._evaluate(*node.args, **node.kwargs)
                 node.value = res
                 self.evaluated[node] = res
                 node.graph.nodes.pop(node.name)

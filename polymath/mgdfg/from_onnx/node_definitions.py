@@ -207,17 +207,26 @@ NODE_NAMES = {"SVMClassifier": svm_classifier_train,
               "Dropout": dropout,
               "LogSoftmax": log_softmax}
 
-def templateop(target=None, **kwargs):
-    """
-    Decorator for creating nodes from functions.
-    """
-    # This is called when the decorator is used with arguments
-    if target is None:
-        return functools.partial(templateop, **kwargs)
-
-    # This is called when the decorator is used without arguments
-    @functools.wraps(target)
-    def _wrapper(*args, **kwargs_inner):
-        temp = pm.Template()
-        return pm.Template(target, *args, **kwargs_inner, **kwargs)
-    return _wrapper
+# class _TemplateWrapper(object):
+#     def __init__(self, def_func):
+#         self.def_func = def_func
+#
+#     def __call__(self, *args, **kwargs):
+#         temp = pm.Template()
+#
+# def templateop(target=None):
+#     """
+#     Decorator for creating nodes from functions.
+#     """
+#     # This is called when the decorator is used with arguments
+#     if target is None:
+#         return functools.partial(templateop)
+#
+#     # This is called when the decorator is used without arguments
+#     @functools.wraps(target)
+#     def _wrapper(*args, **kwargs_inner):
+#         temp = pm.Template(*args, **kwargs_inner)
+#         temp.define_graph = target
+#         temp.
+#         return temp
+#     return _wrapper

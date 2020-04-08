@@ -231,7 +231,7 @@ class Pass(object):
             tcpy = pickle.loads(pickle.dumps(transformed_node))
             final_node = visitor.visit(tcpy, self.ctx, pass_fn=self.finalize_pass)
         packaged_node = self.package_pass(final_node, self.ctx)
-        return packaged_node, self.ctx
+        return packaged_node
 
     def evaluate_node(self, node, context):
         res = Node.evaluate_node(node, context)

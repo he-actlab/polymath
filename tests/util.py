@@ -60,7 +60,7 @@ def svm(m=3, coarse=False):
         return graph, in_info, out_info, keys
     else:
         shape_val_pass = pm.NormalizeGraph({"m": m})
-        new_graph, res = shape_val_pass(graph)
+        new_graph = shape_val_pass(graph)
         in_info, keys, out_info = svm_data_gen(m=m, lowered=True)
         return new_graph, in_info, out_info, keys
 
@@ -89,8 +89,8 @@ def svm_data_gen(m=3, mu=1.0, lowered=False):
 def set_shape_and_lower(graph, shape_dict):
     shape_pass = pm.NormalizeGraph(shape_dict)
     lower_pass = pm.Lower({})
-    shaped, _ = shape_pass(graph)
-    lowered, _ = lower_pass(shaped)
+    shaped = shape_pass(graph)
+    lowered = lower_pass(shaped)
     return lowered
 
 def compare_tabla_dfg(truth_path, gen_dfg, pm_graph, print_ops=True, map_node_ids=False):
@@ -210,7 +210,7 @@ def linear(m=3, coarse=False):
         return graph, in_info, out_info, keys
     else:
         shape_val_pass = pm.NormalizeGraph({"m": m})
-        new_graph, res = shape_val_pass(graph)
+        new_graph = shape_val_pass(graph)
         in_info, keys, out_info = linear_data_gen(m=m, lowered=True)
         return new_graph, in_info, out_info, keys
 
@@ -233,7 +233,7 @@ def linear_raw(m=3, coarse=False):
         return graph, in_info, out_info, keys
     else:
         shape_val_pass = pm.NormalizeGraph({"m": m})
-        new_graph, res = shape_val_pass(graph)
+        new_graph = shape_val_pass(graph)
         in_info, keys, out_info = linear_data_gen(m=m, lowered=True)
         return new_graph, in_info, out_info, keys
 
@@ -289,7 +289,7 @@ def logistic(m_=3, coarse=False):
         return graph, in_info, out_info, keys
     else:
         shape_val_pass = pm.NormalizeGraph({"m": m_})
-        new_graph, res = shape_val_pass(graph)
+        new_graph = shape_val_pass(graph)
         in_info, keys, out_info = logistic_data_gen(m=m_, lowered=True)
         return new_graph, in_info, out_info, keys
 
@@ -455,7 +455,7 @@ def reco(m_=3, n_=3, k_=2, coarse=False):
         return graph, in_info, out_info, keys
     else:
         shape_val_pass = pm.NormalizeGraph({"m": m_, "n": n_, "k": k_})
-        new_graph, res = shape_val_pass(graph)
+        new_graph = shape_val_pass(graph)
         in_info, keys, out_info = reco_data_gen(m_=m_,n_=n_, k_=k_, lowered=True)
         return new_graph, in_info, out_info, keys
 
@@ -825,7 +825,7 @@ def conv(x_shape, w_shape, params, coarse=False, debug_matrix=False):
                       "nf": w_shape[0], "kh": w_shape[2], "kw": w_shape[3],
                       "stride": params["stride"], "pad": params["pad"]}
         shape_val_pass = pm.NormalizeGraph(shape_dict)
-        new_graph, res = shape_val_pass(graph)
+        new_graph = shape_val_pass(graph)
         in_info, keys, out_info = conv_data_gen(x_shape, w_shape, params, lowered=True, debug_matrix=debug_matrix)
         return new_graph, in_info, out_info, keys
 
@@ -934,7 +934,7 @@ def two_layer_dense(x1_shape, w1_shape, w2_shape, coarse=False, debug_matrix=Fal
     else:
         shape_dict = {"m": w1_shape[1], "n": w1_shape[0], "p": w2_shape[0]}
         shape_val_pass = pm.NormalizeGraph(shape_dict)
-        new_graph, res = shape_val_pass(graph)
+        new_graph = shape_val_pass(graph)
         in_info, keys, out_info = multi_dense_data_gen(x1_shape, w1_shape, w2_shape, lowered=True, debug_matrix=debug_matrix)
         return new_graph, in_info, out_info, keys
 
@@ -951,7 +951,7 @@ def dense(x_shape, w_shape, coarse=False, debug_matrix=False):
     else:
         shape_dict = {"m": w_shape[1], "n": w_shape[0]}
         shape_val_pass = pm.NormalizeGraph(shape_dict)
-        new_graph, res = shape_val_pass(graph)
+        new_graph = shape_val_pass(graph)
         in_info, keys, out_info = dense_data_gen(x_shape, w_shape, lowered=True, debug_matrix=debug_matrix)
         return new_graph, in_info, out_info, keys
 

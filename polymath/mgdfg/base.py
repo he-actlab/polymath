@@ -67,6 +67,7 @@ class Node(object):
         self.args = args
         if "name" in kwargs:
             kwargs.pop("name")
+        self.added_attrs = []
         self.kwargs = kwargs
         self.graph = graph
         self._shape = OrderedDict()
@@ -169,6 +170,9 @@ class Node(object):
     def __repr__(self):
         return "<node '%s'>" % self.name
 
+    def add_attribute(self, key, value):
+        self.added_attrs.append(key)
+        self.kwargs[key] = value
 
     def is_shape_finalized(self):
         if self.shape == tuple([0]):
@@ -1122,9 +1126,20 @@ class func_op(Node):  # pylint: disable=C0103,R0903
             domain = slice1_idx.combine_set_domains(slice2_idx)
         else:
             domain = Domain(tuple([]))
-
+        self._target = None
         super(func_op, self).__init__(*args, target=f"{target.__module__}.{target.__name__}", domain=domain, **kwargs)
         self.target = target
+        self.added_attrs += ["domain", "target"]
+
+    @property
+    def target(self):
+        return self._target
+
+    @target.setter
+    def target(self, fnc):
+        self._target = fnc
+        self.op_name = f"{fnc.__name__}"
+        self.kwargs["target"] = f"{fnc.__module__}.{fnc.__name__}"
 
     @property
     def domain(self):
@@ -1146,13 +1161,15 @@ class func_op(Node):  # pylint: disable=C0103,R0903
         return slice1_var, slice1_idx, slice2_var, slice2_idx
 
     def _evaluate(self, *args, **kwargs):
-        if "target" in kwargs:
-            kwargs.pop("target")
-        if "domain" in kwargs:
-            kwargs.pop("domain")
+        for aa in self.added_attrs:
+            kwargs.pop(aa)
+        # if "target" in kwargs:
+        #     kwargs.pop("target")
+        # if "domain" in kwargs:
+        #     kwargs.pop("domain")
         # for k in list(kwargs.keys()):
         #     kwargs.pop(k)
-        return self.target(*args)
+        return self.target(*args, **kwargs)
 
     def __call__(self, *args, **kwargs):
         return call(self, *args, **kwargs)

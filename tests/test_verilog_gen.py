@@ -15,7 +15,7 @@ def test_linear_reg():
 
     fgraph, input_info, out_info, keys = linear(m=m_, coarse=False)
     lower_pass = Lower({})
-    lowered_graph, _ = lower_pass(fgraph, {})
+    lowered_graph = lower_pass(fgraph, {})
     all_vals = lowered_graph(keys, input_info)
     out = np.asarray(all_vals).reshape(out_info["w"].shape)
 
@@ -49,7 +49,7 @@ def test_reco():
 
     fgraph, input_info, out_info, keys = reco(coarse=False, **shape_dict)
     lower_pass = Lower({})
-    lowered_graph, _ = lower_pass(fgraph, {})
+    lowered_graph = lower_pass(fgraph, {})
     all_vals = lowered_graph(keys, input_info)
     w1_elems = np.prod(out_info["w1"].shape)
     w2_elems = np.prod(out_info["w2"].shape)

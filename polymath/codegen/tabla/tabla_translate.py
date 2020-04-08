@@ -7,10 +7,10 @@ def generate_tabla(graph, input_dict, filepath, context_dict=None, add_kwargs=Fa
     shape_pass = pm.NormalizeGraph(input_dict)
     tabla_pass = TablaPass(context_dict, add_kwargs=add_kwargs)
     lower_pass = pm.Lower({})
-    shaped, _ = shape_pass(graph)
+    shaped = shape_pass(graph)
 
-    lowered, _ = lower_pass(shaped)
-    res, _ = tabla_pass(lowered)
+    lowered = lower_pass(shaped)
+    res= tabla_pass(lowered)
     tabla_nodes = [node for _, node in tabla_pass.dfg.items()]
 
     with open(filepath, "w") as f:

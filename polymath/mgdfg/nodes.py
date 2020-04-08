@@ -38,9 +38,10 @@ class placeholder(Node):  # pylint: disable=C0103,R0903
         return value
 
     def get_context_value(self, context):
-        n_hash = self.func_hash()
         if self in context:
             return context[self]
+        n_hash = self.func_hash()
+
         for k, v in context.items():
             if n_hash == k.func_hash():
                 context[self] = context[k]

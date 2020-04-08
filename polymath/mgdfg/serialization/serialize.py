@@ -3,6 +3,7 @@ from polymath.mgdfg.base import Node
 from polymath.mgdfg.domain import Domain
 from numproto import ndarray_to_proto, proto_to_ndarray
 from typing import Iterable, Union
+from numbers import Integral
 
 
 import numpy as np
@@ -306,7 +307,7 @@ def _serialize_node(node_instance):
         elif isinstance(arg, np.ndarray):
             new_arg.type = pb.Attribute.Type.NDARRAY
             new_arg.nda.CopyFrom(ndarray_to_proto(arg))
-        elif isinstance(arg, int):
+        elif isinstance(arg, Integral):
             new_arg.type = pb.Attribute.Type.INT32
             new_arg.i32 = arg
         elif isinstance(arg, float):
@@ -325,7 +326,7 @@ def _serialize_node(node_instance):
             elif all(isinstance(a, np.ndarray) for a in arg):
                 new_arg.type = pb.Attribute.Type.NDARRAYS
                 new_arg.ndas.extend(ndarray_to_proto(a) for a in arg)
-            elif all(isinstance(a, int) for a in arg):
+            elif all(isinstance(a, Integral) for a in arg):
                 new_arg.type = pb.Attribute.Type.INT32S
                 new_arg.i32s.extend(arg)
             elif all(isinstance(a, float) for a in arg):
