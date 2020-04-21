@@ -2,6 +2,7 @@ import logging
 import pickle
 import sys
 from polymath.mgdfg.base import *
+from polymath.mgdfg.index import index
 from .util import _noop_callback, deprecated, _flatten_iterable, _compute_domain_pairs, is_iterable
 
 
@@ -75,7 +76,10 @@ class placeholder(Node):  # pylint: disable=C0103,R0903
         shapes = []
         for s in self.shape:
             if isinstance(s, Node):
-                context[s] = s.evaluate(context)
+                sval = s.evaluate(context)
+                if isinstance(sval, float):
+                    sval = np.int(sval)
+                context[s] = sval
                 shapes.append(context[s])
                 if s.value is None:
                     s.value = context[s]
@@ -340,6 +344,16 @@ class write(Node):
     def domain(self):
         return self.kwargs["domain"]
 
+    def get_index_dom(self):
+        dom = Domain(self.args[0])
+        indices = [i.value for i in self.args[0].args]
+        out_shape = dom.shape_from_indices(indices)
+        indices = dom.compute_pairs()
+        indices = list(map(lambda x: x.tolist() if isinstance(x, np.ndarray) else x, indices))
+        dom.set_computed(out_shape, indices)
+        return dom
+
+
     def _evaluate(self, src, dst_key, dst, context=None, **kwargs):
         if not self.is_shape_finalized():
             self._shape = self.args[2].shape
@@ -350,8 +364,15 @@ class write(Node):
         else:
             dst_indices = self.shape_domain.compute_shape_domain(indices=dst_key)
             key_indices = self.domain.compute_pairs()
-            src_indices = self.domain.map_sub_domain(self.args[0].domain)
-            value = np.empty(shape=dst.shape)
+            if isinstance(self.args[0], index):
+                src_dom = Domain(self.args[0].domain)
+                indices = [i.value for i in src_dom.dom_set]
+                out_shape = src_dom.shape_from_indices(indices)
+                src = src.reshape(out_shape)
+            else:
+                src_dom = self.args[0].domain
+            src_indices = self.domain.map_sub_domain(src_dom)
+            value = np.empty(shape=dst.shape, dtype=src.dtype)
             for i in dst_indices:
                 if i in key_indices:
                     idx = key_indices.index(i)

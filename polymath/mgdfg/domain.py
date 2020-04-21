@@ -54,6 +54,8 @@ class Domain(object):
         for a in self.doms:
             if _is_node_type_instance(a, "index"):
                 dset += [i for i in a.domain]
+            elif _is_node_instance(a):
+                dset += a.domain.dom_set
         return tuple(dset)
 
     def reduction_domain(self, r_dom):
@@ -86,6 +88,32 @@ class Domain(object):
     def ndims(self):
         return len(self.doms)
 
+    def compute_set_pairs_from_idx(self, indices, tuples=True):
+
+        dom_pairs = []
+        for i in indices:
+            if _is_node_instance(i):
+                if i.value is not None:
+                    dom_pairs.append(i.value)
+
+                elif _is_node_type_instance(i, "index"):
+                    assert isinstance(i.lbound, Integral) and isinstance(i.ubound, Integral)
+                    dom_pairs.append([x for x in range(i.lbound, i.ubound + 1)])
+                else:
+                    raise ValueError(f"Could not use subscript for domain pair: {i.name} - {i.op_name}")
+            elif isinstance(i, np.ndarray):
+                dom_pairs.append(i.tolist())
+            else:
+                assert isinstance(i, list)
+                dom_pairs.append(i)
+
+        dom_pairs = tuple(dom_pairs)
+        dom_pairs = np.array(list(product(*dom_pairs)))
+
+        if tuples:
+            dom_pairs = [tuple(i) for i in dom_pairs]
+        return dom_pairs
+
     def compute_set_pairs(self, tuples=True):
         if self.computed_set_pairs is not None:
             dom_pairs = self.computed_set_pairs
@@ -114,6 +142,7 @@ class Domain(object):
         if tuples:
             dom_pairs = [tuple(i) for i in dom_pairs]
         return dom_pairs
+
 
     def compute_shape_domain(self, indices=None):
         if indices:
@@ -150,8 +179,8 @@ class Domain(object):
             pairs = []
 
             for i in self.doms:
-
                 if _is_node_instance(i):
+
                     if i.value is not None and is_iterable(i.value):
                         pairs.append(i.value)
                     elif _is_node_type_instance(i, "index"):
@@ -173,16 +202,43 @@ class Domain(object):
             self.computed_pairs = pairs
 
         if tuples:
+            pairs = list(map(lambda x: tuple(x), pairs))
+        return pairs
+
+    def compute_index_pairs(self, indices, tuples=True):
+        pairs = []
+        for i in indices:
+
+            if _is_node_instance(i):
+                if i.value is not None and is_iterable(i.value):
+                    pairs.append(i.value)
+                elif _is_node_type_instance(i, "index"):
+                    assert isinstance(i.lbound, Integral) and isinstance(i.ubound, Integral)
+                    pairs.append([x for x in range(i.lbound, i.ubound + 1)])
+                elif i.shape == (0,) or i.shape == (1,):
+                    continue
+                else:
+                    raise ValueError(f"Could not use subscript for domain pair: {i.name} - {i.op_name}")
+            elif isinstance(i, np.ndarray):
+                pairs.append(i.tolist())
+            elif isinstance(i, Integral):
+                continue
+            else:
+                assert isinstance(i, list)
+                pairs.append(i)
+        pairs = tuple(pairs)
+        pairs = np.array(list(product(*pairs)))
+
+        if tuples:
             pairs = [tuple(i) for i in pairs]
         return pairs
+
 
     def map_sub_domain(self, dom):
 
         dom_set_pairs = self.compute_set_pairs(tuples=False)
         target_set_pairs = dom.compute_set_pairs(tuples=False)
         target_pairs = dom.compute_pairs(tuples=False)
-
-
         if dom.computed:
             target_pairs = np.asarray([dom.computed[tuple(x)] for x in target_pairs])
         idx_map = np.asarray([self.set_names.index(n) for n in dom.set_names if n in self.set_names], dtype=np.int)

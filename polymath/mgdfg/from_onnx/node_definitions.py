@@ -118,14 +118,14 @@ class linear_regressor(pm.Template):
 
     def define_graph(self, x, w, y_pred, mu, m, **kwargs):
         i = pm.index(0, (m - 1).set_name("m-1"), name="i")
-        h = pm.sum([i], (x[i] * w[i]), name="h")
+        y_pred.write(pm.sum([i], (x[i] * w[i]), name="h"))
 
 
 class logistic_regressor(pm.Template):
 
     def define_graph(self, x, w, y_pred, mu, m, **kwargs):
         i = pm.index(0, (m - 1).set_name("m-1"), name="i")
-        h = pm.sigmoid(pm.sum([i], (x[i] * w[i]), name="h"))
+        y_pred.write(pm.sigmoid(pm.sum([i], (x[i] * w[i]), name="h")))
 
 
 class mc_logistic_regressor_train(pm.Template):

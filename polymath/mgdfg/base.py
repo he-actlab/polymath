@@ -20,7 +20,8 @@ from typing import Any
 import contextlib
 import functools
 import importlib
-from numbers import Integral
+from numbers import Integral, Rational
+
 import operator
 import traceback
 import uuid
@@ -187,8 +188,9 @@ class Node(object):
 
 
     def set_shape(self, shape=None, init=False):
-
-        if isinstance(shape, Integral):
+        if isinstance(shape, float):
+            self._shape = tuple([np.int(shape)])
+        elif isinstance(shape, Integral):
             self._shape = tuple([shape])
         elif isinstance(shape, Node):
             self._shape = tuple([shape])
@@ -1163,12 +1165,7 @@ class func_op(Node):  # pylint: disable=C0103,R0903
     def _evaluate(self, *args, **kwargs):
         for aa in self.added_attrs:
             kwargs.pop(aa)
-        # if "target" in kwargs:
-        #     kwargs.pop("target")
-        # if "domain" in kwargs:
-        #     kwargs.pop("domain")
-        # for k in list(kwargs.keys()):
-        #     kwargs.pop(k)
+
         return self.target(*args, **kwargs)
 
     def __call__(self, *args, **kwargs):

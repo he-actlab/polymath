@@ -779,12 +779,14 @@ def conv_data_gen(x_shape, w_shape, params, lowered=False, debug_matrix=False):
     if debug_matrix:
         input_info["data"] = np.arange(0, (np.prod(x_shape))).reshape(x_shape)
     else:
-        input_info["data"] = np.random.randint(0, 10, x_shape)
-
+        input_info["data"] = np.random.randint(-5, 5, x_shape)
+    input_info["data"] = input_info["data"].astype(np.float)
     if debug_matrix:
         input_info["w"] = np.arange(0, (np.prod(w_shape))).reshape(w_shape)
     else:
-        input_info["w"] = np.random.randint(0, 10, w_shape)
+        input_info["w"] = np.random.randint(-5, 5, w_shape)
+    input_info["w"] = input_info["w"].astype(np.float)
+
     if debug_matrix:
         input_info["bias"] = np.zeros((w_shape[0]))
     else:
@@ -1092,3 +1094,123 @@ def lenet():
 
 
     return input_info, graph, out_info
+
+def fft(m_=3, coarse=False):
+    with pm.Node(name="fft") as graph:
+        m = pm.parameter("m")
+        x = pm.input("x", shape=(m))
+        i = pm.index(0, (m - 1).set_name("m-1"), name="i")
+
+    if coarse:
+        in_info, keys, out_info = fft_data_gen(m=m_)
+        return graph, in_info, out_info, keys
+    else:
+        shape_val_pass = pm.NormalizeGraph({"m": m_})
+        new_graph = shape_val_pass(graph)
+        in_info, keys, out_info = fft_data_gen(m=m_, lowered=True)
+        return new_graph, in_info, out_info, keys
+
+def np_fft(input_info):
+    out_info = {}
+    out_info["fft_x"] = np.fft.fft(input_info["x"])
+    return out_info
+
+def fft_data_gen(m, lowered=False):
+    input_info = {}
+    input_info["x"] = np.random.randint(-5, 5, m)
+    out_info = np_fft(input_info)
+    if lowered:
+        all_keys = []
+        for p in range(m):
+            input_info[f"x/x({p},)"] = input_info["x"][p]
+        input_info.pop("x")
+    else:
+        all_keys = "x"
+
+    return input_info, all_keys, out_info
+
+
+def bit_reversal_indices(x):
+    n = x.shape[0]
+    log2n = np.int(np.log2(n))
+    rev_ns = []
+    kmat = np.array([[i>>j for j in range(log2n)] for i in range(n)])
+    shifter = lambda a, b: (a<<1) | (b & 1)
+    np_shifter = np.frompyfunc(shifter, 2, 1)
+    test_out = np_shifter.reduce(kmat, axis=(1,), initial=0)
+    x_out = np.empty(x.shape)
+    for i in range(x.shape[0]):
+        x_out[test_out[i]] = x[i]
+    return x_out
+
+
+def fft_parallelized():
+    with pm.Node("fft") as graph:
+        N = pm.parameter("N")
+        x = pm.input("x", shape=(N))
+        n1 = pm.index(0, N-1, name="n1")
+        n2 = pm.index(0, N-1, name="n2")
+
+        X = pm.output("X", shape=(N))
+
+        M = pm.temp("M", shape=(N,N))
+        M[n1, n2] = (n1 * n2)
+        M[n1, n2] = pm.exp(-2j * np.pi * M[n1,n2]/N)
+        X[n1] = pm.sum([n2], M[n1, n2]* x[n2])
+    return graph
+
+
+def test_fft2(x):
+    x = np.asarray(x, dtype=float)
+    N = x.shape[0]
+
+    if np.log2(N) % 1 > 0:
+        raise ValueError("size of x must be a power of 2")
+
+    # N_min here is equivalent to the stopping condition above,
+    # and should be a power of 2
+    N_min = min(N, 32)
+
+    # Perform an O[N^2] DFT on all length-N_min sub-problems at once
+    n = np.arange(N_min)
+    k = n[:, None]
+    M = np.exp(-2j * np.pi * n * k / N_min)
+    X = np.dot(M, x.reshape((N_min, -1)))
+
+    while X.shape[0] < N:
+        X_even = X[:, :X.shape[1] / 2]
+        X_odd = X[:, X.shape[1] / 2:]
+        factor = np.exp(-1j * np.pi * np.arange(X.shape[0])
+                        / X.shape[0])[:, None]
+        X = np.vstack([X_even + factor * X_odd,
+                       X_even - factor * X_odd])
+
+    return X.ravel()
+
+
+def unwound_fft(x_):
+
+    np_res = np.abs(np.fft.fft(x_))
+    test_res = fft_parallelized()
+    fft_test_res = np.abs(test_res("X", {"x": x_}))
+
+    return np_res, fft_test_res
+
+def GP_Model_BO(X, Y):
+    import gpflow
+    k1 = gpflow.kernels.Matern32(1, active_dims=[0], ard=True)
+    m = gpflow.gpr.GPR(X, Y.T, k1)
+    m.kern.lengthscales = np.std(X)
+    m.kern.lengthscales = np.std(X)
+    m.kern.variance = np.std(Y) / np.sqrt(2)
+    m.likelihood.variance = np.std(Y) / np.sqrt(2)
+    # print(m)
+    return m
+
+def matern32(X, Y):
+    import gpflow
+    k1 = gpflow.kernels.Matern32(np.std(Y)/np.sqrt(2), active_dims=[0], lengthscales=[np.std(X)])
+    ll_var = np.std(Y)/np.sqrt(2)
+    m = gpflow.models.GPR(X, Y.T, k1, noise_variance=ll_var)
+    return m
+

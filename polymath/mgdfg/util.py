@@ -487,3 +487,5 @@ def is_iterable(obj):
 
 def compute_sum_indices(axes_idx, input_domain, sd):
     return (input_domain[:, axes_idx] == sd).all(axis=1).nonzero()[0]
+
+

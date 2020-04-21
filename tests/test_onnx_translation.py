@@ -228,8 +228,8 @@ def test_avg_pool(data_shape, kernel_shape, stride):
 
 
 @pytest.mark.parametrize('x_shape, w_shape, params', [
-    # ((1, 1, 32, 32), (6, 1, 5, 5), {"stride": 1, "pad": 0}),
-    # ((1, 1, 4, 4), (2, 1, 2, 2), {"stride": 2, "pad": 1}),
+    ((1, 1, 32, 32), (6, 1, 5, 5), {"stride": 1, "pad": 0}),
+    ((1, 1, 4, 4), (2, 1, 2, 2), {"stride": 2, "pad": 1}),
     ((1, 1, 32, 32), (2, 1, 4, 4), {"stride": 2, "pad": 1}),
 ])
 def test_translate_conv(x_shape, w_shape, params):
@@ -238,7 +238,7 @@ def test_translate_conv(x_shape, w_shape, params):
                   "stride": params["stride"], "pad": params["pad"]}
 
 
-    _, input_info, out_info, keys = conv(x_shape, w_shape, params, coarse=True, debug_matrix=True)
+    _, input_info, out_info, keys = conv(x_shape, w_shape, params, coarse=True, debug_matrix=False)
 
     n = pm.parameter(name="n")
     c = pm.parameter(name="ic")

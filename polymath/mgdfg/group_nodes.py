@@ -5,7 +5,8 @@ from polymath.mgdfg.domain import Domain
 from .util import _flatten_iterable, _fnc_hash
 
 class GroupNode(Node):
-    scalar_op_map = {"sum": operator.add, "prod": operator.mul, "max": max_, "min": min_, "argmin": min_, "argmax": max_}
+    builtin_np = ["sum", "prod", "max", "min", "argmin", "argmax"]
+    scalar_op_map = {"sum": operator.add, "prod": operator.mul, "max": max_, "min": min_, "argmin": min_, "argmax": max_, "bitreverse": lambda a, b: (a << 1) | (b & 1)}
     def __init__(self, target, bounds, input_node, **kwargs):
         self.output_nodes = []
         target_name = f"{target.__module__}.{target.__name__}"
@@ -16,18 +17,16 @@ class GroupNode(Node):
         else:
             raise ValueError(f"Group operations unable to handle non node inputs currently: {input_node} - {target_name}")
 
-        if not isinstance(input_node, (slice_op, var_index, parameter)):
-            for a in input_node.args:
-                print(type(a))
-        #     raise ValueError(f"Group operation {target_name} requires indexed operation or"
-        #                      f" constant value as input:\nInput: {input_node}")
         if "axes" in kwargs:
             axes = kwargs.pop("axes") if isinstance(kwargs["axes"], tuple) else tuple(kwargs.pop("axes"))
         else:
             axes = input_node.domain.compute_set_reduction_index(domain)
         super(GroupNode, self).__init__(bounds, input_node, target=target_name, domain=domain, axes=axes, **kwargs)
         self.target = target
-        self.scalar_target = self.scalar_op_map[self.target.__name__]
+        if self.target.__name__ == "reduce":
+            self.scalar_target = self.scalar_op_map[self.__class__.__name__]
+        else:
+            self.scalar_target = self.scalar_op_map[self.target.__name__]
         self.input_node = input_node
 
     def __getitem__(self, key):
@@ -72,8 +71,10 @@ class GroupNode(Node):
         sum_axes = self.axes
         if not hasattr(input_res, "__len__"):
             value = input_res * np.prod([len(bound) for bound in bounds])
-        else:
+        elif self.target.__name__ in self.builtin_np:
             value = self.target(input_res.reshape(self.args[1].domain.computed_set_shape), axis=sum_axes)
+        else:
+            value = self.target(input_res.reshape(self.args[1].domain.computed_set_shape), axis=sum_axes, initial=self.initial)
         return value
 
     def __repr__(self):
@@ -107,3 +108,11 @@ class argmin(GroupNode):
 
     def __init__(self, bounds, input_node, **kwargs):
         super(argmin, self).__init__(np.argmin, bounds, input_node, **kwargs)
+
+
+class bitreverse(GroupNode):
+    def __init__(self, bounds, input_node, **kwargs):
+        shifter = lambda a, b: (a << 1) | (b & 1)
+        np_shifter = np.frompyfunc(shifter, 2, 1).reduce
+        self.initial = 0
+        super(bitreverse, self).__init__(np_shifter, bounds, input_node, **kwargs)

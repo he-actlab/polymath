@@ -58,6 +58,19 @@ class index(Node):  # pylint: disable=C0103,W0223
     def __rmul__(self, other):
         return index_op(operator.mul, other, self, graph=self.graph)
 
+    def __rshift__(self, other):
+        return index_op(operator.rshift, self, other, graph=self.graph)
+
+    def __rrshift__(self, other):
+
+        return index_op(operator.rshift, other, self, graph=self.graph)
+
+    def __lshift__(self, other):
+        return index_op(operator.lshift, self, other, graph=self.graph)
+
+    def __rlshift__(self, other):
+        return index_op(operator.lshift, other, self, graph=self.graph)
+
     def __truediv__(self, other):
         return index_op(operator.floordiv, self, other, graph=self.graph)
 
@@ -111,12 +124,15 @@ class index_op(index):
         return self.args
 
     def _evaluate(self, op1, op2, **kwargs):
-
         if is_iterable(op1) and is_iterable(op2):
             assert isinstance(self.args[0], index) or np.allclose(self.args[0], op1)
             assert isinstance(self.args[1], index) or np.allclose(self.args[1], op2)
             combined_indices = list(product(*(op1, op2)))
-            value = np.array(list(map(lambda x: self.target(x[0], x[1]), combined_indices)))
+            value = np.array(list(map(lambda x: self.target(x[0], x[1]), combined_indices)), dtype=np.int)
         else:
             value = self.target(op1, op2)
+
         return value
+
+    def __repr__(self):
+        return "<index_op '%s'>" % (self.name)
