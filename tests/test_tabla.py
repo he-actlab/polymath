@@ -124,7 +124,6 @@ def test_fft(m):
     assert np.allclose(pm_output, np_output)
     # out_g = g("X", {"x": x})
     # out_g = g("x_rev", {"x": x})
-    # print(out_g)
 
 
 @pytest.mark.parametrize('m', [

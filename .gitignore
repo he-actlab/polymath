@@ -139,3 +139,5 @@ mldata/
 TODO
 # Numpy serialized files
 *.npz
+
+benchmarks/outputs/*
