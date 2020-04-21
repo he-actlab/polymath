@@ -5,7 +5,6 @@ from numbers import Integral
 from collections import defaultdict
 from itertools import product
 import numpy as np
-import numba
 import time
 from math import ceil
 

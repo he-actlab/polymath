@@ -8,3 +8,6 @@ onnx
 pytest>=3.2.1
 pytest-cov>=2.5.1
 pylint<=1.9.3
+protobuf
+indexed
+dataclasses

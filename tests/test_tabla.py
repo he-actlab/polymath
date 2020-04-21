@@ -24,7 +24,7 @@ def test_linear_reg(m_):
     compare_tabla_dfg(validation_path, tabla_ir, tabla_graph)
 
 @pytest.mark.parametrize('m_',[
-    100
+    1000
 ])
 def test_linear_reg_embedded_values(m_):
     shape_dict = {"m": m_}

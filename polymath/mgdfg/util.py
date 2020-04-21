@@ -25,7 +25,6 @@ import inspect
 from itertools import product
 from collections import deque, OrderedDict
 import pickle
-import numba
 from pytools import ProcessTimer
 
 from typing import TYPE_CHECKING, Union

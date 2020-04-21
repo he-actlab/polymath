@@ -1,7 +1,8 @@
 import polymath as pm
 from collections import OrderedDict
 import numpy as np
-
+import tqdm
+import sys
 TABLA_OP_MAP = {"add": "+",
                 "mul": "*",
                 "sub": "-",
@@ -20,11 +21,16 @@ class TablaPass(pm.Pass):
         self.test_values = test_values or {}
         self.dfg["source"] = self.create_node("source")
         self.dfg["sink"] = self.create_node("sink")
+        self.pbar = tqdm.tqdm(desc="Applying first pass to nodes", file=sys.stdout, dynamic_ncols=True,)
         super(TablaPass, self).__init__(self.dfg)
 
     def apply_pass(self, node, ctx):
+
         if node.graph is None:
             return node
+        if not self.pbar.total:
+            self.pbar.reset(total=len(node.graph.nodes))
+        self.pbar.update(1)
         n_key = self.node_key(node)
         if isinstance(node, pm.parameter):
             self.add_constants(node)
@@ -67,6 +73,12 @@ class TablaPass(pm.Pass):
     def finalize_pass(self, node, ctx):
         if node.graph is None:
             return node
+
+        if self.pbar.n == self.pbar.total:
+            self.pbar.reset(total=len(node.graph.nodes))
+        self.pbar.set_description(f"Applying finalize pass to node {node.name} - {node.op_name}")
+        self.pbar.update(1)
+
         key = self.node_key(node)
 
         if key not in self.used and not isinstance(node, (pm.output, pm.state, pm.write)):
@@ -110,6 +122,9 @@ class TablaPass(pm.Pass):
             if node.name in self.test_values:
                 node.add_attribute("computed", self.test_values[node.name])
                 node_info["computed"] = int(self.test_values[node.name])
+            elif node.value is not None:
+                self.test_values[node.name] = node.value
+                node_info["computed"] = int(node.value)
             else:
                 ctx_cpy = self.test_values.copy()
                 comp_res = node.graph(node, ctx_cpy)
