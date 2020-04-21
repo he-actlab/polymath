@@ -3,7 +3,6 @@ from polymath.mgdfg.util import is_iterable, _is_node_type_instance, _is_node_in
 from dataclasses import dataclass, field
 import numpy as np
 from numbers import Integral
-import numba
 from itertools import product
 from functools import reduce
 
