@@ -242,6 +242,11 @@ class NormalizeGraph(Pass):
         dom_pairs = node.domain.compute_pairs()
         dom_pairs = list(map(lambda x: x.tolist() if isinstance(x, np.ndarray) else x, dom_pairs))
         node.domain.set_computed(out_shape, dom_pairs)
+        print(f"Node name: {node.name}\n"
+              f"var name: {node.var.name}\n"
+              f"Pairs: {dom_pairs}\n"
+              f"Shape: {node.shape}\n"
+              f"Var shape: {node.var.shape}\n")
         for i, d in enumerate(dom_pairs):
             ph_node = node.var[indices[i]]
             name = f"{node.var.name}{d}"
@@ -330,7 +335,6 @@ class NormalizeGraph(Pass):
             node._shape = (1,)
         else:
             # TODO: Need to make this faster and make sure object ids are added
-
             input_domain = node.input_node.domain.compute_pairs(tuples=False)
             sum_domain = node.domain.compute_pairs(tuples=False)
             axes_idx = np.array([node.input_node.domain.index(s) for s in node.domain])

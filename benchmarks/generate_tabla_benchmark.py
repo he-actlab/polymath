@@ -4,7 +4,7 @@ sys.path.insert(0, "..")
 
 from pathlib import Path
 import polymath as pm
-from tests.util import logistic, linear, reco, svm
+from tests.util import logistic, linear, reco, svm, backprop
 import argparse
 
 def create_linear(m):
@@ -58,6 +58,20 @@ def create_svm(m):
                                               tabla_path,
                                               context_dict=input_info, add_kwargs=True)
 
+def create_backprop(l1, l2, l3):
+    shape_dict = {"l1": l1, "l2": l2 , "l3": l3}
+    graph, input_info, out_info, keys = backprop(l1, l2, l3, coarse=True)
+    _, input_info, out_info, keys = backprop(l1, l2, l3, coarse=False)
+
+    cwd = Path(f"{__file__}").parent
+    full_path = f"{cwd}/outputs"
+    tabla_path = f"{full_path}/{graph.name}_{l1}_{l2}_{l3}_tabla.json"
+
+    tabla_ir, tabla_graph = pm.generate_tabla(graph,
+                                              shape_dict,
+                                              tabla_path,
+                                              context_dict=input_info, add_kwargs=True)
+
 
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser(description='Memory Interface Instructino Generator')
@@ -77,6 +91,10 @@ if __name__ == "__main__":
         create_reco(*args.feature_size)
     elif args.benchmark == "svm":
         create_svm(int(args.feature_size))
+    elif args.benchmark == "backprop":
+        bprop_layers = tuple([int(i) for i in args.feature_size])
+        assert len(bprop_layers) == 3
+        create_backprop(*bprop_layers)
     else:
         raise RuntimeError(f"Invalid benchmark supplied. Options are one of:\n"
                            f"\"logistic\", \"linear\", \"reco\","

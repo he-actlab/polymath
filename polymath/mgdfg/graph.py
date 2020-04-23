@@ -16,7 +16,6 @@ class Graph(IndexedOrderedDict):
         return self[next(reversed(self))]
 
     def item_by_index(self, key):
-        # return list(self.values())[key]
         return self.values()[key]
 
     def item_index(self, key):

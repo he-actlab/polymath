@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 from .util import logistic, linear, reco, svm, compare_tabla_dfg, set_shape_and_lower\
-    , fft, unwound_fft, matern32
+    , fft, unwound_fft, matern32, backprop
 
 @pytest.mark.parametrize('m_',[
     3, 55
@@ -40,6 +40,29 @@ def test_linear_reg_embedded_values(m_):
                                               tabla_path,
                                               context_dict=input_info, add_kwargs=True)
 
+@pytest.mark.parametrize('l1, l2, l3',[
+    (32, 16, 32)
+])
+def test_backprop_embedded_values(l1, l2, l3):
+    shape_dict = {"l1": l1, "l2": l2 , "l3": l3}
+    graph, input_info, out_info, keys = backprop(l1, l2, l3, coarse=True)
+
+    test_out = graph(["w1","w2"], input_info)
+
+    assert np.allclose(test_out[0], out_info["w1"])
+    assert np.allclose(test_out[1], out_info["w2"])
+
+    _, input_info, out_info, keys = backprop(l1, l2, l3, coarse=False)
+
+    cwd = Path(f"{__file__}").parent
+    base_path = f"{cwd}/pmlang_examples"
+    full_path = f"{base_path}/outputs"
+    tabla_path = f"{full_path}/{graph.name}_{l1}_{l2}_{l3}_tabla.json"
+
+    tabla_ir, tabla_graph = pm.generate_tabla(graph,
+                                              shape_dict,
+                                              tabla_path,
+                                              context_dict=input_info, add_kwargs=True)
 
 @pytest.mark.parametrize('m_',[
     55
@@ -74,7 +97,6 @@ def test_svm(m_):
     tabla_ir, tabla_graph = pm.generate_tabla(graph, shape_dict, tabla_path)
     validation_path = f"{cwd}/tabla_examples/{graph.name}_{m_}.json"
     compare_tabla_dfg(validation_path, tabla_ir, tabla_graph)
-
 
 
 @pytest.mark.parametrize('m_',[

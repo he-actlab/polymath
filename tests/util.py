@@ -214,6 +214,88 @@ def linear(m=3, coarse=False):
         in_info, keys, out_info = linear_data_gen(m=m, lowered=True)
         return new_graph, in_info, out_info, keys
 
+
+
+def backprop_data_gen(l1, l2, l3, mu=1.0, lowered=False):
+    input_info = {}
+    input_info["x"] = np.random.randint(-3, 3, l1)
+    input_info["w1"] = np.random.randint(-3, 3, (l2,l1))
+    input_info["w2"] = np.random.randint(-3, 3, (l3,l2))
+    input_info["y"] = np.random.randint(-3, 3, l3)
+    input_info["mu"] = mu
+    out_info = np_backprop(input_info)
+    if lowered:
+        all_keys = []
+        for i1 in range(l1):
+            input_info[f"x/x({i1},)"] = input_info["x"][i1]
+            for i2 in range(l2):
+                w_key = f"w1/w1({i2},{i1})"
+                all_keys.append(w_key)
+                input_info[w_key] = input_info["w1"][(i2,i1)]
+        for i3 in range(l3):
+            input_info[f"y/y({i3},)"] = input_info["y"][i3]
+            for i2 in range(l2):
+                w_key = f"w2/w2({i3},{i2})"
+                all_keys.append(w_key)
+                input_info[w_key] = input_info["w2"][(i3,i2)]
+        input_info.pop("w1")
+        input_info.pop("w2")
+        input_info.pop("x")
+        input_info.pop("y")
+    else:
+        all_keys = ["w1","w2"]
+
+    return input_info, all_keys, out_info
+
+def np_backprop(input_info):
+    out_info = {}
+    out_info["a1"] = sigmoid(input_info["w1"].dot(input_info["x"]))
+    out_info["a2"] = sigmoid(input_info["w2"].dot(out_info["a1"]))
+    out_info["d3"] = out_info["a2"] - input_info["y"]
+
+    out_info["d2"] = out_info["d3"].dot(input_info["w2"])*(out_info["a1"]*(1-out_info["a1"]))
+    out_info["w1"] = input_info["w1"] - input_info["mu"]*(np.outer(input_info["x"], out_info["d2"]).T)
+    out_info["w2"] = input_info["w2"] - input_info["mu"]*(np.outer(out_info["a1"], out_info["d3"]).T)
+
+    return out_info
+
+def backprop(l1_=9, l2_=10, l3_=1, coarse=False):
+    with pm.Node(name="backprop") as graph:
+        mu = pm.parameter("mu", default=1.0)
+        l1 = pm.parameter("l1")
+        l2 = pm.parameter("l2")
+        l3 = pm.parameter("l3")
+        x = pm.input("x", shape=(l1))
+        y = pm.input("y", shape=(l3))
+        w1 = pm.state("w1", shape=(l2, l1))
+        w2 = pm.state("w2", shape=(l3, l2))
+        i1 = pm.index(0, (l1 - 1), name="i1")
+        i2 = pm.index(0, (l2 - 1), name="i2")
+        i3 = pm.index(0, (l3 - 1), name="i3")
+
+        a1 = pm.temp("a1", shape=w1.shape[0])
+        a1[i2] = pm.sigmoid(pm.sum([i1], w1[i2, i1] * x[i1], name="h1"))
+        a2 = pm.temp("a2", shape=w2.shape[0])
+        a2[i3] = pm.sigmoid(pm.sum([i2], w2[i3, i2] * a1[i2], name="h2"))
+
+        d3 = pm.temp("d3", shape=l3)
+        d2 = pm.temp("d2", shape=l2)
+        d3[i3] = a2[i3] - y[i3]
+        d2[i2] = pm.sum([i3], (w2[i3, i2]*d3[i3]) * (a1[i2] * (1 - a1[i2])))
+
+        w1[i2, i1] = w1[i2, i1] - mu*(d2[i2]*x[i1])
+        w2[i3, i2] = w2[i3, i2] - mu*(d3[i3]*a1[i2])
+
+
+    if coarse:
+        in_info, keys, out_info = backprop_data_gen(l1_, l2_, l3_)
+        return graph, in_info, out_info, keys
+    else:
+        shape_val_pass = pm.NormalizeGraph({"l1": l1_, "l2": l2_, "l3": l3_})
+        new_graph = shape_val_pass(graph)
+        in_info, keys, out_info = backprop_data_gen(l1_, l2_, l3_, lowered=True)
+        return new_graph, in_info, out_info, keys
+
 def linear_raw(m=3, coarse=False):
     with pm.Node(name="linear") as graph:
         m_ = pm.parameter("m")

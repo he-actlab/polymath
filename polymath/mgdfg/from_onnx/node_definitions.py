@@ -20,6 +20,19 @@ class dense_bp(pm.Template):
         j = pm.index(0, (n - 1).set_name("n-1"), name="j")
         y[j] = pm.sigmoid(pm.sum([i], w[j, i] * x[i], name="h"))
 
+
+class bench_bp(pm.Template):
+    def define_graph(self, x, w1, w2, l1, l2, l3, y, **kwargs):
+
+        i1 = pm.index(0, (w1.shape[1] - 1), name="i1")
+        i2 = pm.index(0, (w1.shape[0] - 1), name="i2")
+        i3 = pm.index(0, (w2.shape[0] - 1), name="i3")
+        a1 = pm.temp("a1", shape=w1.shape[0])
+        a1[i2] = pm.sigmoid(pm.sum([i1], w1[i2, i1] * x[i1], name="h1"))
+        a2 = pm.temp("a2", shape=w2.shape[0])
+        a2[i3] = pm.sigmoid(pm.sum([i2], w2[i3, i2] * a1[i2], name="h2"))
+
+
 class svm_classifier_train(pm.Template):
     def define_graph(self, x, w, y, mu, m, **kwargs):
         i = pm.index(0, (m - 1).set_name("m-1"), name="i")
