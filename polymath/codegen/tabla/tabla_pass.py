@@ -120,20 +120,20 @@ class TablaPass(pm.Pass):
         node.add_attribute("tabla_op", node_info["operation"])
         node.add_attribute("tabla_id", node_info["id"])
 
-        # if len(self.test_values.keys()) > 0:
-        #     if node.name in self.test_values:
-        #         node.add_attribute("computed", self.test_values[node.name])
-        #         node_info["computed"] = int(self.test_values[node.name])
-        #     elif node.value is not None:
-        #         self.test_values[node.name] = node.value
-        #         node_info["computed"] = int(node.value)
-        #     else:
-        #         ctx_cpy = self.test_values.copy()
-        #         assert all([not isinstance(v,str) for v in self.test_values.values()])
-        #         comp_res = node.graph(node, ctx_cpy)
-        #
-        #         self.test_values[node.name] = comp_res
-        #         node_info["computed"] = int(comp_res)
+        if len(self.test_values.keys()) > 0:
+            if node.name in self.test_values:
+                node.add_attribute("computed", self.test_values[node.name])
+                node_info["computed"] = int(self.test_values[node.name])
+            elif node.value is not None:
+                self.test_values[node.name] = node.value
+                node_info["computed"] = int(node.value)
+            else:
+                ctx_cpy = self.test_values.copy()
+                assert all([not isinstance(v,str) for v in self.test_values.values()])
+                comp_res = node.graph(node, ctx_cpy)
+
+                self.test_values[node.name] = comp_res
+                node_info["computed"] = int(comp_res)
 
     def add_constants(self, node):
         for a in node.args:
