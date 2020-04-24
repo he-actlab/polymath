@@ -39,7 +39,6 @@ def create_reco(m, n, k):
     cwd = Path(f"{__file__}").parent
     full_path = f"{cwd}/outputs"
     tabla_path = f"{full_path}/{graph.name}_{m}_{n}_{k}_tabla.json"
-    print(input_info.keys())
     tabla_ir, tabla_graph = pm.generate_tabla(graph,
                                               shape_dict,
                                               tabla_path,

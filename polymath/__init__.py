@@ -20,4 +20,7 @@ from polymath.mgdfg.from_onnx.node_definitions import linear_regressor_train, li
 from polymath.mgdfg.passes import register_pass, Pass
 from polymath.mgdfg.passes.compiler_passes import DeadNodeElimination, NormalizeGraph, Lower
 from polymath.codegen.tabla.tabla_translate import generate_tabla
-from polymath.codegen.tvmgen.tvm_translate import generate_tvm
+try:
+    from polymath.codegen.tvmgen.tvm_translate import generate_tvm
+except ImportError:
+    generate_tvm = None
