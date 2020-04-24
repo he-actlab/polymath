@@ -62,7 +62,7 @@ def test_backprop_embedded_values(l1, l2, l3):
     tabla_ir, tabla_graph = pm.generate_tabla(graph,
                                               shape_dict,
                                               tabla_path,
-                                              context_dict=input_info, add_kwargs=True)
+                                              context_dict={}, add_kwargs=True)
 
 @pytest.mark.parametrize('m_',[
     55
@@ -137,15 +137,13 @@ def test_reco_state_write(m_, n_, k_):
     # compare_tabla_dfg(validation_path, tabla_ir, tabla_graph)
 
 @pytest.mark.parametrize('m', [
-    (128),
+    (64),
 ])
 def test_fft(m):
     x = np.random.randint(-5,5, m).astype(np.complex)
 
     pm_output, np_output = unwound_fft(x)
     assert np.allclose(pm_output, np_output)
-    # out_g = g("X", {"x": x})
-    # out_g = g("x_rev", {"x": x})
 
 
 @pytest.mark.parametrize('m', [
