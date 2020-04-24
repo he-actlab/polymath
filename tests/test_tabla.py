@@ -146,20 +146,3 @@ def test_fft(m):
     assert np.allclose(pm_output, np_output)
 
 
-@pytest.mark.parametrize('m', [
-    (16),
-])
-def test_matern32(m):
-    X = np.random.uniform(0.0, 1.0, (1, m)).astype(np.float64)
-    Y = np.float64(np.random.randint(0, 100))
-
-    mod = matern32(X, Y)
-    print(mod)
-    # gp_out = k(x)
-    #
-    # np_out = 1.0 * (1.0 + np.sqrt(3.0)*x) * np.exp(-np.sqrt(3.0)*x)
-    # # print(gp_out[1])
-    # print(np_out)
-    # print(gp_out)
-    # print(f"{np.allclose(gp_out, np_out)}")
-
