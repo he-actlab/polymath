@@ -38,8 +38,8 @@ def create_reco(m, n, k):
     _, input_info, out_info, keys = reco(m_=m, n_=n, k_=k, coarse=False)
     cwd = Path(f"{__file__}").parent
     full_path = f"{cwd}/outputs"
-    tabla_path = f"{full_path}/{graph.name}_{m}_tabla.json"
-
+    tabla_path = f"{full_path}/{graph.name}_{m}_{n}_{k}_tabla.json"
+    print(input_info.keys())
     tabla_ir, tabla_graph = pm.generate_tabla(graph,
                                               shape_dict,
                                               tabla_path,
@@ -75,26 +75,24 @@ def create_backprop(l1, l2, l3):
 
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser(description='Memory Interface Instructino Generator')
-    argparser.add_argument('-b', '--benchmark',
+    argparser.add_argument('-b', '--benchmark', required=True,
                            help='Name of the benchmark to create. One of "logistic", "linear", "reco",'
                                 'or "svm".')
-    argparser.add_argument('-fs', '--feature_size',
+    argparser.add_argument('-fs', '--feature_size', nargs='+', required=True,
                            help='Feature size to use for creating the benchmark')
 
     args = argparser.parse_args()
-
+    features = tuple([int(i) for i in args.feature_size])
     if args.benchmark == "linear":
-        create_linear(int(args.feature_size))
+        create_linear(*features)
     elif args.benchmark == "logistic":
-        create_logistic(int(args.feature_size))
+        create_logistic(*features)
     elif args.benchmark == "reco":
-        create_reco(*args.feature_size)
+        create_reco(*features)
     elif args.benchmark == "svm":
-        create_svm(int(args.feature_size))
+        create_svm(*features)
     elif args.benchmark == "backprop":
-        bprop_layers = tuple([int(i) for i in args.feature_size])
-        assert len(bprop_layers) == 3
-        create_backprop(*bprop_layers)
+        create_backprop(*features)
     else:
         raise RuntimeError(f"Invalid benchmark supplied. Options are one of:\n"
                            f"\"logistic\", \"linear\", \"reco\","

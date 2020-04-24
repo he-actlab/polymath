@@ -256,12 +256,6 @@ class Node(object):
                                    f" {node.graph}")
             return node
         if isinstance(node, str):
-            # if node not in self.nodes:
-            #     all_names = [key.name for key in self.nodes.keys() if isinstance(key, Node)]
-
-                # print(f"{node}" )
-                # print(node in all_names)
-                # print([key for key in self.nodes.keys() if isinstance(key, str)])
             return self.nodes[node]
         raise ValueError(f"'{node}' is not an `Node` instance or node name")
 
@@ -364,7 +358,6 @@ class Node(object):
             raise ValueError("`fetches` must be an `Node` instance, node name, or a "
                              "sequence thereof.")
         fetches = [self.instantiate_node(node) for node in fetches]
-        print(fetches)
         context = self.instantiate_graph(context, **kwargs)
         for c in context:
             if c in fetches and c.op_name in ["output", "state"]:

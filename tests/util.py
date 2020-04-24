@@ -203,7 +203,6 @@ def linear(m=3, coarse=False):
         d = (h - y).set_name("h-y")
         g = (d * x[i]).set_name("d*x")
         w[i] = w[i] - mu * g[i]
-        # out = (w[i] + 5).set_name("w5")
 
     if coarse:
         in_info, keys, out_info = linear_data_gen(m=m)
@@ -274,20 +273,9 @@ def backprop(l1_=9, l2_=10, l3_=1, coarse=False):
         i2 = pm.index(0, (l2 - 1), name="i2")
         i3 = pm.index(0, (l3 - 1), name="i3")
 
-        # a1 = pm.temp("a1", shape=l2)
-        # a2 = pm.temp("a2", shape=l3)
-
         a1 = pm.sigmoid(pm.sum([i1], w1[i2, i1] * x[i1]))
         a2 = pm.sigmoid(pm.sum([i2], w2[i3, i2] * a1[i2]))
 
-        # w = pm.state("w", shape=(m_))
-        # i = pm.index(0, (m_ - 1).set_name("m-1"), name="i")
-        # h = pm.sum([i], (x[i] * w[i]), name="h")
-        # d = (h - y).set_name("h-y")
-        # g = (d * x[i]).set_name("d*x")
-        # w[i] = w[i] - mu * g[i]
-        # d3 = pm.temp("d3", shape=l3)
-        # d2 = pm.temp("d2", shape=l2)
         d3 = a2[i3] - y[i3]
         d2 = pm.sum([i3], (w2[i3, i2]*d3[i3]) * ( a1[i2]*(mu - a1[i2])))
         g1 = (d2[i2]*x[i1]).set_name("g1")
@@ -451,6 +439,9 @@ def numpy_reco(input_dict):
     out_info["g2"] = g2
     w1_out = input_dict["w1"] - g1
     w2_out = input_dict["w2"] - g2
+    input_dict.pop("k")
+    input_dict.pop("m")
+    input_dict.pop("n")
     out_info["w1"] = w1_out
     out_info["w2"] = w2_out
     return out_info
@@ -511,24 +502,34 @@ def reco_data_gen(m_=3, n_=3, k_=2, mu=1.0, lowered=False):
 
 def reco(m_=3, n_=3, k_=2, coarse=False):
     with pm.Node(name="reco") as graph:
+        # m_ = pm.parameter("m")
+        # mu = pm.parameter(name="mu", default=1.0)
+        # x = pm.input("x", shape=(m_))
+        # y = pm.input("y")
+        # w = pm.state("w", shape=(m_))
+        # i = pm.index(0, (m_ - 1).set_name("m-1"), name="i")
+        # h = pm.sum([i], (x[i] * w[i]), name="h")
+        # d = (h - y).set_name("h-y")
+        # g = (d * x[i]).set_name("d*x")
+        # w[i] = w[i] - mu * g[i]
         m = pm.parameter("m")
         n = pm.parameter("n")
         k = pm.parameter("k")
         mu = pm.parameter("mu")
-        x1 = pm.input("x1", shape=(k,))
-        x2 = pm.input("x2", shape=(k,))
+        x1 = pm.input("x1", shape=(k))
+        x2 = pm.input("x2", shape=(k))
 
-        r1 = pm.input("r1", shape=(m,))
-        y1 = pm.input("y1", shape=(m,))
+        r1 = pm.input("r1", shape=(m))
+        y1 = pm.input("y1", shape=(m))
 
-        r2 = pm.input("r2", shape=(n,))
-        y2 = pm.input("y2", shape=(n,))
+        r2 = pm.input("r2", shape=(n))
+        y2 = pm.input("y2", shape=(n))
 
         w1 = pm.state("w1", shape=(m, k))
         w2 = pm.state("w2", shape=(n, k))
-        i = pm.index(0, m - 1, name="i")
-        j = pm.index(0, n - 1, name="j")
-        l = pm.index(0, k - 1, name="l")
+        i = pm.index(0, (m - 1).set_name("m-1"), name="i")
+        j = pm.index(0, (n - 1).set_name("n-1"), name="j")
+        l = pm.index(0, (k - 1).set_name("k-1"), name="l")
         h1_sum = pm.sum([l], (w1[i, l] * x2[l]).set_name("w1*x2")).set_name("h1_sum")
         h1 = (h1_sum[i] * r1[i]).set_name("h1")
         h2_sum = pm.sum([l], (w2[j, l] * x1[l]).set_name("w2*x1")).set_name("h2_sum")
@@ -538,8 +539,8 @@ def reco(m_=3, n_=3, k_=2, coarse=False):
         d2 = (h2[j] - y2[j]).set_name("d2")
         g1 = (d1[i] * x2[l]).set_name("g1")
         g2 = (d2[j] * x1[l]).set_name("g2")
-        w1[i, l] = (w1[i, l] - mu*g1[i, l])
-        w2[j, l] = (w2[j, l] - mu*g2[j, l])
+        w1[i, l] = (w1[i, l] - (mu*g1[i, l]).set_name("mu*g1")).set_name("w1-g1")
+        w2[j, l] = (w2[j, l] - (mu*g2[j, l]).set_name("mu*g2")).set_name("w2-g2")
 
     if coarse:
         in_info, keys, out_info = reco_data_gen(m_=m_,n_=n_, k_=k_)

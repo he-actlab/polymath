@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 from .util import logistic, linear, reco, svm, compare_tabla_dfg, set_shape_and_lower\
     , fft, unwound_fft, matern32, backprop
+import pprint
 
 @pytest.mark.parametrize('m_',[
     3, 55
@@ -24,7 +25,7 @@ def test_linear_reg(m_):
     compare_tabla_dfg(validation_path, tabla_ir, tabla_graph)
 
 @pytest.mark.parametrize('m_',[
-    20
+    100
 ])
 def test_linear_reg_embedded_values(m_):
     shape_dict = {"m": m_}
@@ -80,6 +81,21 @@ def test_logreg_reg_embedded_values(m_):
                                               shape_dict,
                                               tabla_path,
                                               context_dict=input_info, add_kwargs=True)
+@pytest.mark.parametrize('m, n, k',[
+    (5, 4, 2)
+])
+def test_reco_embedded_values(m, n, k):
+    shape_dict = {"m": m, "n": n, "k": k}
+    graph, input_info, out_info, keys = reco(m_=m, n_=n, k_=k, coarse=True)
+    ngraph, input_info, out_info, keys = reco(m_=m, n_=n, k_=k, coarse=False)
+    cwd = Path(f"{__file__}").parent
+    base_path = f"{cwd}/pmlang_examples"
+    full_path = f"{base_path}/outputs"
+    tabla_path = f"{full_path}/{graph.name}_{m}_{n}_{k}_tabla.json"
+    tabla_ir, tabla_graph = pm.generate_tabla(graph,
+                                              shape_dict,
+                                              tabla_path,
+                                              context_dict=input_info, add_kwargs=True)
 
 @pytest.mark.parametrize('m_',[
     3, 54
@@ -114,8 +130,6 @@ def test_logistic_reg(m_):
     tabla_path = f"{full_path}/{graph.name}_tabla.json"
 
     tabla_ir, tabla_graph = pm.generate_tabla(graph, shape_dict, tabla_path)
-    # validation_path = f"{cwd}/tabla_examples/{graph.name}_{m_}.json"
-    # compare_tabla_dfg(validation_path, tabla_ir, tabla_graph)
 
 
 @pytest.mark.parametrize('m_, n_,k_', [
@@ -133,8 +147,6 @@ def test_reco_state_write(m_, n_, k_):
     tabla_path = f"{full_path}/{graph.name}_tabla.json"
     lowered = set_shape_and_lower(graph, shape_dict)
     tabla_ir, tabla_graph = pm.generate_tabla(graph, shape_dict, tabla_path)
-    # validation_path = f"{cwd}/tabla_examples/{graph.name}_{k_}.json"
-    # compare_tabla_dfg(validation_path, tabla_ir, tabla_graph)
 
 @pytest.mark.parametrize('m', [
     (64),

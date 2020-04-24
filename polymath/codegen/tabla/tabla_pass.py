@@ -84,27 +84,33 @@ class TablaPass(pm.Pass):
         key = self.node_key(node)
 
         if key not in self.used and not isinstance(node, (pm.output, pm.state, pm.write)):
+
             if node.graph and node.name in node.graph.nodes:
                 for a in node.args:
+
                     a_key = self.node_key(a)
                     if isinstance(a, pm.Node) and a.name in node.graph.nodes:
                         node.graph.nodes.pop(a.name)
                     self.used[a_key].remove(self.get_dfg_node(node)["id"])
                     if len(self.get_used_list(a)) == 0:
                         self.remove_node(a)
+
                 self.remove_node(node)
 
                 node.graph.nodes.pop(node.name)
         elif isinstance(node, (pm.output, pm.state)) and self.add_kwargs:
             self.add_dfg_params(node)
         elif isinstance(node, (pm.write)):
+
             node.graph.nodes[node.name] = node.args[0]
-            if node.args[0].name in node.graph.nodes:
-                node.graph.nodes.pop(node.args[0].name)
+
+            # if node.args[0].name in node.graph.nodes:
+            #     node.graph.nodes.pop(node.args[0].name)
 
             if self.add_kwargs:
                 self.add_dfg_params(node.args[0])
         elif key not in self.used and node.graph:
+
             node.graph.nodes.pop(node.name)
             self.remove_node(node)
         elif self.add_kwargs:
@@ -142,6 +148,7 @@ class TablaPass(pm.Pass):
                 self.get_dfg_node("source")["children"].append(self.get_dfg_node(a)["id"])
 
     def add_uses(self, node):
+
         for a in node.args:
             self.set_used_node(a, node)
 
