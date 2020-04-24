@@ -256,6 +256,12 @@ class Node(object):
                                    f" {node.graph}")
             return node
         if isinstance(node, str):
+            # if node not in self.nodes:
+            #     all_names = [key.name for key in self.nodes.keys() if isinstance(key, Node)]
+
+                # print(f"{node}" )
+                # print(node in all_names)
+                # print([key for key in self.nodes.keys() if isinstance(key, str)])
             return self.nodes[node]
         raise ValueError(f"'{node}' is not an `Node` instance or node name")
 
@@ -292,6 +298,7 @@ class Node(object):
             raise ValueError("`context` must be a mapping.")
 
         nodes = list(context)
+
         for node in nodes:  # pylint:disable=W0621
             value = context.pop(node)
             node = self.instantiate_node(node)
@@ -357,6 +364,7 @@ class Node(object):
             raise ValueError("`fetches` must be an `Node` instance, node name, or a "
                              "sequence thereof.")
         fetches = [self.instantiate_node(node) for node in fetches]
+        print(fetches)
         context = self.instantiate_graph(context, **kwargs)
         for c in context:
             if c in fetches and c.op_name in ["output", "state"]:
@@ -958,7 +966,9 @@ class slice_op(Node):
                 name.append(key)
 
             name = self.var.name + "[" + "][".join(name) + "]"
-            if isinstance(key, (list)):
+            if name in self.graph.nodes:
+                return self.graph.nodes[name]
+            elif isinstance(key, (list)):
                 return var_index(self, key, name=name, graph=self.graph)
             elif isinstance(key, tuple):
                 return var_index(self, list(key), name=name, graph=self.graph)

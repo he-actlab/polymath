@@ -229,19 +229,20 @@ def backprop_data_gen(l1, l2, l3, mu=1.0, lowered=False):
         for i1 in range(l1):
             input_info[f"x/x({i1},)"] = input_info["x"][i1]
             for i2 in range(l2):
-                w_key = f"w1/w1({i2},{i1})"
+                w_key = f"w1/w1({i2}, {i1})"
                 all_keys.append(w_key)
                 input_info[w_key] = input_info["w1"][(i2,i1)]
         for i3 in range(l3):
             input_info[f"y/y({i3},)"] = input_info["y"][i3]
             for i2 in range(l2):
-                w_key = f"w2/w2({i3},{i2})"
+                w_key = f"w2/w2({i3}, {i2})"
                 all_keys.append(w_key)
                 input_info[w_key] = input_info["w2"][(i3,i2)]
         input_info.pop("w1")
         input_info.pop("w2")
         input_info.pop("x")
         input_info.pop("y")
+        print(input_info.keys())
     else:
         all_keys = ["w1","w2"]
 
@@ -249,8 +250,8 @@ def backprop_data_gen(l1, l2, l3, mu=1.0, lowered=False):
 
 def np_backprop(input_info):
     out_info = {}
-    out_info["a1"] = sigmoid(input_info["w1"].dot(input_info["x"]))
-    out_info["a2"] = sigmoid(input_info["w2"].dot(out_info["a1"]))
+    out_info["a1"] = (input_info["w1"].dot(input_info["x"]))
+    out_info["a2"] = (input_info["w2"].dot(out_info["a1"]))
     out_info["d3"] = out_info["a2"] - input_info["y"]
 
     out_info["d2"] = out_info["d3"].dot(input_info["w2"])*(out_info["a1"]*(1-out_info["a1"]))
@@ -273,18 +274,28 @@ def backprop(l1_=9, l2_=10, l3_=1, coarse=False):
         i2 = pm.index(0, (l2 - 1), name="i2")
         i3 = pm.index(0, (l3 - 1), name="i3")
 
-        a1 = pm.temp("a1", shape=w1.shape[0])
-        a1[i2] = pm.sigmoid(pm.sum([i1], w1[i2, i1] * x[i1], name="h1"))
-        a2 = pm.temp("a2", shape=w2.shape[0])
-        a2[i3] = pm.sigmoid(pm.sum([i2], w2[i3, i2] * a1[i2], name="h2"))
+        # a1 = pm.temp("a1", shape=l2)
+        # a2 = pm.temp("a2", shape=l3)
 
-        d3 = pm.temp("d3", shape=l3)
-        d2 = pm.temp("d2", shape=l2)
-        d3[i3] = a2[i3] - y[i3]
-        d2[i2] = pm.sum([i3], (w2[i3, i2]*d3[i3]) * (a1[i2] * (1 - a1[i2])))
+        # a1[i2] = pm.sigmoid(pm.sum([i1], w1[i2, i1] * x[i1]))
+        # a1 = pm.sigmoid(pm.sum([i1], w1[i2, i1] * x[i1], name="h1"), name="a1")
+        a1 = pm.sum([i1], w1[i2, i1] * x[i1], name="h1")
+        # a2[i3] = pm.sigmoid(pm.sum([i2], w2[i3, i2] * a1[i2]))
+        # a2 = pm.sigmoid(pm.sum([i2], w2[i3, i2] * a1[i2], name="h2"), name="a2")
+        a2 = pm.sum([i2], w2[i3, i2] * a1[i2], name="h2")
 
-        w1[i2, i1] = w1[i2, i1] - mu*(d2[i2]*x[i1])
-        w2[i3, i2] = w2[i3, i2] - mu*(d3[i3]*a1[i2])
+
+        # d3 = pm.temp("d3", shape=l3)
+        # d2 = pm.temp("d2", shape=l2)
+        # d3[i3] = a2[i3] - y[i3]
+        d3 = (a2[i3] - y[i3]).set_name("d3")
+        a1_ = (1 - a1[i2]).set_name("a1_")
+        # d2 = pm.sum([i3], (w2[i3, i2]*d3[i3]) * (a1[i2] * (1 - a1[i2])))
+        d2 = pm.sum([i3], (w2[i3, i2]*d3[i3]).set_name("w2*d3") * (a1[i2] * a1_[i2]).set_name("a1*a1"), name="d2")
+        # d2[i2] = pm.sum([i3], (w2[i3, i2]*d3[i3]) * (a1[i2] * (1 - a1[i2])))
+
+        w1[i2, i1] = w1[i2, i1] - mu*(d2[i2]*x[i1]).set_name("d2*x1")
+        w2[i3, i2] = w2[i3, i2] - mu*(d3[i3]*a1[i2]).set_name("d3*a1")
 
 
     if coarse:

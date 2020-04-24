@@ -299,6 +299,7 @@ class temp(placeholder):
         return self if self.write_count == 0 or len(Node._graph_stack) == 1 else self.graph.nodes[f"{self.name}{self.write_count - 1}"]
 
     def evaluate(self, context, callback=None):
+        print(f"{self.name}")
         callback = callback or _noop_callback
         with callback(self, context):
             if self not in context:

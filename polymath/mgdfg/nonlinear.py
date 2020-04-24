@@ -50,7 +50,9 @@ class NonLinear(Node):
                 name.append(key)
 
             name = self.var.name + "[" + "][".join(name) + "]"
-            if isinstance(key, (list)):
+            if name in self.graph.nodes:
+                return self.graph.nodes[name]
+            elif isinstance(key, (list)):
                 return var_index(self, key, name=name, graph=self.graph)
             elif isinstance(key, tuple):
                 return var_index(self, list(key), name=name, graph=self.graph)

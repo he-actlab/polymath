@@ -24,7 +24,7 @@ def test_linear_reg(m_):
     compare_tabla_dfg(validation_path, tabla_ir, tabla_graph)
 
 @pytest.mark.parametrize('m_',[
-    1000
+    20
 ])
 def test_linear_reg_embedded_values(m_):
     shape_dict = {"m": m_}
@@ -41,7 +41,7 @@ def test_linear_reg_embedded_values(m_):
                                               context_dict=input_info, add_kwargs=True)
 
 @pytest.mark.parametrize('l1, l2, l3',[
-    (32, 16, 32)
+    (8, 4, 8)
 ])
 def test_backprop_embedded_values(l1, l2, l3):
     shape_dict = {"l1": l1, "l2": l2 , "l3": l3}
