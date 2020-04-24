@@ -1,6 +1,7 @@
 import polymath as pm
 from collections import OrderedDict
 import numpy as np
+
 import tqdm
 import sys
 TABLA_OP_MAP = {"add": "+",
@@ -37,11 +38,6 @@ class TablaPass(pm.Pass):
             assert n_key not in self.dfg
             self.set_dfg_node(node, self.create_node(_normalize_name(node.name), dtype="param", parents=[0]))
             self.get_dfg_node("source")["children"].append(self.get_dfg_node(node)["id"])
-        elif isinstance(node, pm.placeholder):
-            self.add_constants(node)
-            assert n_key not in self.dfg
-            self.set_dfg_node(node, self.create_node(_normalize_name(node.name), dtype=node.type_modifier, parents=[0]))
-            self.get_dfg_node("source")["children"].append(self.get_dfg_node(node)["id"])
         elif isinstance(node, pm.write):
             a0_key = self.node_key(node.args[0])
             assert a0_key in self.dfg
@@ -50,6 +46,12 @@ class TablaPass(pm.Pass):
             self.get_dfg_node("sink")["parents"].append(self.get_dfg_node(node.args[0])["id"])
             self.set_used_node(node.args[0], "sink")
             return node
+        elif isinstance(node, pm.placeholder):
+            self.add_constants(node)
+            assert n_key not in self.dfg
+            self.set_dfg_node(node, self.create_node(_normalize_name(node.name), dtype=node.type_modifier, parents=[0]))
+            self.get_dfg_node("source")["children"].append(self.get_dfg_node(node)["id"])
+
         elif isinstance(node, pm.func_op):
             self.add_constants(node)
             a0_key = self.node_key(node.args[0])
@@ -118,18 +120,20 @@ class TablaPass(pm.Pass):
         node.add_attribute("tabla_op", node_info["operation"])
         node.add_attribute("tabla_id", node_info["id"])
 
-        if len(self.test_values.keys()) > 0:
-            if node.name in self.test_values:
-                node.add_attribute("computed", self.test_values[node.name])
-                node_info["computed"] = int(self.test_values[node.name])
-            elif node.value is not None:
-                self.test_values[node.name] = node.value
-                node_info["computed"] = int(node.value)
-            else:
-                ctx_cpy = self.test_values.copy()
-                comp_res = node.graph(node, ctx_cpy)
-                self.test_values[node.name] = comp_res
-                node_info["computed"] = int(comp_res)
+        # if len(self.test_values.keys()) > 0:
+        #     if node.name in self.test_values:
+        #         node.add_attribute("computed", self.test_values[node.name])
+        #         node_info["computed"] = int(self.test_values[node.name])
+        #     elif node.value is not None:
+        #         self.test_values[node.name] = node.value
+        #         node_info["computed"] = int(node.value)
+        #     else:
+        #         ctx_cpy = self.test_values.copy()
+        #         assert all([not isinstance(v,str) for v in self.test_values.values()])
+        #         comp_res = node.graph(node, ctx_cpy)
+        #
+        #         self.test_values[node.name] = comp_res
+        #         node_info["computed"] = int(comp_res)
 
     def add_constants(self, node):
         for a in node.args:
