@@ -82,7 +82,7 @@ def test_logreg_reg_embedded_values(m_):
                                               tabla_path,
                                               context_dict=input_info, add_kwargs=True)
 @pytest.mark.parametrize('m, n, k',[
-    (5, 4, 2)
+    (138, 130, 10)
 ])
 def test_reco_embedded_values(m, n, k):
     shape_dict = {"m": m, "n": n, "k": k}

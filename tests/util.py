@@ -502,16 +502,6 @@ def reco_data_gen(m_=3, n_=3, k_=2, mu=1.0, lowered=False):
 
 def reco(m_=3, n_=3, k_=2, coarse=False):
     with pm.Node(name="reco") as graph:
-        # m_ = pm.parameter("m")
-        # mu = pm.parameter(name="mu", default=1.0)
-        # x = pm.input("x", shape=(m_))
-        # y = pm.input("y")
-        # w = pm.state("w", shape=(m_))
-        # i = pm.index(0, (m_ - 1).set_name("m-1"), name="i")
-        # h = pm.sum([i], (x[i] * w[i]), name="h")
-        # d = (h - y).set_name("h-y")
-        # g = (d * x[i]).set_name("d*x")
-        # w[i] = w[i] - mu * g[i]
         m = pm.parameter("m")
         n = pm.parameter("n")
         k = pm.parameter("k")
