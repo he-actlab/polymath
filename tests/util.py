@@ -276,7 +276,7 @@ def np_backprop(input_info):
 
     return out_info
 
-def backprop(l1_=9, l2_=10, l3_=1, coarse=False):
+def backprop(l1_=9, l2_=10, l3_=1, coarse=False, debug=False):
     with pm.Node(name="backprop") as graph:
         mu = pm.parameter("mu", default=1.0)
         l1 = pm.parameter("l1")
@@ -291,9 +291,10 @@ def backprop(l1_=9, l2_=10, l3_=1, coarse=False):
         i2 = pm.index(0, (l2 - 1), name="i2")
         i3 = pm.index(0, (l3 - 1), name="i3")
 
-        a1 = pm.sigmoid(pm.sum([i1], w1[i2, i1] * x[i1]))
-        a2 = pm.sigmoid(pm.sum([i2], w2[i3, i2] * a1[i2]))
-
+        # a1 = pm.sigmoid(pm.sum([i1], w1[i2, i1] * x[i1]))
+        # a2 = pm.sigmoid(pm.sum([i2], w2[i3, i2] * a1[i2]))
+        a1 = pm.sum([i1], w1[i2, i1] * x[i1])
+        a2 = pm.sum([i2], w2[i3, i2] * a1[i2])
         d3 = a2[i3] - y[i3]
         d2 = pm.sum([i3], (w2[i3, i2]*d3[i3]) * ( a1[i2]*(mu - a1[i2])))
         g1 = (d2[i2]*x[i1]).set_name("g1")
@@ -303,12 +304,12 @@ def backprop(l1_=9, l2_=10, l3_=1, coarse=False):
 
 
     if coarse:
-        in_info, keys, out_info = backprop_data_gen(l1_, l2_, l3_)
+        in_info, keys, out_info = backprop_data_gen(l1_, l2_, l3_, debug=debug)
         return graph, in_info, out_info, keys
     else:
         shape_val_pass = pm.NormalizeGraph({"l1": l1_, "l2": l2_, "l3": l3_})
         new_graph = shape_val_pass(graph)
-        in_info, keys, out_info = backprop_data_gen(l1_, l2_, l3_, lowered=True)
+        in_info, keys, out_info = backprop_data_gen(l1_, l2_, l3_, lowered=True, debug=debug)
         return new_graph, in_info, out_info, keys
 
 def linear_raw(m=3, coarse=False):
