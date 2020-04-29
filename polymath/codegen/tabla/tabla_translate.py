@@ -2,11 +2,11 @@ import polymath as pm
 from polymath.codegen.tabla.tabla_pass import TablaPass
 import json
 
-def generate_tabla(graph, input_dict, filepath, context_dict=None, add_kwargs=False):
+def generate_tabla(graph, input_dict, filepath, context_dict=None, add_kwargs=False, debug=True):
     assert len(input_dict) > 0
     shape_pass = pm.NormalizeGraph(input_dict)
 
-    tabla_pass = TablaPass(context_dict, add_kwargs=add_kwargs)
+    tabla_pass = TablaPass(context_dict, add_kwargs=add_kwargs, debug=debug)
     lower_pass = pm.Lower({})
     print(f"Starting graph normalization...")
     shaped = shape_pass(graph)

@@ -8,16 +8,6 @@ class dense(pm.Template):
         j = pm.index(0, (w.shape[0] - 1), name="j")
         y[j] = pm.sum([i], w[j, i] * x[i], name="h")
 
-class elem_mul(pm.Template):
-    def define_graph(self, a, b, y, **kwargs):
-        i = pm.index(0, (y.shape[0] - 1), name="i")
-        y[i] = a[i] * b[i]
-
-class elem_sub(pm.Template):
-    def define_graph(self, a, b, y, **kwargs):
-        i = pm.index(0, (y.shape[0] - 1), name="i")
-        y[i] = a[i] - b[i]
-
 class dense_sigmoid(pm.Template):
     def define_graph(self, x, w, y, **kwargs):
         i = pm.index(0, (w.shape[1] - 1), name="i")
@@ -213,10 +203,17 @@ class batch_flatten(pm.Template):
         l = pm.index(0, data.shape[3]-1, name="l")
         out[((i*m + j)*n + k)*p + l] = data[i, j, k, l]
 
-class reduce_sum(pm.Template):
-    def define_graph(self, data, out, axis, keepdims, **kwargs):
-        i = pm.index(0, data.shape[axis] - 1, name="i")
-        out.write(pm.sum([i], data[i]))
+def reduce_sum(data, axis, keepdims, m, name=None, **kwargs):
+    i = pm.index(0, data.shape[axis] - 1, name=f"{name}_i")
+    return pm.sum([i], data[i], name=name)
+
+def elem_sub(a, b, m, name=None, **kwargs):
+    i = pm.index(0, (m - 1), name=f"{name}_i")
+    return (a[i] - b[i]).set_name(name)
+
+def elem_mul(a, b, m, name=None, **kwargs):
+    i = pm.index(0, (m - 1), name=f"{name}_i")
+    return (a[i] * b[i]).set_name(name)
 
 # TODO: Add reshape operator, constant operator, gemm
 NODE_NAMES = {"SVMClassifier": svm_classifier_train,

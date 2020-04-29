@@ -44,6 +44,7 @@ def test_linear_deserialize():
     x = np.random.randint(0, 10, 10)
     y = np.random.randint(0, 10, 1)[0]
     w = np.random.randint(0, 10, 10)
+
     graph_res = graph("w_out", {"x": x, "y": y, "w": w})
     actual_res = w - ((np.sum(x*w) - y)*x)*1.0
 

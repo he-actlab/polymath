@@ -36,11 +36,14 @@ def test_convert_benchmarks(benchmark_name, feature_size):
     graph = pm.from_onnx(filepath)
     x, w, y = generate_test_inputs(feature_size[0])
     # np_res = w - (x.dot(w) - y)*x
-    np_res = x.dot(w) - y
+    # np_res = x.dot(w)
+    np_res = x*w
+    # pprint.pprint(graph.nodes.keys())
     pm_res = graph("Mul_1:0", {"y:0": y, "x:0": x, "W:0": w})
-    print(pm_res)
-    print(np_res)
+    # print(pm_res)
+    # print(np_res)
     # np.testing.assert_allclose(np_res, pm_res)
+
 
 @pytest.mark.parametrize('m_',[
     3
@@ -261,7 +264,7 @@ def test_translate_conv(x_shape, w_shape, params):
                   "stride": params["stride"], "pad": params["pad"]}
 
 
-    _, input_info, out_info, keys = conv(x_shape, w_shape, params, coarse=True, debug_matrix=False)
+    _, input_info, out_info, keys = conv(x_shape, w_shape, params, coarse=True, debug_matrix=True)
 
     n = pm.parameter(name="n")
     c = pm.parameter(name="ic")
@@ -278,8 +281,9 @@ def test_translate_conv(x_shape, w_shape, params):
     out = pm.output(name="out")
     graph = pm.conv(x, w, b, out, stride, pad)
     tinput_info = copy.deepcopy(input_info)
+
     res0 = graph("out", tinput_info)
-    np.testing.assert_allclose(res0.astype(int), out_info["out"].astype(int))
+    np.testing.assert_allclose(res0, out_info["out"])
     input_info['populate'] = False
     normalize_pass = pm.NormalizeGraph(input_info)
     normalized = normalize_pass(graph)
@@ -303,14 +307,14 @@ def test_translate_flatten(x_shape):
 def test_translate_reduce_sum(x_shape):
     data = np.random.randint(-3, 3, x_shape)
     np_res = np.sum(data)
-
-    pm_data = pm.input(name="a", shape=x_shape)
+    graph = pm.Node("reduce")
+    pm_data = pm.input(name="a", shape=x_shape, graph=graph)
     axis = 0
     keepdims = 0
-    pm_output = pm.output(name="out")
 
-    pm_graph = pm.reduce_sum(pm_data, pm_output, axis, keepdims)
-    pm_res = pm_graph("out", {"a": data})
+    with graph:
+        pm_graph = pm.reduce_sum(pm_data, axis, keepdims, x_shape[0], name="out")
+    pm_res = graph("out", {"a": data})
     np.testing.assert_allclose(pm_res, np_res)
 
 
@@ -321,13 +325,13 @@ def test_translate_elem_mul(x_shape):
     a = np.random.randint(-3, 3, x_shape)
     b = np.random.randint(-3, 3, x_shape)
     np_res = a * b
+    graph = pm.Node("elem_mul")
 
-    pm_a = pm.input(name="a", shape=x_shape)
-    pm_b = pm.input(name="b", shape=x_shape)
-    pm_output = pm.output(name="out", shape=x_shape)
-
-    pm_graph = pm.elem_mul(pm_a, pm_b, pm_output)
-    pm_res = pm_graph("out", {"a": a, "b": b})
+    pm_a = pm.input(name="a", shape=x_shape, graph=graph)
+    pm_b = pm.input(name="b", shape=x_shape, graph=graph)
+    with graph:
+        pm_output = pm.elem_mul(pm_a, pm_b, x_shape[0], name="out")
+    pm_res = graph("out", {"a": a, "b": b})
     np.testing.assert_allclose(pm_res, np_res)
 
 
@@ -341,10 +345,8 @@ def test_translate_vmul(x_shape):
     with pm.Node("vmul") as pm_graph:
         pm_a = pm.input(name="a", shape=x_shape)
         pm_b = pm.input(name="b", shape=x_shape)
-        pm_c = pm.output(name="c", shape=x_shape)
-        outp = pm.output(name="out")
-        pm.elem_mul(pm_a, pm_b, pm_c)
-        pm.reduce_sum(pm_c, outp, 0, 0)
+        outp = pm.elem_mul(pm_a, pm_b, x_shape[0])
+        _ = pm.reduce_sum(outp, 0, 0, x_shape[0], name="out")
 
     pm_res = pm_graph("out", {"a": a, "b": b})
     np.testing.assert_allclose(pm_res, np_res)

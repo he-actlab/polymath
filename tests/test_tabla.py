@@ -49,8 +49,6 @@ def test_backprop_embedded_values(l1, l2, l3):
     graph, input_info, out_info, keys = backprop(l1, l2, l3, coarse=True, debug=False)
 
     test_out = graph(["w1","w2"], input_info)
-    # print(out_info["w1"])
-    # print(out_info["w2"])
     np.testing.assert_allclose(test_out[0], out_info["w1"])
     np.testing.assert_allclose(test_out[1], out_info["w2"])
 
@@ -64,7 +62,8 @@ def test_backprop_embedded_values(l1, l2, l3):
     tabla_ir, tabla_graph = pm.generate_tabla(graph,
                                               shape_dict,
                                               tabla_path,
-                                              context_dict={}, add_kwargs=True)
+                                              context_dict=input_info,
+                                              add_kwargs=True, debug=False)
 
 @pytest.mark.parametrize('m_',[
     55

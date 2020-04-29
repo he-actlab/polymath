@@ -11,8 +11,10 @@ import numpy as np
 
 def pb_store(node, file_path):
     file_path = f"{file_path}/{node.name}.pb"
+    count_before = len(node.nodes.keys())
     with open(file_path, "wb") as program_file:
         program_file.write(_serialize_node(node).SerializeToString())
+    count_after = len(node.nodes.keys())
 
 def pb_load(file_path):
     new_program = pb.Node()
@@ -120,7 +122,6 @@ def _deserialize_domain(pb_dom, graph):
 
 def _deserialize_node(pb_node, graph=None):
     set_fields = pb_node.DESCRIPTOR.fields_by_name
-
     kwargs = {}
     shape_list = []
     for shape in pb_node.shape:
@@ -128,12 +129,13 @@ def _deserialize_node(pb_node, graph=None):
         if val_type == "shape_const":
             shape_list.append(shape.shape_const)
         else:
-            shape_list.append(graph[shape.shape_id])
+            shape_list.append(graph.nodes[shape.shape_id])
     kwargs["shape"] = tuple(shape_list)
-
     kwargs["name"] = pb_node.name
     kwargs["op_name"] = pb_node.op_name
 
+    if pb_node.name == 'x*w':
+        print(f"Shape after start: {kwargs['shape']}")
     kwargs["dependencies"] = [dep for dep in pb_node.dependencies]
 
     args = []
@@ -170,6 +172,8 @@ def _deserialize_node(pb_node, graph=None):
         else:
             raise TypeError(f"Cannot find deserializeable method for argument {arg} with type {arg.type}")
     args = tuple(args)
+    if pb_node.name == 'x*w':
+        print(f"Shape after args: {kwargs['shape']}")
     for name in pb_node.kwargs:
         arg = pb_node.kwargs[name]
         if arg.type == pb.Attribute.Type.DOM:
@@ -206,6 +210,9 @@ def _deserialize_node(pb_node, graph=None):
         else:
 
             raise TypeError(f"Cannot find deserializeable method for argument {name} with type {arg.type}")
+    if pb_node.name == 'x*w':
+        print(f"Shape after kwaargs: {kwargs['shape']}\n"
+              f"Keys: {kwargs.keys()}")
 
 
     mod_name, cls_name = pb_node.module.rsplit(".", 1)
@@ -215,7 +222,7 @@ def _deserialize_node(pb_node, graph=None):
         func_mod = __import__(func_mod_name, fromlist=[func_name])
         target = getattr(func_mod, func_name)
         kwargs.pop("target")
-
+        print(f"")
         if cls_name in ["func_op", "slice_op"]:
             node = getattr(mod, cls_name)(target, *args, graph=graph, **kwargs)
         else:
@@ -223,7 +230,12 @@ def _deserialize_node(pb_node, graph=None):
     else:
 
         node = getattr(mod, cls_name)(*args, graph=graph, **kwargs)
-
+    if pb_node.name == 'x*w':
+        print(f"Shape at end: {kwargs['shape']}\n"
+              f"Node shape: {node.shape}\n"
+              f"Args: {args}\n"
+              f"Kwargs: {kwargs}\n"
+              f"{node}\n")
     for pb_n in pb_node.nodes:
         if pb_n.name in node.nodes:
             continue

@@ -53,7 +53,7 @@ class Node(object):
         Keyword arguments passed to the `_evaluate` method.
     """
     _graph_stack = deque([None])
-
+    evaluated_nodes = 0
     def __init__(self, *args,
                  name=None,
                  shape=None,
@@ -391,7 +391,7 @@ class Node(object):
         KeyError
             If the current name of the node cannot be found in the associated graph.
         """
-
+        name = name or uuid.uuid4().hex
         # TODO: Need a way to check if the existing node is not equal to the current ndoe as ewll
         if self.graph and name in self.graph.nodes:
             raise ValueError(f"duplicate name '{name}' in {self.graph.name}:\n\t"
@@ -471,6 +471,7 @@ class Node(object):
         """
         Evaluate an node or constant given a context.
         """
+        Node.evaluated_nodes += 1
         try:
             if isinstance(node, Node):
                 return node.evaluate(context, **kwargs)
@@ -779,7 +780,6 @@ class var_index(Node):  # pylint: disable=C0103,W0223
             ret = self.nodes.item_by_index(idx)
             return ret
         else:
-
             if isinstance(key, (list)):
                 ret = var_index(self.var, tuple(key), graph=self)
             elif isinstance(key, tuple):
@@ -797,13 +797,13 @@ class var_index(Node):  # pylint: disable=C0103,W0223
             out_shape = self.domain.shape_from_indices(indices)
             indices = self.domain.compute_pairs()
             single = False
-        if isinstance(var, str):
-            var = np.array(list(var))
+        if isinstance(var, (Integral, str)):
+            var = np.asarray([var])
         elif not isinstance(var, (np.ndarray,list)):
             raise TypeError(f"Variable {var} is not a list or numpy array, and cannot be sliced for {self.name}")
-
         elif isinstance(var, list):
             var = np.asarray(var)
+
         if len(var.shape) != len(out_shape):
             raise ValueError(f"Index list {self.domain} does not match {var.shape} dimensions for slice {self.args[0].name} with {out_shape}")
         if not single and not all([(idx_val - 1) >= indices[-1][idx] for idx, idx_val in enumerate(var.shape)]):
@@ -814,7 +814,9 @@ class var_index(Node):  # pylint: disable=C0103,W0223
 
         indices = list(map(lambda x: x.tolist() if isinstance(x, np.ndarray) else x, indices))
         res = var[indices] if single else np.asarray([var[idx] for idx in indices]).reshape(out_shape)
+
         self.domain.set_computed(out_shape, indices)
+
 
         return res
 
@@ -976,7 +978,7 @@ class slice_op(Node):
             self._shape = shape if isinstance(shape, tuple) else tuple(shape)
         else:
             for idx, d in enumerate(self.domain.dom_set):
-                if shape and isinstance(shape[idx], Integral):
+                if shape and isinstance(shape[idx], (func_op, Integral)):
                     s.append(shape[idx])
                 elif shape and isinstance(shape[idx], float):
                     s.append(int(shape[idx]))
@@ -984,21 +986,18 @@ class slice_op(Node):
                     s.append(int(d))
                 elif isinstance(d, var_index):
                     s.append(d.domain)
+                elif _is_node_type_instance(d, "index"):
+                    s.append((d.ubound - d.lbound + 1))
                 else:
                     s.append(d)
+
             self._shape = tuple(s)
 
 
     def _evaluate(self, op1, op2, context=None, **kwargs):
-
         if not isinstance(op1, np.ndarray) or not isinstance(op2, np.ndarray):
             value = self.target(op1, op2)
         else:
-            if self.args[0].name == "Sub:00":
-                print(f"{self.name} - {[(a.name, a.op_name, a.shape) for a in self.args]}")
-                print(op1)
-                print(op2)
-
             op1_idx = self.domain.map_sub_domain(self.args[0].domain) if isinstance(self.args[0], Node) else tuple([])
             op2_idx = self.domain.map_sub_domain(self.args[1].domain) if isinstance(self.args[1], Node) else tuple([])
 
@@ -1135,6 +1134,7 @@ class func_op(Node):  # pylint: disable=C0103,R0903
             all_args = _flatten_iterable(args)
             slice1_var, slice1_idx, slice2_var, slice2_idx = self.get_index_nodes(all_args[0], all_args[1])
             domain = slice1_idx.combine_set_domains(slice2_idx)
+
         else:
             domain = Domain(tuple([]))
         self._target = None
@@ -1172,9 +1172,9 @@ class func_op(Node):  # pylint: disable=C0103,R0903
         return slice1_var, slice1_idx, slice2_var, slice2_idx
 
     def _evaluate(self, *args, **kwargs):
+
         for aa in self.added_attrs:
             kwargs.pop(aa)
-
         return self.target(*args, **kwargs)
 
     def __call__(self, *args, **kwargs):

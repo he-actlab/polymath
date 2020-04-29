@@ -15,6 +15,9 @@ class index(Node):  # pylint: disable=C0103,W0223
         kwargs["op_name"] = kwargs["op_name"] if "op_name" in kwargs else "index"
         super(index, self).__init__(lbound, ubound, **kwargs)
 
+    def as_shape(self):
+        return self.ubound - self.lbound
+
     @property
     def domain(self):
         return tuple([self])

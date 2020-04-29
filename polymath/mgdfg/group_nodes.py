@@ -70,6 +70,7 @@ class GroupNode(Node):
         return self.kwargs["domain"]
 
     def _evaluate(self, bounds, input_res, **kwargs):
+
         sum_axes = self.axes
         if not hasattr(input_res, "__len__"):
             value = input_res * np.prod([len(bound) for bound in bounds])
@@ -77,6 +78,7 @@ class GroupNode(Node):
             value = self.target(input_res.reshape(self.args[1].domain.computed_set_shape), axis=sum_axes)
         else:
             value = self.target(input_res.reshape(self.args[1].domain.computed_set_shape), axis=sum_axes, initial=self.initial)
+
         return value
 
     def __repr__(self):

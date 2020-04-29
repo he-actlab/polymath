@@ -66,7 +66,7 @@ class placeholder(Node):  # pylint: disable=C0103,R0903
 
             idx_name = "[" + "][".join([i.name if isinstance(i, Node) else i for i in key]) + "]"
             name = f"{self.name}{idx_name}"
-            if name in self.graph.nodes:
+            if self.graph and name in self.graph.nodes:
                 return self.graph.nodes[name]
             else:
                 return var_index(self, key, name=name, graph=self.graph)
@@ -342,7 +342,6 @@ class write(Node):
         else:
             domain = Domain(dst_key)
         super(write, self).__init__(src, dst_key, dst, domain=domain, shape=dst.shape, **kwargs)
-
         self.alias = kwargs["alias"]
         self.shape_domain = Domain(self.dest.shape)
 
@@ -391,6 +390,7 @@ class write(Node):
 
     def __getitem__(self, key):
         key = _flatten_iterable(key)
+
         if self.shape == DEFAULT_SHAPES[0]:
             return self
         elif self.is_shape_finalized():

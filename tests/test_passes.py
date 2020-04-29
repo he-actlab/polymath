@@ -66,9 +66,10 @@ def test_visit():
     orig_ops = [(n.name, n.op_name) for _, n in graph.nodes.items()]
     new_ops = [(n.name, n.op_name) for _, n in new_graph.nodes.items()]
     assert graph.func_hash() == new_graph.func_hash()
-    assert test_pass.ctx["count"] == 17
+
+    assert test_pass.ctx["count"] == 25
     assert test_pass.ctx["global"] == 1
-    assert test_pass.ctx["linear_reg"] == 16
+    assert test_pass.ctx["linear_reg"] == 24
     visit_res = new_graph("res", {"x": x, "y": y, "w": w})
     np.testing.assert_allclose(graph_res, actual_res)
     np.testing.assert_allclose(visit_res, actual_res)
@@ -85,10 +86,9 @@ def test_transform():
     test_count = CountNodes()
     new_graph = test_pass(graph)
     orig_graph = test_count(new_graph)
-    assert test_count.ctx["count"] == 17
+    assert test_count.ctx["count"] == 25
     assert test_count.ctx["global"] == 1
-    assert test_count.ctx["linear_reg"] == 16
-    # assert count_after["test_sub"] == 2
+    assert test_count.ctx["linear_reg"] == 24
     visit_res = new_graph("res", {"x": x, "y": y, "w": w})
     np.testing.assert_allclose(graph_res, actual_res)
     np.testing.assert_allclose(visit_res, actual_res)
@@ -145,7 +145,6 @@ def test_flatten_result_length():
     x = np.random.randint(0, 10, 10)
     y = np.random.randint(0, 10, 1)[0]
     w = np.random.randint(0, 10, 10)
-    # flattened_res = flattened_g("w_out", {"x": x, "y": y, "w": w})
 
     orig_graph = count_pass(flattened_g)
 

@@ -92,7 +92,6 @@ def generate_nn_mdfg(onnx_graph):
         if v.name in initializers:
             node_info[v.name] = pm.variable(initializers[v.name], name=v.name, shape=get_value_info_shape(v), graph=mgdfg)
         else:
-            # node_info[v.name] = pm.placeholder(name=v.name, shape=get_value_info_shape(v), graph=mgdfg)
             node_info[v.name] = {"name": v.name, "shape": get_value_info_shape(v)}
 
     for n in onnx_graph.node:
@@ -109,20 +108,23 @@ def convert_node(onnx_node, mgdfg, node_info):
         assert i in mgdfg.nodes
         args.append(mgdfg.nodes[i])
 
-    for o in onnx_node.output:
-        if o in node_info:
-            if isinstance(node_info[o], dict):
-                args.append(pm.output(name=o, shape=node_info[o]["shape"], graph=mgdfg))
-            else:
-                args.append(node_info[o])
-        else:
-            assert o not in mgdfg.nodes
-            args.append(pm.output(name=o, graph=mgdfg))
+    assert len(onnx_node.output) == 1 and onnx_node.output[0] in node_info
 
-    attributes = get_attributes(onnx_node)
-    args = tuple(args + list(attributes.values()))
-    with mgdfg:
-        NODE_NAMES[onnx_node.op_type](*args, name=name, graph=mgdfg)
+    o_name = onnx_node.output[0]
+    if isinstance(node_info[o_name], dict):
+        o_shape = node_info[o_name]["shape"]
+        attributes = get_attributes(onnx_node)
+        args = tuple(args + list(attributes.values()) + list(o_shape))
+        with mgdfg:
+            new_node = NODE_NAMES[onnx_node.op_type](*args, name=o_name)
+    else:
+        o_shape = node_info[o_name].shape
+        attributes = get_attributes(onnx_node)
+        args = tuple(args + list(attributes.values()) + list(o_shape))
+        indices = tuple([pm.index(0, s-1, graph=mgdfg) for s in o_shape])
+        with mgdfg:
+            new_node = NODE_NAMES[onnx_node.op_type](*args)
+            node_info[o_name].write(new_node[indices])
 
     return mgdfg
 

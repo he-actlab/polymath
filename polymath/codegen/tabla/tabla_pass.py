@@ -1,9 +1,11 @@
 import polymath as pm
 from collections import OrderedDict
 import numpy as np
-
+from .tabla_utils import sigmoid_lut, gaussian_lut
 import tqdm
 import sys
+LUT_NODES = {"sigmoid": sigmoid_lut,
+             "gaussian": gaussian_lut}
 TABLA_OP_MAP = {"add": "+",
                 "mul": "*",
                 "sub": "-",
@@ -14,7 +16,9 @@ TABLA_OP_MAP = {"add": "+",
 @pm.register_pass
 class TablaPass(pm.Pass):
 
-    def __init__(self, test_values=None, add_kwargs=False):
+    def __init__(self, test_values=None, add_kwargs=False, debug=True):
+        self.evaluations = 0
+        self.debug = debug
         self.dfg = OrderedDict()
         self.used = {}
         self.hsh_map = {}
@@ -29,9 +33,10 @@ class TablaPass(pm.Pass):
 
         if node.graph is None:
             return node
-        if not self.pbar.total:
-            self.pbar.reset(total=len(node.graph.nodes))
-        self.pbar.update(1)
+        if self.debug:
+            if not self.pbar.total:
+                self.pbar.reset(total=len(node.graph.nodes))
+            self.pbar.update(1)
         n_key = self.node_key(node)
         if isinstance(node, pm.parameter):
             self.add_constants(node)
@@ -75,11 +80,11 @@ class TablaPass(pm.Pass):
     def finalize_pass(self, node, ctx):
         if node.graph is None:
             return node
-
-        if self.pbar.n == self.pbar.total:
-            self.pbar.reset(total=len(node.graph.nodes))
-        self.pbar.set_description(f"Applying finalize pass to node {node.name} - {node.op_name}")
-        self.pbar.update(1)
+        if self.debug:
+            if self.pbar.n == self.pbar.total:
+                self.pbar.reset(total=len(node.graph.nodes))
+            self.pbar.set_description(f"Applying finalize pass to node {node.name} - {node.op_name}")
+            self.pbar.update(1)
 
         key = self.node_key(node)
 
@@ -101,12 +106,7 @@ class TablaPass(pm.Pass):
         elif isinstance(node, (pm.output, pm.state)) and self.add_kwargs:
             self.add_dfg_params(node)
         elif isinstance(node, (pm.write)):
-
             node.graph.nodes[node.name] = node.args[0]
-
-            # if node.args[0].name in node.graph.nodes:
-            #     node.graph.nodes.pop(node.args[0].name)
-
             if self.add_kwargs:
                 self.add_dfg_params(node.args[0])
         elif key not in self.used and node.graph:
@@ -136,10 +136,20 @@ class TablaPass(pm.Pass):
             else:
                 ctx_cpy = self.test_values.copy()
                 assert all([not isinstance(v,str) for v in self.test_values.values()])
-                comp_res = node.graph(node, ctx_cpy)
-
+                ebefore = node.graph.evaluated_nodes
+                if node.op_name in LUT_NODES:
+                    input_val = self.test_values[node.args[0].name]
+                    comp_res = LUT_NODES[node.op_name](input_val)
+                else:
+                    comp_res = node.graph(node, ctx_cpy)
+                ediff = node.graph.evaluated_nodes - ebefore
+                self.evaluations += ediff
+                print(f"Total evaluations for {node.name}/{node.op_name}\t{ediff}\n"
+                      f"Cumulative evaluations: {self.evaluations}\n")
                 self.test_values[node.name] = comp_res
                 node_info["computed"] = int(comp_res)
+
+
 
     def add_constants(self, node):
         for a in node.args:
