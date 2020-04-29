@@ -218,24 +218,24 @@ def linear(m=3, coarse=False):
 def backprop_data_gen(l1, l2, l3, mu=1.0, lowered=False, debug=False):
     input_info = {}
     if debug:
-        input_info["x"] = np.arange(-1*l1//2, l1//2-1)
+        input_info["x"] = np.arange(-1*l1//2, l1//2)
     else:
         input_info["x"] = np.random.randint(-3, 3, l1)
 
     if debug:
-        w1 = np.arange(-l2//2, l2//2-1)
-        input_info["w1"] = np.repeat(w1, l2).reshape((l2,l1))
+        w1 = np.arange(-l2//2, l2//2)
+        input_info["w1"] = np.repeat(w1, l1).reshape((l2,l1))
     else:
         input_info["w1"] = np.random.randint(-3, 3, (l2,l1))
 
     if debug:
-        w2 = np.arange(-l3//2, l3//2-1)
+        w2 = np.arange(-l3//2, l3//2)
         input_info["w2"] = np.repeat(w2, l2).reshape((l3,l2))
     else:
         input_info["w2"] = np.random.randint(-3, 3, (l3,l2))
 
     if debug:
-        input_info["y"] = np.arange(-1*l3//2, l3//2-1)
+        input_info["y"] = np.arange(-1*l3//2, l3//2)
     else:
         input_info["y"] = np.random.randint(-3, 3, l3)
 
