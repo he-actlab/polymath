@@ -488,3 +488,13 @@ def compute_sum_indices(axes_idx, input_domain, sd):
     return (input_domain[:, axes_idx] == sd).all(axis=1).nonzero()[0]
 
 
+def is_single_valued(node, value=None):
+    if _is_node_instance(node) and node.shape in [(1,), (0,)]:
+        return True
+    elif value:
+        if not isinstance(value, np.ndarray):
+            return True
+        elif is_iterable(value) and len(value) == 1:
+            return True
+    return False
+

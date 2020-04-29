@@ -13,7 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+from polymath import UNSET_SHAPE, DEFAULT_SHAPES
 import builtins
 from collections import OrderedDict, Mapping, Sequence, deque
 from typing import Any
@@ -28,7 +28,8 @@ import uuid
 import numpy as np
 from polymath.mgdfg.graph import Graph
 from polymath.mgdfg.domain import Domain
-from .util import _noop_callback, _flatten_iterable, node_hash, _is_node_type_instance, is_iterable
+from .util import _noop_callback, _flatten_iterable, node_hash, \
+    _is_node_type_instance, is_iterable, is_single_valued
 
 class Node(object):
     """
@@ -176,16 +177,12 @@ class Node(object):
         self.kwargs[key] = value
 
     def is_shape_finalized(self):
-        if self.shape == tuple([0]):
+        if self.shape == UNSET_SHAPE:
             return False
         for s in self.shape:
             if not isinstance(s, Integral):
                 return False
         return True
-
-    def is_scalar(self):
-        return self.shape[0] == 0
-
 
     def set_shape(self, shape=None, init=False):
         if isinstance(shape, float):
@@ -195,7 +192,8 @@ class Node(object):
         elif isinstance(shape, Node):
             self._shape = tuple([shape])
         elif not shape or len(shape) == 0:
-            self._shape = tuple([0])
+            # TODO: Change in order to enable "is shape finalized" to work
+            self._shape = UNSET_SHAPE
         else:
             shapes = []
             for dim in shape:
@@ -553,7 +551,8 @@ class Node(object):
         return node_hash(self)
 
     def __len__(self):
-        if self.shape[0] == 0:
+        #TODO: Update this to check for finalzied shape
+        if self.shape == UNSET_SHAPE:
             raise TypeError(f'`shape` must be specified explicitly for nodes {self}')
         return self.shape[0]
 
@@ -790,6 +789,7 @@ class var_index(Node):  # pylint: disable=C0103,W0223
             return ret
 
     def _evaluate(self, var, indices, **kwargs):
+
         if len(indices) >= 1 and not isinstance(indices[0], (list, np.ndarray)):
             out_shape = (1,)
             single = True
@@ -800,7 +800,8 @@ class var_index(Node):  # pylint: disable=C0103,W0223
         if isinstance(var, str):
             var = np.array(list(var))
         elif not isinstance(var, (np.ndarray,list)):
-            raise TypeError(f"Variable {var} is not a list or numpy array, and cannot be sliced")
+            raise TypeError(f"Variable {var} is not a list or numpy array, and cannot be sliced for {self.name}")
+
         elif isinstance(var, list):
             var = np.asarray(var)
         if len(var.shape) != len(out_shape):
@@ -993,6 +994,11 @@ class slice_op(Node):
         if not isinstance(op1, np.ndarray) or not isinstance(op2, np.ndarray):
             value = self.target(op1, op2)
         else:
+            if self.args[0].name == "Sub:00":
+                print(f"{self.name} - {[(a.name, a.op_name, a.shape) for a in self.args]}")
+                print(op1)
+                print(op2)
+
             op1_idx = self.domain.map_sub_domain(self.args[0].domain) if isinstance(self.args[0], Node) else tuple([])
             op2_idx = self.domain.map_sub_domain(self.args[1].domain) if isinstance(self.args[1], Node) else tuple([])
 

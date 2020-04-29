@@ -70,8 +70,8 @@ def test_visit():
     assert test_pass.ctx["global"] == 1
     assert test_pass.ctx["linear_reg"] == 16
     visit_res = new_graph("res", {"x": x, "y": y, "w": w})
-    assert np.allclose(graph_res, actual_res)
-    assert np.allclose(visit_res, actual_res)
+    np.testing.assert_allclose(graph_res, actual_res)
+    np.testing.assert_allclose(visit_res, actual_res)
 
 def test_transform():
     graph = linear_reg_graph()
@@ -90,8 +90,8 @@ def test_transform():
     assert test_count.ctx["linear_reg"] == 16
     # assert count_after["test_sub"] == 2
     visit_res = new_graph("res", {"x": x, "y": y, "w": w})
-    assert np.allclose(graph_res, actual_res)
-    assert np.allclose(visit_res, actual_res)
+    np.testing.assert_allclose(graph_res, actual_res)
+    np.testing.assert_allclose(visit_res, actual_res)
 
 def test_fn_transform():
     graph = linear_reg_graph()
@@ -107,8 +107,8 @@ def test_fn_transform():
 
     orig_graph = test_count(new_graph)
     visit_res = new_graph("res", {"x": x, "y": y, "w": w})
-    assert np.allclose(graph_res, actual_res)
-    assert np.allclose(visit_res, actual_res)
+    np.testing.assert_allclose(graph_res, actual_res)
+    np.testing.assert_allclose(visit_res, actual_res)
 
 def test_shape_eval():
 
@@ -249,8 +249,8 @@ def test_flatten_reco():
 
     new_graph = shape_val_pass(graph)
     test_res = new_graph(["w1", "w2"], input_info)
-    assert np.allclose(test_res[0], out_info["w1"])
-    assert np.allclose(test_res[1], out_info["w2"])
+    np.testing.assert_allclose(test_res[0], out_info["w1"])
+    np.testing.assert_allclose(test_res[1], out_info["w2"])
     flattened_g = flatten_pass(new_graph)
     input_info = {}
     input_info["m"] = m_
@@ -303,5 +303,5 @@ def test_flatten_reco():
     all_vals = flattened_g(w1_keys + w2_keys, input_info)
     out1 = np.asarray(list(all_vals[0:6])).reshape(new_out_info["w2"].shape)
     out2 = np.asarray(list(all_vals[6:])).reshape(new_out_info["w2"].shape)
-    assert np.allclose(new_out_info["w1"], np.asarray(list(all_vals[0:6])).reshape(new_out_info["w2"].shape))
-    assert np.allclose(new_out_info["w2"], np.asarray(list(all_vals[6:])).reshape(new_out_info["w2"].shape))
+    np.testing.assert_allclose(new_out_info["w1"], np.asarray(list(all_vals[0:6])).reshape(new_out_info["w2"].shape))
+    np.testing.assert_allclose(new_out_info["w2"], np.asarray(list(all_vals[6:])).reshape(new_out_info["w2"].shape))

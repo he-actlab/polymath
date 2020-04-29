@@ -1,11 +1,11 @@
 import sys
 sys.path.insert(0, "..")
-# sys.path.insert(0, "../tests")
-
+import numpy as np
 from pathlib import Path
 import polymath as pm
 from tests.util import logistic, linear, reco, svm, backprop
 import argparse
+BENCH_DIR = Path(f"{Path(__file__).parent}/onnx_files")
 
 def create_linear(m):
     shape_dict = {"m": m}
@@ -71,6 +71,28 @@ def create_backprop(l1, l2, l3):
                                               tabla_path,
                                               context_dict=input_info, add_kwargs=True)
 
+def generate_test_inputs(n):
+    n = int(n)
+    x = np.random.randint(-3,3, n)
+    w = np.random.randint(-3,3, n)
+    y = np.random.randint(-3,3, 1)
+    return x, w, y
+
+def run_onnx_benchmark(benchmark_name, feature_size):
+    filename = f"{benchmark_name}{'-'.join(feature_size)}.onnx"
+    filepath = f"{BENCH_DIR}/{benchmark_name}/{filename}"
+
+    if Path(filepath).exists():
+        graph = pm.from_onnx(filepath)
+        # x, w, y = generate_test_inputs(feature_size[0])
+        # # for k1,v1 in graph.nodes.items():
+        # #     if v1.op_name == "elem_sub":
+        # #         for k, v in v1.nodes.items():
+        # #             print(f"{k} - {v.op_name} - {v}")
+        # np_res = w - (x.dot(w) - y)*x
+        # pm_res = graph("Sub:0", {"y:0": y, "x:0": x, "W:0": w})
+    else:
+        raise RuntimeError(f"Benchmark {filename} does not exist in {filepath}.")
 
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser(description='Memory Interface Instructino Generator')
@@ -79,10 +101,14 @@ if __name__ == "__main__":
                                 'or "svm".')
     argparser.add_argument('-fs', '--feature_size', nargs='+', required=True,
                            help='Feature size to use for creating the benchmark')
+    argparser.add_argument('-o', '--onnx_benchmark', required=True, default=False,
+                           help='Determines whether or not to load the benchmark from an ONNX file or not')
 
     args = argparser.parse_args()
     features = tuple([int(i) for i in args.feature_size])
-    if args.benchmark == "linear":
+    if args.onnx_benchmark:
+        run_onnx_benchmark(args.benchmark, args.feature_size)
+    elif args.benchmark == "linear":
         create_linear(*features)
     elif args.benchmark == "logistic":
         create_logistic(*features)

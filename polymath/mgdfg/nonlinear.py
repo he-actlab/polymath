@@ -32,7 +32,10 @@ class NonLinear(Node):
         elif self.is_shape_finalized() or len(self.nodes) > 0:
             if isinstance(key, (int, Node)):
                 key = tuple([key])
-            assert len(key) == len(self.shape)
+            if len(key) != len(self.shape):
+                raise KeyError(f"Cannot access item with key {key} for node with shape {self.shape}\n"
+                               f"\tNode: {self.name}\n\t"
+                               f"Op: {self.op_name}\n\t")
             name = f"{self.name}{key}"
             ret = self.nodes[name]
             return ret
@@ -86,7 +89,6 @@ class sigmoid(NonLinear):
 class log2(NonLinear):
     def __init__(self, input_node, **kwargs):
         super(log2, self).__init__(_log2, input_node, **kwargs)
-
 
 class exp(NonLinear):
     def __init__(self, input_node, **kwargs):

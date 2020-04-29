@@ -1,4 +1,5 @@
 from typing import Tuple, Any, Union, Sequence
+from polymath import DEFAULT_SHAPES
 from polymath.mgdfg.util import is_iterable, _is_node_type_instance, _is_node_instance
 from dataclasses import dataclass, field
 import numpy as np
@@ -155,7 +156,7 @@ class Domain(object):
                     elif _is_node_type_instance(i, "index"):
                         assert isinstance(i.lbound, Integral) and isinstance(i.ubound, Integral)
                         dom_pairs.append([x for x in range(i.lbound, i.ubound + 1)])
-                    elif i.shape == (0,) or i.shape == (1,):
+                    elif i.shape in DEFAULT_SHAPES:
                         continue
                     else:
                         raise ValueError(f"Could not use subscript for domain pair: {i.name} - {i.op_name}")
@@ -185,7 +186,7 @@ class Domain(object):
                     elif _is_node_type_instance(i, "index"):
                         assert isinstance(i.lbound, Integral) and isinstance(i.ubound, Integral)
                         pairs.append([x for x in range(i.lbound, i.ubound + 1)])
-                    elif i.shape == (0,) or i.shape == (1,):
+                    elif i.shape in DEFAULT_SHAPES:
                         continue
                     else:
                         raise ValueError(f"Could not use subscript for domain pair: {i.name} - {i.op_name}")
@@ -214,7 +215,7 @@ class Domain(object):
                 elif _is_node_type_instance(i, "index"):
                     assert isinstance(i.lbound, Integral) and isinstance(i.ubound, Integral)
                     pairs.append([x for x in range(i.lbound, i.ubound + 1)])
-                elif i.shape == (0,) or i.shape == (1,):
+                elif i.shape in DEFAULT_SHAPES:
                     continue
                 else:
                     raise ValueError(f"Could not use subscript for domain pair: {i.name} - {i.op_name}")

@@ -1,14 +1,17 @@
-from onnx import load, numpy_helper, helper
+from onnx import load, numpy_helper, helper, shape_inference
 import pathlib
 import numpy as np
 from .node_definitions import NODE_NAMES
 import polymath as pm
 
-def from_onnx(filepath):
+def from_onnx(filepath, infer_shapes=True):
     onnx_proto, graph_name = load_onnx_proto(filepath)
     attr = get_model_attributes(onnx_proto)
-
-    for n in onnx_proto.graph.node:
+    if infer_shapes:
+        onnx_graph = shape_inference.infer_shapes(onnx_proto).graph
+    else:
+        onnx_graph = onnx_proto.graph
+    for n in onnx_graph.node:
         if n.op_type not in NODE_NAMES and n.name not in NODE_NAMES:
             raise RuntimeError(f"Support for {n.op_type} or {n.name} is not currently included in PolyMath")
 
@@ -19,9 +22,9 @@ def from_onnx(filepath):
             break
 
     if domain == "ml":
-        graph = generate_ml_mdfg(onnx_proto.graph)
+        graph = generate_ml_mdfg(onnx_graph)
     else:
-        graph = generate_nn_mdfg(onnx_proto.graph)
+        graph = generate_nn_mdfg(onnx_graph)
 
     return graph
 
@@ -51,16 +54,29 @@ def generate_ml_mdfg(onnx_graph):
         raise ValueError(f"Unsupported graph type: {onnx_graph.node[0].op_type}")
     return graph
 
+def get_initializers(initializers):
+    init_dict = {}
+    for i in initializers:
+        val = numpy_helper.to_array(i)
+        if len(val.shape) == 0:
+            # val = np.asarray([np.int(val)])
+            val = np.int(val)
+        init_dict[i.name] = val
+    return init_dict
+
 def generate_nn_mdfg(onnx_graph):
     names = [des.name for des in onnx_graph.DESCRIPTOR.fields]
     graph_name = getattr(onnx_graph, "name")
-    initializers = {i.name: numpy_helper.to_array(i) for i in onnx_graph.initializer}
+    initializers = get_initializers(onnx_graph.initializer)
     mgdfg = pm.Node(name=graph_name)
     node_info = {}
     for i in onnx_graph.input:
         assert i.name not in node_info
         if i.name in initializers:
-            node_info[i.name] = pm.variable(initializers[i.name], name=i.name, shape=get_value_info_shape(i), graph=mgdfg)
+            if itercheck(initializers[i.name]):
+                node_info[i.name] = pm.variable(initializers[i.name], name=i.name, shape=get_value_info_shape(i), graph=mgdfg)
+            else:
+                node_info[i.name] = pm.parameter(name=i.name, default=initializers[i.name], graph=mgdfg)
         else:
             node_info[i.name] = pm.input(name=i.name, shape=get_value_info_shape(i), graph=mgdfg)
 
@@ -76,7 +92,37 @@ def generate_nn_mdfg(onnx_graph):
         if v.name in initializers:
             node_info[v.name] = pm.variable(initializers[v.name], name=v.name, shape=get_value_info_shape(v), graph=mgdfg)
         else:
-            node_info[v.name] = pm.placeholder(name=v.name, shape=get_value_info_shape(v), graph=mgdfg)
+            # node_info[v.name] = pm.placeholder(name=v.name, shape=get_value_info_shape(v), graph=mgdfg)
+            node_info[v.name] = {"name": v.name, "shape": get_value_info_shape(v)}
+
+    for n in onnx_graph.node:
+        assert n.op_type in NODE_NAMES
+        _ = convert_node(n, mgdfg, node_info)
+
+    return mgdfg
+
+def convert_node(onnx_node, mgdfg, node_info):
+    name = onnx_node.name
+    args = []
+
+    for i in onnx_node.input:
+        assert i in mgdfg.nodes
+        args.append(mgdfg.nodes[i])
+
+    for o in onnx_node.output:
+        if o in node_info:
+            if isinstance(node_info[o], dict):
+                args.append(pm.output(name=o, shape=node_info[o]["shape"], graph=mgdfg))
+            else:
+                args.append(node_info[o])
+        else:
+            assert o not in mgdfg.nodes
+            args.append(pm.output(name=o, graph=mgdfg))
+
+    attributes = get_attributes(onnx_node)
+    args = tuple(args + list(attributes.values()))
+    with mgdfg:
+        NODE_NAMES[onnx_node.op_type](*args, name=name, graph=mgdfg)
 
     return mgdfg
 
@@ -84,7 +130,8 @@ def _print_proto_fields(pb):
     print(f"{pb} fields : {[n.name for n in pb.DESCRIPTOR.fields]}")
 
 def get_value_info_shape(vi):
-    return [dim.dim_value for dim in vi.type.tensor_type.shape.dim if dim.dim_value > 0]
+    ret = tuple([dim.dim_value for dim in vi.type.tensor_type.shape.dim if dim.dim_value > 0])
+    return ret if len(ret) > 0 else (1,)
 
 def get_attributes(node):
     attributes = {}
@@ -93,11 +140,20 @@ def get_attributes(node):
         if isinstance(val, bytes):
             val = val.decode("utf-8")
         elif isinstance(val, list):
-            val = np.asarray(val)
+            if len(val) > 1:
+                val = np.asarray(val)
+            else:
+                val = val[0]
+
         attributes[a.name] = val
 
     return attributes
 
+def itercheck(obj):
+    if isinstance(obj, np.ndarray):
+        return len(obj.shape) > 0
+    else:
+        return hasattr(obj, '__iter__') and not isinstance(obj, str)
 
 def gen_from_shape(graph_type, input_shape, params=None):
     if graph_type == "linear":

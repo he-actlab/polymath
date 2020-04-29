@@ -4,7 +4,7 @@ import sys
 from polymath.mgdfg.base import *
 from polymath.mgdfg.index import index
 from .util import _noop_callback, deprecated, _flatten_iterable, _compute_domain_pairs, is_iterable
-
+from polymath import DEFAULT_SHAPES, UNSET_SHAPE
 
 class placeholder(Node):  # pylint: disable=C0103,R0903
     """
@@ -17,6 +17,8 @@ class placeholder(Node):  # pylint: disable=C0103,R0903
         super(placeholder, self).__init__(name=name, type_modifier=self.type_modifier, default=default, **kwargs)
         assert isinstance(self.shape, tuple)
         self._domain = Domain(self.shape)
+        if self.shape == UNSET_SHAPE:
+            self.shape = DEFAULT_SHAPES[0]
 
     @property
     def domain(self):
@@ -54,7 +56,7 @@ class placeholder(Node):  # pylint: disable=C0103,R0903
     def __getitem__(self, key):
         key = _flatten_iterable(key)
 
-        if self.shape == (0,):
+        if self.shape == DEFAULT_SHAPES[0]:
             return self
         elif self.is_shape_finalized() and len(self.nodes) > 0:
             idx = np.ravel_multi_index(key, dims=self.shape, order='C')
@@ -119,7 +121,8 @@ class output(placeholder):
 
     def __getitem__(self, key):
         key = _flatten_iterable(key)
-        if self.shape == (0,):
+
+        if self.shape == DEFAULT_SHAPES[0]:
             return self.current_value()
         elif self.is_shape_finalized() and all([not isinstance(i, Node) for i in key]):
             idx = np.ravel_multi_index(key, dims=self.shape, order='C')
@@ -141,7 +144,7 @@ class output(placeholder):
         elif isinstance(shape, Node):
             self._shape = tuple([shape])
         elif not shape or len(shape) == 0:
-            self._shape = tuple([0])
+            self._shape = UNSET_SHAPE
         else:
             shapes = []
             for dim in shape:
@@ -163,7 +166,8 @@ class output(placeholder):
         callback = callback or _noop_callback
         with callback(self, context):
             if self not in context:
-                if not self.is_shape_finalized() or self.shape == (0,):
+                # if not self.is_shape_finalized() or self.shape == UNSET_SHAPE:
+                if not self.is_shape_finalized() or self.shape == UNSET_SHAPE:
                     self.evaluate_shape(context)
 
                 context[self] = np.empty(shape=self.shape)
@@ -215,7 +219,8 @@ class state(placeholder):
 
     def __getitem__(self, key):
         key = _flatten_iterable(key)
-        if self.shape == (0,):
+
+        if self.shape == DEFAULT_SHAPES[0]:
             return self.current_value()
         elif self.is_shape_finalized() and len(self.nodes) > 0:
             idx = np.ravel_multi_index(key, dims=self.shape, order='C')
@@ -281,7 +286,7 @@ class temp(placeholder):
 
     def __getitem__(self, key):
         key = _flatten_iterable(key)
-        if self.shape == (0,):
+        if self.shape == DEFAULT_SHAPES[0]:
             return self.current_value()
         elif self.is_shape_finalized() and len(self.nodes) > 0:
             idx = np.ravel_multi_index(key, dims=self.shape, order='C')
@@ -299,11 +304,11 @@ class temp(placeholder):
         return self if self.write_count == 0 or len(Node._graph_stack) == 1 else self.graph.nodes[f"{self.name}{self.write_count - 1}"]
 
     def evaluate(self, context, callback=None):
-        print(f"{self.name}")
         callback = callback or _noop_callback
         with callback(self, context):
             if self not in context:
-                if not self.is_shape_finalized() or self.shape == (0,):
+                # if not self.is_shape_finalized() or self.shape in DEFAULT_SHAPES:
+                if not self.is_shape_finalized() or self.shape == DEFAULT_SHAPES[0]:
                     self.evaluate_shape(context)
                 context[self] = np.empty(shape=self.shape)
                 for i in range(self.write_count):
@@ -358,11 +363,12 @@ class write(Node):
     def _evaluate(self, src, dst_key, dst, context=None, **kwargs):
         if not self.is_shape_finalized():
             self._shape = self.args[2].shape
-        if self.shape == (1,) or dst_key == []:
+        if self.shape in DEFAULT_SHAPES:
             value = src
         elif not is_iterable(src):
             value = np.full(self.shape, src)
         else:
+
             dst_indices = self.shape_domain.compute_shape_domain(indices=dst_key)
             key_indices = self.domain.compute_pairs()
             if isinstance(self.args[0], index):
@@ -385,7 +391,7 @@ class write(Node):
 
     def __getitem__(self, key):
         key = _flatten_iterable(key)
-        if self.shape == (0,):
+        if self.shape == DEFAULT_SHAPES[0]:
             return self
         elif self.is_shape_finalized():
             idx = np.ravel_multi_index(key, dims=self.shape, order='C')
@@ -420,7 +426,9 @@ class parameter(placeholder):
                             f"Use variable instead of parameter.")
         if "type_modifier" in kwargs:
             kwargs.pop("type_modifier")
-        super(parameter, self).__init__(name=name, default=default, type_modifier="param", **kwargs)
+        if "shape" in kwargs:
+            kwargs.pop("shape")
+        super(parameter, self).__init__(name=name, default=default, type_modifier="param", shape=DEFAULT_SHAPES[0], **kwargs)
         self.default = default
 
     evaluate = Node.evaluate

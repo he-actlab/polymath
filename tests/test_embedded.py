@@ -211,8 +211,8 @@ def test_recommender():
 
     np_res = numpy_helper(input_dict)
     tout = graph(["w1_","w2_"], input_dict)
-    assert np.allclose(tout[0], np_res[0])
-    assert np.allclose(tout[1], np_res[1])
+    np.testing.assert_allclose(tout[0], np_res[0])
+    np.testing.assert_allclose(tout[1], np_res[1])
 
 
 def test_consistent_context():
@@ -502,13 +502,6 @@ def test_graph_pickle():
     graph = pickle.loads(pickled)
     actual = graph('y', x=_x)
     assert desired == actual
-
-
-def test_unpack_without_length():
-    with pytest.raises(TypeError):
-        with pm.Node():
-            _1, _2 = pm.placeholder()
-
 
 def test_import():
     with pm.Node() as graph:
@@ -815,4 +808,4 @@ def test_linear_embedded():
 
     graph_res = graph("w-mu*g", {"x": x, "y": y, "w": w})
     actual_res = w - ((np.sum(x*w) - y)*x)*1.0
-    assert np.allclose(graph_res, actual_res)
+    np.testing.assert_allclose(graph_res, actual_res)

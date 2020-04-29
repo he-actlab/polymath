@@ -9,7 +9,7 @@ def test_linear_reg():
     m_ = 3
     graph, input_info, out_info, keys = linear(m=m_, coarse=True)
     coarse_eval = graph(keys, input_info)
-    assert np.allclose(coarse_eval, out_info["w"])
+    np.testing.assert_allclose(coarse_eval, out_info["w"])
 
 
 
@@ -19,7 +19,7 @@ def test_linear_reg():
     all_vals = lowered_graph(keys, input_info)
     out = np.asarray(all_vals).reshape(out_info["w"].shape)
 
-    assert np.allclose(out, out_info["w"])
+    np.testing.assert_allclose(out, out_info["w"])
     cwd = Path(f"{__file__}").parent
     base_path = f"{cwd}/pmlang_examples"
     full_path = f"{base_path}/outputs"
@@ -32,7 +32,7 @@ def test_linear_reg():
 
     loaded_res = loaded_node(keys, input_info)
     out = np.asarray(loaded_res).reshape(out_info["w"].shape)
-    assert np.allclose(out, out_info["w"])
+    np.testing.assert_allclose(out, out_info["w"])
 
 
 
@@ -43,8 +43,8 @@ def test_reco():
     shape_dict = {"m_": n_, "k_": k_, "n_": n_}
     graph, input_info, out_info, keys = reco(coarse=True, **shape_dict)
     coarse_eval = graph(keys, input_info)
-    assert np.allclose(coarse_eval[0], out_info["w1"])
-    assert np.allclose(coarse_eval[1], out_info["w2"])
+    np.testing.assert_allclose(coarse_eval[0], out_info["w1"])
+    np.testing.assert_allclose(coarse_eval[1], out_info["w2"])
 
 
     fgraph, input_info, out_info, keys = reco(coarse=False, **shape_dict)
@@ -56,8 +56,8 @@ def test_reco():
     out1 = np.asarray(list(all_vals[0:w1_elems])).reshape(out_info["w1"].shape)
     out2 = np.asarray(list(all_vals[w1_elems:])).reshape(out_info["w2"].shape)
 
-    assert np.allclose(out1, out_info["w1"])
-    assert np.allclose(out2, out_info["w2"])
+    np.testing.assert_allclose(out1, out_info["w1"])
+    np.testing.assert_allclose(out2, out_info["w2"])
     cwd = Path(f"{__file__}").parent
     base_path = f"{cwd}/pmlang_examples"
     full_path = f"{base_path}/outputs"
@@ -71,6 +71,6 @@ def test_reco():
     loaded_res = loaded_node(keys, input_info)
     lres1 = np.asarray(list(loaded_res[0:w1_elems])).reshape(out_info["w1"].shape)
     lres2 = np.asarray(list(loaded_res[w1_elems:])).reshape(out_info["w2"].shape)
-    assert np.allclose(lres1, out_info["w1"])
-    assert np.allclose(lres2, out_info["w2"])
+    np.testing.assert_allclose(lres1, out_info["w1"])
+    np.testing.assert_allclose(lres2, out_info["w2"])
 

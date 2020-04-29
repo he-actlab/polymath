@@ -19,4 +19,4 @@ def test_index_op():
     op2 = np.arange(0, n_)
     value = np.array(list(product(*(op1, op2))))
     value = np.array(list(map(lambda x: x[0]+x[1], value)))
-    assert np.allclose(res, value)
+    np.testing.assert_allclose(res, value)

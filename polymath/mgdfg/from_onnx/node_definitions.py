@@ -8,6 +8,16 @@ class dense(pm.Template):
         j = pm.index(0, (w.shape[0] - 1), name="j")
         y[j] = pm.sum([i], w[j, i] * x[i], name="h")
 
+class elem_mul(pm.Template):
+    def define_graph(self, a, b, y, **kwargs):
+        i = pm.index(0, (y.shape[0] - 1), name="i")
+        y[i] = a[i] * b[i]
+
+class elem_sub(pm.Template):
+    def define_graph(self, a, b, y, **kwargs):
+        i = pm.index(0, (y.shape[0] - 1), name="i")
+        y[i] = a[i] - b[i]
+
 class dense_sigmoid(pm.Template):
     def define_graph(self, x, w, y, **kwargs):
         i = pm.index(0, (w.shape[1] - 1), name="i")
@@ -19,7 +29,6 @@ class dense_bp(pm.Template):
         i = pm.index(0, (m - 1).set_name("m-1"), name="i")
         j = pm.index(0, (n - 1).set_name("n-1"), name="j")
         y[j] = pm.sigmoid(pm.sum([i], w[j, i] * x[i], name="h"))
-
 
 class bench_bp(pm.Template):
     def define_graph(self, x, w1, w2, l1, l2, l3, y, **kwargs):
@@ -204,6 +213,11 @@ class batch_flatten(pm.Template):
         l = pm.index(0, data.shape[3]-1, name="l")
         out[((i*m + j)*n + k)*p + l] = data[i, j, k, l]
 
+class reduce_sum(pm.Template):
+    def define_graph(self, data, out, axis, keepdims, **kwargs):
+        i = pm.index(0, data.shape[axis] - 1, name="i")
+        out.write(pm.sum([i], data[i]))
+
 # TODO: Add reshape operator, constant operator, gemm
 NODE_NAMES = {"SVMClassifier": svm_classifier_train,
               "Conv": conv,
@@ -218,28 +232,7 @@ NODE_NAMES = {"SVMClassifier": svm_classifier_train,
               "Reshape": reshape,
               "Gemm": gemm,
               "Dropout": dropout,
-              "LogSoftmax": log_softmax}
-
-# class _TemplateWrapper(object):
-#     def __init__(self, def_func):
-#         self.def_func = def_func
-#
-#     def __call__(self, *args, **kwargs):
-#         temp = pm.Template()
-#
-# def templateop(target=None):
-#     """
-#     Decorator for creating nodes from functions.
-#     """
-#     # This is called when the decorator is used with arguments
-#     if target is None:
-#         return functools.partial(templateop)
-#
-#     # This is called when the decorator is used without arguments
-#     @functools.wraps(target)
-#     def _wrapper(*args, **kwargs_inner):
-#         temp = pm.Template(*args, **kwargs_inner)
-#         temp.define_graph = target
-#         temp.
-#         return temp
-#     return _wrapper
+              "LogSoftmax": log_softmax,
+              "Mul": elem_mul,
+              "ReduceSum": reduce_sum,
+              "Sub": elem_sub}

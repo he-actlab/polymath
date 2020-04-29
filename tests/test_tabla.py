@@ -13,7 +13,7 @@ def test_linear_reg(m_):
     shape_dict = {"m": m_}
     graph, input_info, out_info, keys = linear(m=m_, coarse=True)
     coarse_eval = graph(keys, input_info)
-    assert np.allclose(coarse_eval, out_info["w"])
+    np.testing.assert_allclose(coarse_eval, out_info["w"])
 
     cwd = Path(f"{__file__}").parent
     base_path = f"{cwd}/pmlang_examples"
@@ -42,16 +42,17 @@ def test_linear_reg_embedded_values(m_):
                                               context_dict=input_info, add_kwargs=True)
 
 @pytest.mark.parametrize('l1, l2, l3',[
-    (8, 4, 8)
+    (8, 16, 3)
 ])
 def test_backprop_embedded_values(l1, l2, l3):
     shape_dict = {"l1": l1, "l2": l2 , "l3": l3}
-    graph, input_info, out_info, keys = backprop(l1, l2, l3, coarse=True)
+    graph, input_info, out_info, keys = backprop(l1, l2, l3, coarse=True, debug=False)
 
     test_out = graph(["w1","w2"], input_info)
-
-    # assert np.allclose(test_out[0], out_info["w1"])
-    # assert np.allclose(test_out[1], out_info["w2"])
+    # print(out_info["w1"])
+    # print(out_info["w2"])
+    np.testing.assert_allclose(test_out[0], out_info["w1"])
+    np.testing.assert_allclose(test_out[1], out_info["w2"])
 
     _, input_info, out_info, keys = backprop(l1, l2, l3, coarse=False)
 
@@ -82,7 +83,7 @@ def test_logreg_reg_embedded_values(m_):
                                               tabla_path,
                                               context_dict=input_info, add_kwargs=True)
 @pytest.mark.parametrize('m, n, k',[
-    (138, 130, 10)
+    (10, 5, 2)
 ])
 def test_reco_embedded_values(m, n, k):
     shape_dict = {"m": m, "n": n, "k": k}
@@ -104,7 +105,7 @@ def test_svm(m_):
     shape_dict = {"m": m_}
     graph, input_info, out_info, keys = svm(m=m_, coarse=True)
     coarse_eval = graph(keys, input_info)
-    assert np.allclose(coarse_eval, out_info["w"])
+    np.testing.assert_allclose(coarse_eval, out_info["w"])
 
     cwd = Path(f"{__file__}").parent
     base_path = f"{cwd}/pmlang_examples"
@@ -122,7 +123,7 @@ def test_logistic_reg(m_):
     shape_dict = {"m": m_}
     graph, input_info, out_info, keys = logistic(m_=m_, coarse=True)
     coarse_eval = graph(keys, input_info)
-    assert np.allclose(coarse_eval, out_info["w"])
+    np.testing.assert_allclose(coarse_eval, out_info["w"])
 
     cwd = Path(f"{__file__}").parent
     base_path = f"{cwd}/pmlang_examples"
@@ -139,8 +140,8 @@ def test_reco_state_write(m_, n_, k_):
     shape_dict = {"m": m_, "n": n_, "k": k_}
     graph, input_info, out_info, keys = reco(m_=m_, n_=n_, k_=k_, coarse=True)
     coarse_eval = graph(keys, input_info)
-    assert np.allclose(coarse_eval[0], out_info["w1"])
-    assert np.allclose(coarse_eval[1], out_info["w2"])
+    np.testing.assert_allclose(coarse_eval[0], out_info["w1"])
+    np.testing.assert_allclose(coarse_eval[1], out_info["w2"])
     cwd = Path(f"{__file__}").parent
     base_path = f"{cwd}/pmlang_examples"
     full_path = f"{base_path}/outputs"
@@ -155,6 +156,6 @@ def test_fft(m):
     x = np.random.randint(-5,5, m).astype(np.complex)
 
     pm_output, np_output = unwound_fft(x)
-    assert np.allclose(pm_output, np_output)
+    np.testing.assert_allclose(pm_output, np_output)
 
 

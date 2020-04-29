@@ -126,6 +126,12 @@ class NormalizeGraph(Pass):
             shape = node.args[1]
         elif isinstance(node, pm.NonLinear):
             shape = node.args[0].shape
+        elif isinstance(node, pm.func_op):
+            non_scalar = list(filter(lambda x: isinstance(x, pm.Node) and x.shape not in [pm.UNSET_SHAPE, pm.DEFAULT_SHAPES[0]], node.args))
+            assert len(non_scalar) <= 1
+            shape = pm.DEFAULT_SHAPES[0] if len(non_scalar) == 0 else non_scalar[0].shape
+        elif isinstance(node, pm.GroupNode):
+            shape = node.domain.computed_shape
         else:
             shape = node.shape
 
@@ -162,7 +168,7 @@ class NormalizeGraph(Pass):
 
     def finalize_pass(self, node, info):
 
-        if not node.is_shape_finalized() and node.shape != (0,):
+        if not node.is_shape_finalized() and node.shape != pm.UNSET_SHAPE:
             raise ValueError(f"Shape not finalized during first iteration for "
                              f"{node.op_name} - {node.name}:\n\t"
                              f"{node.shape}\n\t"
@@ -207,10 +213,8 @@ class NormalizeGraph(Pass):
                 self.stored_objects[id(x)] = x
 
     def populate_slice_op(self, node):
-
-        op1_idx = node.domain.map_sub_domain(node.args[0].domain) if isinstance(node.args[0], pm.Node) and node.args[0].shape != (0,) else tuple([])
-        op2_idx = node.domain.map_sub_domain(node.args[1].domain) if isinstance(node.args[1], pm.Node) and node.args[1].shape != (0,) else tuple([])
-
+        op1_idx = node.domain.map_sub_domain(node.args[0].domain) if isinstance(node.args[0], pm.Node) and node.args[0].shape != pm.DEFAULT_SHAPES[0] else tuple([])
+        op2_idx = node.domain.map_sub_domain(node.args[1].domain) if isinstance(node.args[1], pm.Node) and node.args[1].shape != pm.DEFAULT_SHAPES[0] else tuple([])
 
         dom_pairs = node.domain.compute_pairs()
         kwargs = {}
@@ -249,28 +253,28 @@ class NormalizeGraph(Pass):
             node.nodes[name] = ph_node
 
     def populate_placeholder(self, node):
-        if node.shape != (0,):
+        if node.shape != pm.DEFAULT_SHAPES[0]:
             indices = list(product(*tuple([np.arange(i) for i in node.shape])))
             for i in indices:
                 x = pm.placeholder(graph=node, name=f"{node.name}{i}", shape=(1,), type_modifier=node.type_modifier)
                 self.stored_objects[id(x)] = x
 
     def populate_output(self, node):
-        if node.shape != (0,):
+        if node.shape != pm.DEFAULT_SHAPES[0]:
             indices = list(product(*tuple([np.arange(i) for i in node.shape])))
             for i in indices:
                 x = pm.output(graph=node, name=f"{node.name}{i}", shape=(1,))
                 self.stored_objects[id(x)] = x
 
     def populate_input(self, node):
-        if node.shape != (0,):
+        if node.shape != pm.DEFAULT_SHAPES[0]:
             indices = list(product(*tuple([np.arange(i) for i in node.shape])))
             for i in indices:
                 x = pm.input(graph=node, name=f"{node.name}{i}", shape=(1,))
                 self.stored_objects[id(x)] = x
 
     def populate_state(self, node):
-        if node.shape != (0,):
+        if node.shape != pm.DEFAULT_SHAPES[0]:
             indices = list(product(*tuple([np.arange(i) for i in node.shape])))
             for i in indices:
                 x = pm.state(graph=node, name=f"{node.name}{i}", shape=(1,))
@@ -278,7 +282,8 @@ class NormalizeGraph(Pass):
 
     def populate_write(self, node):
 
-        if node.shape != (1,):
+        if node.shape != pm.DEFAULT_SHAPES[0]:
+
             src, dst_key, dst = node.args
             dst_indices = list(product(*tuple([np.arange(i) for i in node.shape])))
             key_indices = node.domain.compute_pairs()
@@ -310,7 +315,6 @@ class NormalizeGraph(Pass):
                     else:
                         val = dst[i]
                         node.nodes[val.name] = val
-
 
     def populate_group_op(self, node):
         if len(node.domain) == 0:

@@ -21,12 +21,12 @@ def test_single_dim():
     coarse_eval = graph("w", x=x_, w=w_)
 
     np_result = x_*w_
-    assert np.allclose(coarse_eval, np_result)
+    np.testing.assert_allclose(coarse_eval, np_result)
     shape_pass = NormalizeGraph({"m": 3})
     graph_shapes = shape_pass(graph)
 
     shape_res = graph_shapes("w", x=x_, w=w_)
-    assert np.allclose(shape_res, np_result)
+    np.testing.assert_allclose(shape_res, np_result)
     lower_pass = Lower({})
     lowered_graph = lower_pass(graph_shapes)
     input_info = {f"w/w({i},)": w_[i] for i in range(len(w_))}
@@ -74,11 +74,11 @@ def test_multi_dim():
     w_ = np.random.randint(0, 10, m_*n_).reshape((m_,n_))
     coarse_eval = graph("w", x=x_, w=w_)
     np_result = x_*w_
-    assert np.allclose(coarse_eval, np_result)
+    np.testing.assert_allclose(coarse_eval, np_result)
     shape_pass = NormalizeGraph({"m": m_, "n": n_})
     graph_shapes = shape_pass(graph)
     shape_res = graph_shapes("w", x=x_, w=w_)
-    assert np.allclose(shape_res, np_result)
+    np.testing.assert_allclose(shape_res, np_result)
     lower_pass = Lower({})
     lowered_graph = lower_pass(graph_shapes)
     input_info = {}
@@ -105,13 +105,13 @@ def test_single_dim_op_slice():
 
     coarse_eval = graph("w", x=x_, w=w_)
     np_result = x_*w_ - w_
-    assert np.allclose(coarse_eval, np_result)
+    np.testing.assert_allclose(coarse_eval, np_result)
 
     shape_pass = NormalizeGraph({"m": 3})
     graph_shapes = shape_pass(graph)
     shape_res = graph_shapes("w", x=x_, w=w_)
 
-    assert np.allclose(shape_res, np_result)
+    np.testing.assert_allclose(shape_res, np_result)
     lower_pass = Lower({})
     lowered_graph = lower_pass(graph_shapes)
     input_info = {f"w/w({i},)": w_[i] for i in range(len(w_))}
@@ -136,11 +136,11 @@ def test_multi_dim_op_slice():
     w_ = np.random.randint(0, 10, m_*n_).reshape((m_, n_))
     coarse_eval = graph("w", x=x_, w=w_)
     np_result = (x_*w_ - w_)*2.0
-    assert np.allclose(coarse_eval, np_result)
+    np.testing.assert_allclose(coarse_eval, np_result)
     shape_pass = NormalizeGraph({"m": m_, "n": n_})
     graph_shapes = shape_pass(graph)
     shape_res = graph_shapes("w", x=x_, w=w_)
-    assert np.allclose(shape_res, np_result)
+    np.testing.assert_allclose(shape_res, np_result)
     lower_pass = Lower({})
     lowered_graph = lower_pass(graph_shapes)
     input_info = {}
@@ -164,12 +164,12 @@ def test_lower_group_op():
     x_ = np.random.randint(0, 10, m_)
     w_ = np.random.randint(0, 10, (m_))
     np_result = np.sum(x_ * w_)
-    assert np.allclose(graph("h", {"w": w_, "x": x_}), np_result)
-    assert np.allclose(graph("h", w=w_, x=x_), np_result)
+    np.testing.assert_allclose(graph("h", {"w": w_, "x": x_}), np_result)
+    np.testing.assert_allclose(graph("h", w=w_, x=x_), np_result)
     shape_pass = NormalizeGraph({"m": m_, "n": n_})
     graph_shapes = shape_pass(graph)
     shape_res = graph_shapes("h", x=x_, w=w_)
-    assert np.allclose(shape_res, np_result)
+    np.testing.assert_allclose(shape_res, np_result)
 
     lower_pass = Lower({})
     lowered_graph = lower_pass(graph_shapes)
@@ -203,12 +203,12 @@ def test_single_dim_norm():
     coarse_eval = graph("w", x=x_, w=w_)
 
     np_result = x_*w_
-    assert np.allclose(coarse_eval, np_result)
+    np.testing.assert_allclose(coarse_eval, np_result)
     shape_pass = NormalizeGraph({"m": 3})
     graph_shapes = shape_pass(graph)
 
     shape_res = graph_shapes("w", x=x_, w=w_)
-    assert np.allclose(shape_res, np_result)
+    np.testing.assert_allclose(shape_res, np_result)
     lower_pass = Lower({})
     lowered_graph = lower_pass(graph_shapes)
     input_info = {f"w/w({i},)": w_[i] for i in range(len(w_))}
@@ -243,11 +243,11 @@ def test_multi_dim_norm():
     w_ = np.random.randint(0, 10, m_*n_).reshape((m_,n_))
     coarse_eval = graph("w", x=x_, w=w_)
     np_result = x_*w_
-    assert np.allclose(coarse_eval, np_result)
+    np.testing.assert_allclose(coarse_eval, np_result)
     shape_pass = NormalizeGraph({"m": m_, "n": n_})
     graph_shapes = shape_pass(graph)
     shape_res = graph_shapes("w", x=x_, w=w_)
-    assert np.allclose(shape_res, np_result)
+    np.testing.assert_allclose(shape_res, np_result)
     lower_pass = pm.Lower({})
     lowered_graph = lower_pass(graph_shapes, {})
     input_info = {}
@@ -267,8 +267,8 @@ def test_reco():
     new_graph = shape_val_pass(graph)
 
     test_res = new_graph(keys, input_info)
-    assert np.allclose(test_res[0], out_info["w1"])
-    assert np.allclose(test_res[1], out_info["w2"])
+    np.testing.assert_allclose(test_res[0], out_info["w1"])
+    np.testing.assert_allclose(test_res[1], out_info["w2"])
 
     graph, input_info, new_out_info, keys = reco(m_=m_, n_=n_, k_=k_)
     flatten_pass = pm.Lower({})
@@ -277,8 +277,8 @@ def test_reco():
     all_vals = flattened_g(keys, input_info)
     out1 = np.asarray(list(all_vals[0:6])).reshape(new_out_info["w2"].shape)
     out2 = np.asarray(list(all_vals[6:])).reshape(new_out_info["w2"].shape)
-    assert np.allclose(new_out_info["w1"], out1)
-    assert np.allclose(new_out_info["w2"], out2)
+    np.testing.assert_allclose(new_out_info["w1"], out1)
+    np.testing.assert_allclose(new_out_info["w2"], out2)
 
 @pytest.mark.parametrize('m_',[
     3, 54
@@ -289,14 +289,14 @@ def test_svm(m_):
     shape_val_pass = pm.NormalizeGraph(shape_dict)
     new_graph = shape_val_pass(graph)
     test_res = new_graph(keys, input_info)
-    assert np.allclose(test_res, out_info["w"])
+    np.testing.assert_allclose(test_res, out_info["w"])
 
     graph, input_info, new_out_info, keys = svm(**shape_dict)
     flatten_pass = pm.Lower({})
     flattened_g = flatten_pass(new_graph)
 
     all_vals = flattened_g(keys, input_info)
-    assert np.allclose(new_out_info["w"], all_vals)
+    np.testing.assert_allclose(new_out_info["w"], all_vals)
 
 
 @pytest.mark.parametrize('m_',[
@@ -308,12 +308,12 @@ def test_linear(m_):
     shape_val_pass = pm.NormalizeGraph(shape_dict)
     new_graph = shape_val_pass(graph)
     test_res = new_graph(keys, input_info)
-    assert np.allclose(test_res, out_info["w"])
+    np.testing.assert_allclose(test_res, out_info["w"])
     graph, input_info, new_out_info, keys = linear(**shape_dict)
     flatten_pass = pm.Lower({})
     flattened_g = flatten_pass(new_graph)
     all_vals = flattened_g(keys, input_info)
-    assert np.allclose(new_out_info["w"], all_vals)
+    np.testing.assert_allclose(new_out_info["w"], all_vals)
 
 @pytest.mark.parametrize('m_',[
     3
@@ -357,7 +357,7 @@ def test_multidim_sigmoid(m_):
     np_res = sigmoid((x_*w_))
 
     coarse_eval = graph("out", input_dict)
-    assert np.allclose(np_res, coarse_eval)
+    np.testing.assert_allclose(np_res, coarse_eval)
     lowered = set_shape_and_lower(graph, shape_dict)
     keys = [f"out/out({i},)" for i in range(m_)]
 
@@ -370,6 +370,6 @@ def test_multidim_sigmoid(m_):
     np_res = sigmoid((x_*w_))
 
     lower_res = lowered(keys, input_dict)
-    assert np.allclose(lower_res, np_res)
+    np.testing.assert_allclose(lower_res, np_res)
 
 

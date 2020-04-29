@@ -20,7 +20,7 @@ def test_linear_serialize():
     w = np.random.randint(1, 5, 5)
     graph_res = graph("w_out", {"x": x, "y": y, "w": w})
     actual_res = w - ((np.sum(x*w) - y)*x)*1.0
-    assert np.allclose(graph_res, actual_res)
+    np.testing.assert_allclose(graph_res, actual_res)
     cwd = Path(f"{__file__}").parent
     base_path = f"{cwd}/pmlang_examples"
     full_path = f"{base_path}/outputs"
@@ -47,7 +47,7 @@ def test_linear_deserialize():
     graph_res = graph("w_out", {"x": x, "y": y, "w": w})
     actual_res = w - ((np.sum(x*w) - y)*x)*1.0
 
-    assert np.allclose(graph_res, actual_res)
+    np.testing.assert_allclose(graph_res, actual_res)
     cwd = Path(f"{__file__}").parent
     base_path = f"{cwd}/pmlang_examples"
     full_path = f"{base_path}/outputs"
@@ -55,7 +55,7 @@ def test_linear_deserialize():
     pm.pb_store(graph, full_path)
     node = pm.pb_load(pb_path)
     new_graph_res = node("w_out", {"x": x, "y": y, "w": w})
-    assert np.allclose(graph_res, new_graph_res)
-    assert np.allclose(actual_res, new_graph_res)
+    np.testing.assert_allclose(graph_res, new_graph_res)
+    np.testing.assert_allclose(actual_res, new_graph_res)
 
     assert (node.func_hash()) == (graph.func_hash())
