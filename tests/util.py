@@ -215,12 +215,30 @@ def linear(m=3, coarse=False):
 
 
 
-def backprop_data_gen(l1, l2, l3, mu=1.0, lowered=False):
+def backprop_data_gen(l1, l2, l3, mu=1.0, lowered=False, debug=False):
     input_info = {}
-    input_info["x"] = np.random.randint(-3, 3, l1)
-    input_info["w1"] = np.random.randint(-3, 3, (l2,l1))
-    input_info["w2"] = np.random.randint(-3, 3, (l3,l2))
-    input_info["y"] = np.random.randint(-3, 3, l3)
+    if debug:
+        input_info["x"] = np.arange(-1*l1//2, l1//2)
+    else:
+        input_info["x"] = np.random.randint(-3, 3, l1)
+
+    if debug:
+        w1 = np.arange(-l2//2, l2//2)
+        input_info["w1"] = np.repeat(w1, l2).reshape((l2,l1))
+    else:
+        input_info["w1"] = np.random.randint(-3, 3, (l2,l1))
+
+    if debug:
+        w2 = np.arange(-l3//2, l3//2)
+        input_info["w2"] = np.repeat(w2, l2).reshape((l3,l2))
+    else:
+        input_info["w2"] = np.random.randint(-3, 3, (l3,l2))
+
+    if debug:
+        input_info["y"] = np.arange(-1*l3//2, l3//2)
+    else:
+        input_info["y"] = np.random.randint(-3, 3, l3)
+
     input_info["mu"] = mu
     out_info = np_backprop(input_info)
     if lowered:
@@ -727,7 +745,7 @@ def conv3d(x, w, b, conv_param):
     num_filters, _, filter_height, filter_width = w.shape
     stride, pad = conv_param['stride'], conv_param['pad']
 
-
+    print(f"Stride: {stride}\tPad:{pad}\n")
     # Check dimensions
     assert (W + 2 * pad - filter_width) % stride == 0, 'width does not work'
     assert (H + 2 * pad - filter_height) % stride == 0, 'height does not work'
@@ -735,6 +753,7 @@ def conv3d(x, w, b, conv_param):
     # Create output
     out_height = (H + 2 * pad - filter_height) / stride + 1
     out_width = (W + 2 * pad - filter_width) / stride + 1
+    print(f"OH: {out_height}\tPad:{out_width}\n")
     out = np.zeros((N, num_filters, int(out_height), int(out_width)), dtype=x.dtype)
     x_cols = im2col_indices(x, w.shape[2], w.shape[3], pad, stride)
     # x_cols = im2col_cython(x, w.shape[2], w.shape[3], pad, stride)
