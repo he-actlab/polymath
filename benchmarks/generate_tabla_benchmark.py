@@ -84,13 +84,6 @@ def run_onnx_benchmark(benchmark_name, feature_size):
 
     if Path(filepath).exists():
         graph = pm.from_onnx(filepath)
-        # x, w, y = generate_test_inputs(feature_size[0])
-        # # for k1,v1 in graph.nodes.items():
-        # #     if v1.op_name == "elem_sub":
-        # #         for k, v in v1.nodes.items():
-        # #             print(f"{k} - {v.op_name} - {v}")
-        # np_res = w - (x.dot(w) - y)*x
-        # pm_res = graph("Sub:0", {"y:0": y, "x:0": x, "W:0": w})
     else:
         raise RuntimeError(f"Benchmark {filename} does not exist in {filepath}.")
 
@@ -101,7 +94,7 @@ if __name__ == "__main__":
                                 'or "svm".')
     argparser.add_argument('-fs', '--feature_size', nargs='+', required=True,
                            help='Feature size to use for creating the benchmark')
-    argparser.add_argument('-o', '--onnx_benchmark', required=True, default=False,
+    argparser.add_argument('-o', '--onnx_benchmark', required=False, default=False,
                            help='Determines whether or not to load the benchmark from an ONNX file or not')
 
     args = argparser.parse_args()
