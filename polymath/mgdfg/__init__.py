@@ -8,4 +8,4 @@ if TYPE_CHECKING:
     from polymath.mgdfg.template import Template
     from polymath.mgdfg.graph_objects import Node, Edge
 FUNC_WRAPPER_NODES = ["func_op", "slice_op", "sum", "prod",
-                      "argmin", "argmax", "min", "max"]
+                      "argmin", "argmax", "amin", "amax"]

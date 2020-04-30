@@ -9,8 +9,12 @@ from numbers import Integral
 import numpy as np
 
 
-def pb_store(node, file_path):
-    file_path = f"{file_path}/{node.name}.pb"
+def pb_store(node, file_path, outname=None):
+    if outname:
+        file_path = f"{file_path}/{outname}"
+    else:
+        file_path = f"{file_path}/{node.name}.pb"
+
     count_before = len(node.nodes.keys())
     with open(file_path, "wb") as program_file:
         program_file.write(_serialize_node(node).SerializeToString())

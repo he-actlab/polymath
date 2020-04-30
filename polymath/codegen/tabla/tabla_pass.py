@@ -145,11 +145,9 @@ class TablaPass(pm.Pass):
                 ediff = node.graph.evaluated_nodes - ebefore
                 self.evaluations += ediff
                 print(f"Total evaluations for {node.name}/{node.op_name}\t{ediff}\n"
-                      f"Cumulative evaluations: {self.evaluations}\n")
+                      f"Cumulative evaluations: {self.evaluations}\n\n\n")
                 self.test_values[node.name] = comp_res
                 node_info["computed"] = int(comp_res)
-
-
 
     def add_constants(self, node):
         for a in node.args:
@@ -165,7 +163,8 @@ class TablaPass(pm.Pass):
     def create_node(self, operation, dtype=None, parents=None):
         parents = parents if isinstance(parents, list) else []
         node = {"id": len(self.dfg), "parents": parents, "dataType": dtype, "children": []}
-
+        if dtype == "constant":
+            node["computed"] = int(operation)
         if operation in TABLA_OP_MAP:
             node["operation"] = TABLA_OP_MAP[operation]
         else:

@@ -66,9 +66,9 @@ def svm(m=3, coarse=False):
 
 def svm_data_gen(m=3, mu=1.0, lowered=False):
     input_info = {}
-    input_info["x"] = np.random.randint(0, 10, m)
-    input_info["w"] = np.random.randint(0, 10, m)
-    input_info["y"] = np.random.randint(0, 10, 1)[0]
+    input_info["x"] = np.random.randint(-3, 3, m)
+    input_info["w"] = np.random.randint(-3, 3, m)
+    input_info["y"] = np.random.randint(-3, 3, 1)[0]
     input_info["mu"] = mu
     out_info = np_svm(input_info)
     if lowered:

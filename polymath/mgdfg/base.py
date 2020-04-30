@@ -308,13 +308,16 @@ class Node(object):
 
         for node in nodes:
             node = self.instantiate_node(node)
-            if node.op_name in ["placeholder", "state", "input", "output", "temp"]:
+            if node.op_name in ["placeholder", "state", "input", "output", "temp"] and not node.is_shape_finalized():
                 context[node] = node.evaluate(context)
 
         for name, value in kwargs.items():
             node = self.nodes[name]
             if node.op_name in ["placeholder", "state", "input", "output", "temp"]:
-                context[node] = node.evaluate(context)
+                if not node.is_shape_finalized():
+                    context[node] = node.evaluate(context)
+                else:
+                    context[node] = value
 
         return context
 
@@ -449,7 +452,7 @@ class Node(object):
         partial = functools.partial(self.evaluate_node, context=context, callback=callback)
 
         args = [partial(arg) for arg in self.args]
-        kwargs = {key: partial(value) for key, value in self.kwargs.items()}
+        kwargs = {key: partial(value) for key, value in self.kwargs.items() if key not in self.added_attrs}
         # Evaluate the node
         callback = callback or _noop_callback
         with callback(self, context):
@@ -1173,8 +1176,9 @@ class func_op(Node):  # pylint: disable=C0103,R0903
 
     def _evaluate(self, *args, **kwargs):
 
-        for aa in self.added_attrs:
-            kwargs.pop(aa)
+        for aa in list(kwargs.keys()):
+            if aa in self.added_attrs:
+                kwargs.pop(aa)
         return self.target(*args, **kwargs)
 
     def __call__(self, *args, **kwargs):

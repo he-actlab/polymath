@@ -25,7 +25,7 @@ def test_linear_reg(m_):
     compare_tabla_dfg(validation_path, tabla_ir, tabla_graph)
 
 @pytest.mark.parametrize('m_',[
-    100
+    5
 ])
 def test_linear_reg_embedded_values(m_):
     shape_dict = {"m": m_}
@@ -92,6 +92,21 @@ def test_reco_embedded_values(m, n, k):
     base_path = f"{cwd}/pmlang_examples"
     full_path = f"{base_path}/outputs"
     tabla_path = f"{full_path}/{graph.name}_{m}_{n}_{k}_tabla.json"
+    tabla_ir, tabla_graph = pm.generate_tabla(graph,
+                                              shape_dict,
+                                              tabla_path,
+                                              context_dict=input_info, add_kwargs=True)
+@pytest.mark.parametrize('m',[
+    200
+])
+def test_svm_embedded_values(m):
+    shape_dict = {"m": m}
+    graph, input_info, out_info, keys = svm(m=m, coarse=True)
+    ngraph, input_info, out_info, keys = svm(m=m, coarse=False)
+    cwd = Path(f"{__file__}").parent
+    base_path = f"{cwd}/pmlang_examples"
+    full_path = f"{base_path}/outputs"
+    tabla_path = f"{full_path}/{graph.name}_{m}_tabla.json"
     tabla_ir, tabla_graph = pm.generate_tabla(graph,
                                               shape_dict,
                                               tabla_path,

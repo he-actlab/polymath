@@ -6,7 +6,7 @@ from .util import _flatten_iterable, _fnc_hash
 
 class GroupNode(Node):
     builtin_np = ["sum", "prod", "max", "min", "argmin", "argmax"]
-    scalar_op_map = {"sum": operator.add, "prod": operator.mul, "max": max_, "min": min_, "argmin": min_, "argmax": max_, "bitreverse": lambda a, b: (a << 1) | (b & 1)}
+    scalar_op_map = {"sum": operator.add, "prod": operator.mul, "amax": builtins.max, "amin": builtins.min, "argmin": min_, "argmax": max_, "bitreverse": lambda a, b: (a << 1) | (b & 1)}
     def __init__(self, target, bounds, input_node, **kwargs):
         self.output_nodes = []
         target_name = f"{target.__module__}.{target.__name__}"
@@ -73,6 +73,7 @@ class GroupNode(Node):
 
         sum_axes = self.axes
         if not hasattr(input_res, "__len__"):
+            print(input_res)
             value = input_res * np.prod([len(bound) for bound in bounds])
         elif self.target.__name__ in self.builtin_np:
             value = self.target(input_res.reshape(self.args[1].domain.computed_set_shape), axis=sum_axes)
