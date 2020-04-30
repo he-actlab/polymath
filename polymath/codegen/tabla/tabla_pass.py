@@ -144,8 +144,6 @@ class TablaPass(pm.Pass):
                     comp_res = node.graph(node, ctx_cpy)
                 ediff = node.graph.evaluated_nodes - ebefore
                 self.evaluations += ediff
-                print(f"Total evaluations for {node.name}/{node.op_name}\t{ediff}\n"
-                      f"Cumulative evaluations: {self.evaluations}\n\n\n")
                 self.test_values[node.name] = comp_res
                 node_info["computed"] = int(comp_res)
 
