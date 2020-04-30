@@ -26,11 +26,10 @@ class placeholder(Node):  # pylint: disable=C0103,R0903
 
     def evaluate(self, context, callback=None):
         callback = callback or _noop_callback
-
         with callback(self, context):
             value = self.get_context_value(context)
 
-            if isinstance(value, (list, tuple, np.ndarray)):
+            if isinstance(value, (list, tuple, np.ndarray)) and not self.is_shape_finalized():
                 value = value if isinstance(value, np.ndarray) else np.asarray(value)
                 assert len(value.shape) == len(self.shape)
                 for idx, dim in enumerate(value.shape):

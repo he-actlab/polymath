@@ -111,7 +111,7 @@ class Node(object):
         """
         tuple : Shape of the output for a node. This can be a tuple of integers or parameter node names.
         """
-        return _flatten_iterable(self._shape)
+        return self._shape
 
     @property
     def var(self):
@@ -248,13 +248,15 @@ class Node(object):
         RuntimeError
             If `node` is an `Node` instance but does not belong to this graph.
         """
+        if isinstance(node, str):
+            return self.nodes[node]
+
         if isinstance(node, Node):
-            if (hash(node.graph) != hash(self)) and node.name not in self.nodes:
+            if node.name not in self.nodes and (node.graph != self):
                 raise RuntimeError(f"node '{node}' does not belong to {self} graph, instead belongs to"
                                    f" {node.graph}")
             return node
-        if isinstance(node, str):
-            return self.nodes[node]
+
         raise ValueError(f"'{node}' is not an `Node` instance or node name")
 
     def instantiate_graph(self, context, **kwargs):
@@ -290,34 +292,23 @@ class Node(object):
             raise ValueError("`context` must be a mapping.")
 
         nodes = list(context)
-
+        # Add the keyword arguments
         for node in nodes:  # pylint:disable=W0621
             value = context.pop(node)
             node = self.instantiate_node(node)
             if node in context:
                 raise ValueError(f"duplicate unequal value for node '{node}'")
             context[node] = value
-
-
-        # Add the keyword arguments
-        for name, value in kwargs.items():
-            node = self.nodes[name]
-            if node in context:
-                raise ValueError(f"duplicate value for node '{node}'")
-            context[node] = value
-
-        for node in nodes:
-            node = self.instantiate_node(node)
             if node.op_name in ["placeholder", "state", "input", "output", "temp"] and not node.is_shape_finalized():
                 context[node] = node.evaluate(context)
 
         for name, value in kwargs.items():
             node = self.nodes[name]
-            if node.op_name in ["placeholder", "state", "input", "output", "temp"]:
-                if not node.is_shape_finalized():
-                    context[node] = node.evaluate(context)
-                else:
-                    context[node] = value
+            if node in context:
+                raise ValueError(f"duplicate value for node '{node}'")
+            context[node] = value
+            if node.op_name in ["placeholder", "state", "input", "output", "temp"] and not node.is_shape_finalized():
+                context[node] = node.evaluate(context)
 
         return context
 

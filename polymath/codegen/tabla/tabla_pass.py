@@ -24,6 +24,8 @@ class TablaPass(pm.Pass):
         self.hsh_map = {}
         self.add_kwargs = add_kwargs
         self.test_values = test_values or {}
+        self.norm_context = {}
+
         self.dfg["source"] = self.create_node("source")
         self.dfg["sink"] = self.create_node("sink")
         self.pbar = tqdm.tqdm(desc="Applying first pass to nodes", file=sys.stdout, dynamic_ncols=True,)
@@ -79,6 +81,7 @@ class TablaPass(pm.Pass):
 
     def finalize_pass(self, node, ctx):
         if node.graph is None:
+            self.norm_context = {node.nodes[n]: v for n, v in self.test_values.items()}
             return node
         if self.debug:
             if self.pbar.n == self.pbar.total:
@@ -92,16 +95,13 @@ class TablaPass(pm.Pass):
 
             if node.graph and node.name in node.graph.nodes:
                 for a in node.args:
-
                     a_key = self.node_key(a)
                     if isinstance(a, pm.Node) and a.name in node.graph.nodes:
                         node.graph.nodes.pop(a.name)
                     self.used[a_key].remove(self.get_dfg_node(node)["id"])
                     if len(self.get_used_list(a)) == 0:
                         self.remove_node(a)
-
                 self.remove_node(node)
-
                 node.graph.nodes.pop(node.name)
         elif isinstance(node, (pm.output, pm.state)) and self.add_kwargs:
             self.add_dfg_params(node)
@@ -134,14 +134,14 @@ class TablaPass(pm.Pass):
                 self.test_values[node.name] = node.value
                 node_info["computed"] = int(node.value)
             else:
-                ctx_cpy = self.test_values.copy()
                 assert all([not isinstance(v,str) for v in self.test_values.values()])
                 ebefore = node.graph.evaluated_nodes
                 if node.op_name in LUT_NODES:
                     input_val = self.test_values[node.args[0].name]
                     comp_res = LUT_NODES[node.op_name](input_val)
                 else:
-                    comp_res = node.graph(node, ctx_cpy)
+                    comp_res = node.evaluate(self.norm_context)
+                self.norm_context[node] = comp_res
                 ediff = node.graph.evaluated_nodes - ebefore
                 self.evaluations += ediff
                 self.test_values[node.name] = comp_res
