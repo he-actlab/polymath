@@ -30,6 +30,7 @@ class placeholder(Node):  # pylint: disable=C0103,R0903
             value = self.get_context_value(context)
 
             if isinstance(value, (list, tuple, np.ndarray)) and not self.is_shape_finalized():
+
                 value = value if isinstance(value, np.ndarray) else np.asarray(value)
                 assert len(value.shape) == len(self.shape)
                 for idx, dim in enumerate(value.shape):
@@ -55,16 +56,13 @@ class placeholder(Node):  # pylint: disable=C0103,R0903
     def __getitem__(self, key):
         key = _flatten_iterable(key)
 
-        if self.shape == DEFAULT_SHAPES[0]:
-            return self
-        elif self.is_shape_finalized() and len(self.nodes) > 0:
+        if self.is_shape_finalized() and len(self.nodes) > 0:
             idx = np.ravel_multi_index(key, dims=self.shape, order='C')
             ret = self.nodes.item_by_index(idx)
             return ret
         else:
-
-            idx_name = "[" + "][".join([i.name if isinstance(i, Node) else i for i in key]) + "]"
-            name = f"{self.name}{idx_name}"
+            indices = str(tuple([i.name if isinstance(i, Node) else i for i in key])).replace("'","")
+            name = f"{self.name}{indices}"
             if self.graph and name in self.graph.nodes:
                 return self.graph.nodes[name]
             else:
@@ -121,15 +119,13 @@ class output(placeholder):
     def __getitem__(self, key):
         key = _flatten_iterable(key)
 
-        if self.shape == DEFAULT_SHAPES[0]:
-            return self.current_value()
-        elif self.is_shape_finalized() and all([not isinstance(i, Node) for i in key]):
+        if self.is_shape_finalized() and all([not isinstance(i, Node) for i in key]):
             idx = np.ravel_multi_index(key, dims=self.shape, order='C')
             ret = self.current_value().nodes.item_by_index(idx)
             return ret
         else:
+            idx_name = str(tuple([i.name if isinstance(i, Node) else i for i in key])).replace("'","")
 
-            idx_name = "[" + "][".join([i.name if isinstance(i, Node) else i for i in key]) + "]"
             name = f"{self.current_value().name}{idx_name}"
             if name in self.graph.nodes:
                 return self.graph.nodes[name]
@@ -137,7 +133,6 @@ class output(placeholder):
                 return var_index(self.current_value(), key, name=name, graph=self.graph)
 
     def set_shape(self, shape=None, init=False):
-
         if isinstance(shape, Integral):
             self._shape = tuple([shape])
         elif isinstance(shape, Node):
@@ -155,6 +150,7 @@ class output(placeholder):
                     raise TypeError(f"Shape value must be placeholder or integer value for {self.name}\n"
                                     f"\tDim: {dim}"
                                     f"\n\t{self.kwargs} ")
+
             self._shape = tuple(shapes)
 
     # TODO: Need to freeze the graph after exiting scope
@@ -219,15 +215,14 @@ class state(placeholder):
     def __getitem__(self, key):
         key = _flatten_iterable(key)
 
-        if self.shape == DEFAULT_SHAPES[0]:
-            return self.current_value()
-        elif self.is_shape_finalized() and len(self.nodes) > 0:
+        if self.is_shape_finalized() and len(self.nodes) > 0:
             idx = np.ravel_multi_index(key, dims=self.shape, order='C')
 
             ret = self.current_value().nodes.item_by_index(idx)
             return ret
         else:
-            idx_name = "[" + "][".join([i.name if isinstance(i, Node) else i for i in key]) + "]"
+
+            idx_name = str(tuple([i.name if isinstance(i, Node) else i for i in key])).replace("'","")
             name = f"{self.current_value().name}{idx_name}"
             if name in self.graph.nodes:
                 return self.graph.nodes[name]
@@ -285,14 +280,14 @@ class temp(placeholder):
 
     def __getitem__(self, key):
         key = _flatten_iterable(key)
-        if self.shape == DEFAULT_SHAPES[0]:
-            return self.current_value()
-        elif self.is_shape_finalized() and len(self.nodes) > 0:
+
+        if self.is_shape_finalized() and len(self.nodes) > 0:
             idx = np.ravel_multi_index(key, dims=self.shape, order='C')
             ret = self.current_value().nodes.item_by_index(idx)
             return ret
         else:
-            idx_name = "[" + "][".join([i.name if isinstance(i, Node) else i for i in key]) + "]"
+
+            idx_name = str(tuple([i.name if isinstance(i, Node) else i for i in key])).replace("'","")
             name = f"{self.current_value().name}{idx_name}"
             if name in self.graph.nodes:
                 return self.graph.nodes[name]
@@ -319,9 +314,26 @@ class temp(placeholder):
             else:
                 value = context[self]
         return value
+    #
+    # def evaluate(self, context, callback=None):
+    #     callback = callback or _noop_callback
+    #
+    #     with callback(self, context):
+    #         value = self.get_context_value(context)
+    #
+    #         if isinstance(value, (list, tuple, np.ndarray)) and not self.is_shape_finalized():
+    #             value = value if isinstance(value, np.ndarray) else np.asarray(value)
+    #             assert len(value.shape) == len(self.shape)
+    #             # self.evaluate_shape(context)
+    #             # TODO: Figure out why this breaks stuff
+    #             for idx, dim in enumerate(value.shape):
+    #                 if isinstance(self.shape[idx], Node):
+    #                     context[self.shape[idx]] = dim
+    #                     _ = self.shape[idx].evaluate(context)
+    #     return value
 
     def __repr__(self):
-        return "<state '%s'>" % self.name
+        return "<temp '%s'>" % self.name
 
     @property
     def write_count(self):
@@ -338,6 +350,9 @@ class write(Node):
 
         if "domain" in kwargs:
             domain = tuple(kwargs.pop("domain")) if isinstance(kwargs["domain"], list) else kwargs.pop("domain")
+        elif len(dst_key) == 0:
+
+            domain = src.domain
         else:
             domain = Domain(dst_key)
         super(write, self).__init__(src, dst_key, dst, domain=domain, shape=dst.shape, **kwargs)
@@ -361,12 +376,12 @@ class write(Node):
     def _evaluate(self, src, dst_key, dst, context=None, **kwargs):
         if not self.is_shape_finalized():
             self._shape = self.args[2].shape
+
         if self.shape in DEFAULT_SHAPES:
             value = src
         elif not is_iterable(src):
             value = np.full(self.shape, src)
         else:
-
             dst_indices = self.shape_domain.compute_shape_domain(indices=dst_key)
             key_indices = self.domain.compute_pairs()
             if isinstance(self.args[0], index):
@@ -389,15 +404,12 @@ class write(Node):
 
     def __getitem__(self, key):
         key = _flatten_iterable(key)
-
-        if self.shape == DEFAULT_SHAPES[0]:
-            return self
-        elif self.is_shape_finalized():
+        if self.is_shape_finalized():
             idx = np.ravel_multi_index(key, dims=self.shape, order='C')
             ret = self.nodes.item_by_index(idx)
             return ret
         else:
-            idx_name = "[" + "][".join([i.name if isinstance(i, Node) else i for i in key]) + "]"
+            idx_name = str(tuple([i.name if isinstance(i, Node) else i for i in key])).replace("'","")
             name = f"{self.name}{idx_name}"
             if name in self.graph.nodes:
                 return self.graph.nodes[name]

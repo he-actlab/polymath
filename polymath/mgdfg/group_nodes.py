@@ -51,7 +51,7 @@ class GroupNode(Node):
             else:
                 name.append(key)
 
-            name = self.var.name + "[" + "][".join(name) + "]"
+            name = f"{self.var.name}{tuple(name)}"
             if name in self.graph.nodes:
                 return self.graph.nodes[name]
             elif isinstance(key, (list)):
@@ -79,6 +79,12 @@ class GroupNode(Node):
             value = self.target(input_res.reshape(self.args[1].domain.computed_set_shape), axis=sum_axes)
         else:
             value = self.target(input_res.reshape(self.args[1].domain.computed_set_shape), axis=sum_axes, initial=self.initial)
+
+        if len(value.shape) == 0:
+            value = np.asarray([value])
+
+        if not self.is_shape_finalized():
+            self.shape = value.shape
 
         return value
 

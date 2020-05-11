@@ -254,7 +254,7 @@ def _serialize_node(node_instance):
         pb_shape = pb_node.shape.add()
         if isinstance(shape, Node):
             pb_shape.shape_id = shape.name
-        elif not isinstance(shape, int):
+        elif not isinstance(shape, Integral):
             raise TypeError(f"Invalid type for shape {shape} - {type(shape)}")
         else:
             pb_shape.shape_const = shape

@@ -4,6 +4,7 @@ import numpy as np
 from .tabla_utils import sigmoid_lut, gaussian_lut
 import tqdm
 import sys
+from polymath.mgdfg.util import is_iterable
 LUT_NODES = {"sigmoid": sigmoid_lut,
              "gaussian": gaussian_lut}
 TABLA_OP_MAP = {"add": "+",
@@ -35,6 +36,7 @@ class TablaPass(pm.Pass):
 
         if node.graph is None:
             return node
+
         if self.debug:
             if not self.pbar.total:
                 self.pbar.reset(total=len(node.graph.nodes))
@@ -47,7 +49,11 @@ class TablaPass(pm.Pass):
             self.get_dfg_node("source")["children"].append(self.get_dfg_node(node)["id"])
         elif isinstance(node, pm.write):
             a0_key = self.node_key(node.args[0])
-            assert a0_key in self.dfg
+
+            if a0_key not in self.dfg:
+                assert not isinstance(node.args[0], pm.Node)
+                self.set_dfg_node(node.args[0], self.create_node(str(node.args[0]), dtype="constant", parents=[0]))
+                self.get_dfg_node("source")["children"].append(self.get_dfg_node(node.args[0])["id"])
             self.get_dfg_node(node.args[0])["dataType"] = node.args[2].type_modifier
             self.get_dfg_node(node.args[0])["children"].append(1)
             self.get_dfg_node("sink")["parents"].append(self.get_dfg_node(node.args[0])["id"])
@@ -63,15 +69,26 @@ class TablaPass(pm.Pass):
             self.add_constants(node)
             a0_key = self.node_key(node.args[0])
             a1_key = self.node_key(node.args[1])
-            assert a0_key in self.dfg
-            assert a1_key in self.dfg
+            if a0_key not in self.dfg:
+                raise KeyError(f"Arg0 with key {a0_key} not found in dfg for func op node {node.name}\n"
+                               f"Args: {node.args}\n"
+                               f"Keys: {self.dfg.keys()}")
+
+            if a1_key not in self.dfg:
+                raise KeyError(f"Arg1 with key {a1_key} not found in dfg for func op node {node.name}\n"
+                               f"Args: {node.args}\n"
+                               f"Keys: {self.dfg.keys()}")
+
             self.set_dfg_node(node, self.create_node(node.op_name, parents=[self.get_dfg_node(node.args[0])["id"], self.get_dfg_node(node.args[1])["id"]]))
             self.get_dfg_node(node.args[0])["children"].append(self.get_dfg_node(node)["id"])
             self.get_dfg_node(node.args[1])["children"].append(self.get_dfg_node(node)["id"])
         elif isinstance(node, pm.NonLinear):
             self.add_constants(node)
             a0_key = self.node_key(node.args[0])
-            assert a0_key in self.dfg
+            if a0_key not in self.dfg:
+                raise KeyError(f"Arg1 with key {a0_key} not found in dfg for func op node {node.name}\n"
+                               f"Args: {node.args}\n"
+                               f"Keys: {self.dfg.keys()}")
             self.set_dfg_node(node, self.create_node(node.op_name, parents=[self.get_dfg_node(node.args[0])["id"]]))
             self.get_dfg_node(node.args[0])["children"].append(self.get_dfg_node(node)["id"])
 
@@ -91,7 +108,7 @@ class TablaPass(pm.Pass):
 
         key = self.node_key(node)
 
-        if key not in self.used and not isinstance(node, (pm.output, pm.state, pm.write)):
+        if key not in self.used and not isinstance(node, (pm.output, pm.state, pm.temp, pm.write)):
 
             if node.graph and node.name in node.graph.nodes:
                 for a in node.args:
@@ -103,7 +120,7 @@ class TablaPass(pm.Pass):
                         self.remove_node(a)
                 self.remove_node(node)
                 node.graph.nodes.pop(node.name)
-        elif isinstance(node, (pm.output, pm.state)) and self.add_kwargs:
+        elif isinstance(node, (pm.output, pm.state, pm.temp)) and self.add_kwargs:
             self.add_dfg_params(node)
         elif isinstance(node, (pm.write)):
             node.graph.nodes[node.name] = node.args[0]
@@ -129,7 +146,15 @@ class TablaPass(pm.Pass):
         if len(self.test_values.keys()) > 0:
             if node.name in self.test_values:
                 node.add_attribute("computed", self.test_values[node.name])
-                node_info["computed"] = int(self.test_values[node.name])
+                if is_iterable(self.test_values[node.name]):
+                    if np.prod(node.shape) > 1:
+                        raise RuntimeError(f"Cannot replace value with computed value for non-scalar value "
+                                           f"{node} with value {self.test_values[node.name]}\n")
+
+                    print(self.test_values[node.name])
+                    node_info["computed"] = int(self.test_values[node.name][0])
+                else:
+                    node_info["computed"] = int(self.test_values[node.name])
             elif node.value is not None:
                 self.test_values[node.name] = node.value
                 node_info["computed"] = int(node.value)
@@ -162,6 +187,7 @@ class TablaPass(pm.Pass):
         parents = parents if isinstance(parents, list) else []
         node = {"id": len(self.dfg), "parents": parents, "dataType": dtype, "children": []}
         if dtype == "constant":
+
             node["computed"] = int(operation)
         if operation in TABLA_OP_MAP:
             node["operation"] = TABLA_OP_MAP[operation]

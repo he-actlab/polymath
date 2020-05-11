@@ -2,8 +2,8 @@ import polymath as pm
 from pathlib import Path
 import numpy as np
 import pytest
-from .util import logistic, linear, reco, svm, compare_tabla_dfg, set_shape_and_lower\
-    , fft, unwound_fft, matern32, backprop
+from .util import logistic, linear, reco, svm, compare_tabla_dfg, set_shape_and_lower,\
+    unwound_fft, backprop, conv
 import pprint
 
 @pytest.mark.parametrize('m_',[
@@ -25,12 +25,12 @@ def test_linear_reg(m_):
     compare_tabla_dfg(validation_path, tabla_ir, tabla_graph)
 
 @pytest.mark.parametrize('m_',[
-    5
+    55
 ])
 def test_linear_reg_embedded_values(m_):
     shape_dict = {"m": m_}
     graph, input_info, out_info, keys = linear(m=m_, coarse=True)
-    _, input_info, out_info, keys = linear(m=m_, coarse=False)
+    lgraph, input_info, out_info, keys = linear(m=m_, coarse=False)
     cwd = Path(f"{__file__}").parent
     base_path = f"{cwd}/pmlang_examples"
     full_path = f"{base_path}/outputs"
@@ -42,7 +42,7 @@ def test_linear_reg_embedded_values(m_):
                                               context_dict=input_info, add_kwargs=True)
 
 @pytest.mark.parametrize('l1, l2, l3',[
-    (8, 16, 3)
+    (8, 16, 1)
 ])
 def test_backprop_embedded_values(l1, l2, l3):
     shape_dict = {"l1": l1, "l2": l2 , "l3": l3}
@@ -54,16 +54,16 @@ def test_backprop_embedded_values(l1, l2, l3):
 
     _, input_info, out_info, keys = backprop(l1, l2, l3, coarse=False)
 
-    cwd = Path(f"{__file__}").parent
-    base_path = f"{cwd}/pmlang_examples"
-    full_path = f"{base_path}/outputs"
-    tabla_path = f"{full_path}/{graph.name}_{l1}_{l2}_{l3}_tabla.json"
-
-    tabla_ir, tabla_graph = pm.generate_tabla(graph,
-                                              shape_dict,
-                                              tabla_path,
-                                              context_dict=input_info,
-                                              add_kwargs=True, debug=False)
+    # cwd = Path(f"{__file__}").parent
+    # base_path = f"{cwd}/pmlang_examples"
+    # full_path = f"{base_path}/outputs"
+    # tabla_path = f"{full_path}/{graph.name}_{l1}_{l2}_{l3}_tabla.json"
+    #
+    # tabla_ir, tabla_graph = pm.generate_tabla(graph,
+    #                                           shape_dict,
+    #                                           tabla_path,
+    #                                           context_dict=input_info,
+    #                                           add_kwargs=True, debug=False)
 
 @pytest.mark.parametrize('m_',[
     55
@@ -82,7 +82,7 @@ def test_logreg_reg_embedded_values(m_):
                                               tabla_path,
                                               context_dict=input_info, add_kwargs=True)
 @pytest.mark.parametrize('m, n, k',[
-    (10, 5, 2)
+    (30, 25, 6)
 ])
 def test_reco_embedded_values(m, n, k):
     shape_dict = {"m": m, "n": n, "k": k}
@@ -100,6 +100,51 @@ def test_reco_embedded_values(m, n, k):
     200
 ])
 def test_svm_embedded_values(m):
+    shape_dict = {"m": m}
+    graph, input_info, out_info, keys = svm(m=m, coarse=True)
+    ngraph, input_info, out_info, keys = svm(m=m, coarse=False)
+    cwd = Path(f"{__file__}").parent
+    base_path = f"{cwd}/pmlang_examples"
+    full_path = f"{base_path}/outputs"
+    tabla_path = f"{full_path}/{graph.name}_{m}_tabla.json"
+    tabla_ir, tabla_graph = pm.generate_tabla(graph,
+                                              shape_dict,
+                                              tabla_path,
+                                              context_dict=input_info, add_kwargs=True)
+
+
+# @pytest.mark.parametrize('x_shape, w_shape, params', [
+#     # ((1, 1, 32, 32), (6, 1, 5, 5), {"stride": 1, "pad": 0}),
+#     ((1, 1, 4, 4), (2, 1, 2, 2), {"stride": 2, "pad": 1}),
+#     # ((1, 1, 32, 32), (2, 1, 4, 4), {"stride": 2, "pad": 1}),
+# ])
+# def test_conv_embedded_values(x_shape, w_shape, params):
+#     shape_dict = {"n": x_shape[0], "ic": x_shape[1], "ih": x_shape[2], "iw": x_shape[3],
+#                   "nf": w_shape[0], "kh": w_shape[2], "kw": w_shape[3],
+#                   "stride": params["stride"], "pad": params["pad"]}
+#
+#     graph, input_info0, out_info, keys = conv(x_shape, w_shape, params, coarse=True, debug_matrix=True)
+#     ngraph, input_info1, out_info, keys = conv(x_shape, w_shape, params, coarse=False, debug_matrix=True)
+#     lower_pass = pm.Lower({})
+#
+#     lowered = lower_pass(ngraph)
+#     res0 = graph("out", input_info0)
+    # for k,v in lowered.nodes.items():
+    #     if len(v.nodes.keys()) > 0:
+        # print(f"{k} - {v}")
+
+    # cwd = Path(f"{__file__}").parent
+    # base_path = f"{cwd}/pmlang_examples"
+    # full_path = f"{base_path}/outputs"
+    # tabla_path = f"{full_path}/{graph.name}_tabla.json"
+    # tabla_ir, tabla_graph = pm.generate_tabla(graph,
+    #                                           shape_dict,
+    #                                           tabla_path,
+    #                                           context_dict=input_info, add_kwargs=True)
+@pytest.mark.parametrize('m',[
+    200
+])
+def test_convolution_embedded_values(m):
     shape_dict = {"m": m}
     graph, input_info, out_info, keys = svm(m=m, coarse=True)
     ngraph, input_info, out_info, keys = svm(m=m, coarse=False)

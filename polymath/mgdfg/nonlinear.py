@@ -27,6 +27,7 @@ class NonLinear(Node):
         self.target = target
 
     def __getitem__(self, key):
+
         if isinstance(key, (tuple, list, np.ndarray)) and len(key) == 0:
             return self
         elif self.is_shape_finalized() or len(self.nodes) > 0:
@@ -51,8 +52,8 @@ class NonLinear(Node):
                         name.append(str(k))
             else:
                 name.append(key)
-
-            name = self.var.name + "[" + "][".join(name) + "]"
+            name = str(tuple(name)).replace("'", "")
+            name = f"{self.var.name}{name}"
             if name in self.graph.nodes:
                 return self.graph.nodes[name]
             elif isinstance(key, (list)):
@@ -67,7 +68,13 @@ class NonLinear(Node):
             kwargs.pop("target")
         if "domain" in kwargs:
             kwargs.pop("domain")
-        return self.target(val)
+        val = self.target(val)
+        if len(val.shape) == 0:
+            val = np.asarray([val])
+
+        if not self.is_shape_finalized():
+            self.shape = val.shape
+        return val
 
     @property
     def domain(self):

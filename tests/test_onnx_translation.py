@@ -1,6 +1,6 @@
 import polymath as pm
 from tests.util import linear, op_counts, logistic, svm, reco,\
-    dense, conv, two_layer_dense, pooling
+    dense, conv, two_layer_dense, pooling, logistic_data_gen, linear_data_gen
 from pathlib import Path
 import islpy as isl
 
@@ -25,25 +25,33 @@ def test_load_files():
     for f in ONNX_FILE_DIR.iterdir():
         _ = pm.from_onnx(str(f))
 
-@pytest.mark.parametrize('benchmark_name, feature_size',[
-    ("linear", ['54']),
+@pytest.mark.parametrize('benchmark_name, feature_dict, data_func, input_keys, output_key',[
+    # ("logistic", ['54'], logistic_data_gen, {"y":"y:0", "x":"x:0", "w":"W:0"}, ("w", "update:0")),
+    ("linear", {'m': 54}, linear_data_gen, {"y":"y:0", "x":"x:0", "w":"W:0"}, ("w", "update:0")),
     # ("backprop", ['8', '16', '3'])
 ])
-def test_convert_benchmarks(benchmark_name, feature_size):
+def test_convert_benchmarks(benchmark_name, feature_dict, data_func, input_keys, output_key):
+    feature_size = [str(v) for k,v in feature_dict.items()]
     filename = f"{benchmark_name}{'-'.join(feature_size)}.onnx"
     filepath = f"{BENCH_DIR}/{benchmark_name}/{filename}"
     assert Path(filepath).exists()
     graph = pm.from_onnx(filepath)
-    x, w, y = generate_test_inputs(feature_size[0])
-    # np_res = w - (x.dot(w) - y)*x
-    # np_res = x.dot(w)
-    np_res = x*w
-    # pprint.pprint(graph.nodes.keys())
-    pm_res = graph("Mul_1:0", {"y:0": y, "x:0": x, "W:0": w})
-    # print(pm_res)
-    # print(np_res)
-    # np.testing.assert_allclose(np_res, pm_res)
-
+    feature_size = tuple([int(f) for f in feature_size])
+    in_info, keys, out_info = data_func(*feature_size)
+    translated_inputs = {input_keys[k]: v for k,v in in_info.items() if k in input_keys}
+    np_res = out_info[output_key[0]]
+    pm_res = graph(output_key[1], translated_inputs)
+    np.testing.assert_allclose(np_res, pm_res)
+    for k,v in graph.nodes.items():
+        print(f"{k} - {v.op_name} - {v.shape}\n")
+    cwd = Path(f"{__file__}").parent
+    base_path = f"{cwd}/pmlang_examples"
+    full_path = f"{base_path}/outputs"
+    tabla_path = f"{full_path}/{graph.name}_tabla.json"
+    tabla_ir, tabla_graph = pm.generate_tabla(graph,
+                                              feature_dict,
+                                              tabla_path,
+                                              context_dict=translated_inputs, add_kwargs=True)
 
 @pytest.mark.parametrize('m_',[
     3
@@ -102,7 +110,6 @@ def test_load_nested_linear_regressor(m_):
 
     ref_graph, input_info, new_out_info, keys = linear(m=m_)
     flatten_pass = pm.Lower({})
-    test_flatten_pass = pm.Lower({})
     keys = [f"tw/tw({i},)" for i in range(m_)]
 
     flattened_g = flatten_pass(new_graph)
@@ -208,7 +215,7 @@ def test_translate_dense(x_shape, w_shape):
     lower_pass = pm.Lower({})
     lowered_graph = lower_pass(graph)
     res = lowered_graph(keys, input_info)
-    np.testing.assert_allclose(np.asarray(res), out_info["y"])
+    np.testing.assert_allclose(np.asarray(res).reshape(out_info["y"].shape), out_info["y"])
 
 
 @pytest.mark.parametrize('x1_shape, w1_shape, w2_shape', [
@@ -227,7 +234,7 @@ def test_translate_multi_dense(x1_shape, w1_shape, w2_shape):
     lower_pass = pm.Lower({})
     lowered_graph = lower_pass(graph)
     res = lowered_graph(keys, input_info)
-    np.testing.assert_allclose(np.asarray(res), out_info["y"])
+    np.testing.assert_allclose(np.asarray(res).reshape(out_info["y"].shape), out_info["y"])
 
 @pytest.mark.parametrize('data_shape, kernel_shape, stride', [
     ((1, 6, 28, 28), (2, 2), 2),

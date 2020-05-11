@@ -51,7 +51,7 @@ class Template(pm.Node):
 
         with callback(self, context):
             for a in self.args:
-                if isinstance(a, (pm.state, pm.output)):
+                if isinstance(a, (pm.state, pm.output, pm.temp)):
                     write_name = self.get_write_name(a)
                     context[a] = self.nodes[write_name].evaluate(context)
                     values.append(context[a])

@@ -352,7 +352,7 @@ class Node(object):
         fetches = [self.instantiate_node(node) for node in fetches]
         context = self.instantiate_graph(context, **kwargs)
         for c in context:
-            if c in fetches and c.op_name in ["output", "state"]:
+            if c in fetches and c.op_name in ["output", "state", "temp"]:
                 write_name = "/".join([f"{i}{c.write_count-1}" for i in c.name.split("/")]) if c.write_count > 0 else c.name
                 fetches[fetches.index(c)] = c.graph.nodes[write_name]
         values = [fetch.evaluate_node(fetch, context, callback=callback) for fetch in fetches]
@@ -782,15 +782,25 @@ class var_index(Node):  # pylint: disable=C0103,W0223
                 ret = var_index(self.var, tuple([key]), graph=self)
             return ret
 
+    def is_scalar(self, val=None):
+        if val is not None and (not isinstance(val, np.ndarray) or (len(val.shape) == 1 and val.shape[0] == 1)):
+            if self.var.shape != DEFAULT_SHAPES[0] and (len(self.var.shape) == 1 and not isinstance(self.var.shape[0],Node)):
+                raise ValueError(f"Invalid shape var for var index {self} with variable shape {self.var.shape}")
+            return True
+        else:
+            return self.var.shape == DEFAULT_SHAPES[0]
+
     def _evaluate(self, var, indices, **kwargs):
 
-        if len(indices) >= 1 and not isinstance(indices[0], (list, np.ndarray)):
+        if self.is_scalar(var):
             out_shape = (1,)
+            indices = (0,)
             single = True
         else:
             out_shape = self.domain.shape_from_indices(indices)
             indices = self.domain.compute_pairs()
             single = False
+
         if isinstance(var, (Integral, str)):
             var = np.asarray([var])
         elif not isinstance(var, (np.ndarray,list)):
@@ -798,13 +808,21 @@ class var_index(Node):  # pylint: disable=C0103,W0223
         elif isinstance(var, list):
             var = np.asarray(var)
 
-        if len(var.shape) != len(out_shape):
+        if len(var.shape) != len(out_shape) and np.prod(var.shape) != np.prod(out_shape):
             raise ValueError(f"Index list {self.domain} does not match {var.shape} dimensions for slice {self.args[0].name} with {out_shape}")
         if not single and not all([(idx_val - 1) >= indices[-1][idx] for idx, idx_val in enumerate(var.shape)]):
             raise ValueError(f"var_index {self.name} has indices which are greater than the variable shape:\n"
                              f"\tArgs: {self.args}\n"
                              f"\tVar shape: {var.shape}\n"
                              f"\tIndex Upper bounds: {indices[-1]}")
+
+        if len(var.shape) != len(out_shape) and np.prod(var.shape) == np.prod(out_shape):
+            if len(out_shape) > len(var.shape):
+                for i in range(len(out_shape)):
+                    if out_shape[i] == 1:
+                        var = np.expand_dims(var, axis=i)
+            else:
+                var = np.squeeze(var)
 
         indices = list(map(lambda x: x.tolist() if isinstance(x, np.ndarray) else x, indices))
         res = var[indices] if single else np.asarray([var[idx] for idx in indices]).reshape(out_shape)
@@ -924,8 +942,11 @@ class slice_op(Node):
             slice1_var, slice1_idx, slice2_var, slice2_idx = self.get_index_nodes(all_args[0], all_args[1])
             domain = slice1_idx.combine_set_domains(slice2_idx)
 
+        if "op_name" in kwargs:
+            kwargs.pop("op_name")
+
         target_name = f"{target.__module__}.{target.__name__}"
-        super(slice_op, self).__init__(*args, target=target_name, domain=domain, **kwargs)
+        super(slice_op, self).__init__(*args, target=target_name, domain=domain, op_name=f"slice_{target.__name__}", **kwargs)
         self.target = target
 
     @property
@@ -980,24 +1001,26 @@ class slice_op(Node):
                     s.append(int(d))
                 elif isinstance(d, var_index):
                     s.append(d.domain)
-                elif _is_node_type_instance(d, "index"):
-                    s.append((d.ubound - d.lbound + 1))
+                # elif _is_node_type_instance(d, "index"):
+                #     s.append((d.ubound - d.lbound + 1))
                 else:
                     s.append(d)
 
             self._shape = tuple(s)
 
+    def is_scalar(self, val):
+        return not isinstance(val, np.ndarray) or (len(val.shape) == 1 and val.shape[0] == 1)
 
     def _evaluate(self, op1, op2, context=None, **kwargs):
-        if not isinstance(op1, np.ndarray) or not isinstance(op2, np.ndarray):
+        if self.is_scalar(op1) or self.is_scalar(op2):
             value = self.target(op1, op2)
         else:
             op1_idx = self.domain.map_sub_domain(self.args[0].domain) if isinstance(self.args[0], Node) else tuple([])
             op2_idx = self.domain.map_sub_domain(self.args[1].domain) if isinstance(self.args[1], Node) else tuple([])
-
             op1 = np.asarray(list(map(lambda x: op1[x], op1_idx))).reshape(self.domain.computed_shape)
             op2 = np.asarray(list(map(lambda x: op2[x], op2_idx))).reshape(self.domain.computed_shape)
             value = self.target(op1, op2)
+
         return value
 
     def get_index_nodes(self, slice1_var=None, slice2_var=None):

@@ -26,7 +26,7 @@ from itertools import product
 from collections import deque, OrderedDict
 import pickle
 from pytools import ProcessTimer
-
+from pathlib import Path
 from typing import TYPE_CHECKING, Union
 if TYPE_CHECKING:
     from polymath.mgdfg.base import Node
@@ -156,8 +156,9 @@ def _is_node_type_instance(node, ntype):
     return False
 
 
-def visualize(filepath, graph: 'Node'):
+def visualize(graph: 'Node', filepath=None):
     out_graph = Digraph(graph.name)
+    print(graph.name)
     added_nodes = []
     for name in graph.nodes.keys():
         if name == graph.name:
@@ -165,17 +166,21 @@ def visualize(filepath, graph: 'Node'):
         node = graph.nodes[name]
         out_graph.node(name, label=f"Op:{node.op_name}\nname:{name}")
         added_nodes.append(name)
-
-        for arg in node.args:
-            if arg.__class__.__name__ == "Node":
+        all_args = _flatten_iterable(node.args)
+        for arg in all_args:
+            if _is_node_instance(arg):
                 if arg.name not in added_nodes:
                     print(f"whoops: node: {node.name}\t arg:{arg.name}")
                 out_graph.edge(arg.name, name)
+
             else:
                 added_nodes.append(str(hash(arg)))
-                out_graph.node(str(hash(arg)), label=str(type(arg)))
+                out_graph.node(str(hash(arg)), label=str(arg))
                 out_graph.edge(str(hash(arg)), name)
-    name = f"{filepath}/{graph.name}"
+    if filepath:
+        name = f"{filepath}/{graph.name}"
+    else:
+        name = f"{Path(__file__).parent}/{graph.name}"
     out_graph.render(name, view=False)
 
 def _scope_name(scope_stack):

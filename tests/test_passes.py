@@ -67,9 +67,9 @@ def test_visit():
     new_ops = [(n.name, n.op_name) for _, n in new_graph.nodes.items()]
     assert graph.func_hash() == new_graph.func_hash()
 
-    assert test_pass.ctx["count"] == 25
+    assert test_pass.ctx["count"] == 17
     assert test_pass.ctx["global"] == 1
-    assert test_pass.ctx["linear_reg"] == 24
+    assert test_pass.ctx["linear_reg"] == 16
     visit_res = new_graph("res", {"x": x, "y": y, "w": w})
     np.testing.assert_allclose(graph_res, actual_res)
     np.testing.assert_allclose(visit_res, actual_res)
@@ -86,9 +86,9 @@ def test_transform():
     test_count = CountNodes()
     new_graph = test_pass(graph)
     orig_graph = test_count(new_graph)
-    assert test_count.ctx["count"] == 25
+    assert test_count.ctx["count"] == 17
     assert test_count.ctx["global"] == 1
-    assert test_count.ctx["linear_reg"] == 24
+    assert test_count.ctx["linear_reg"] == 16
     visit_res = new_graph("res", {"x": x, "y": y, "w": w})
     np.testing.assert_allclose(graph_res, actual_res)
     np.testing.assert_allclose(visit_res, actual_res)

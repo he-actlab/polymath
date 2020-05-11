@@ -176,7 +176,7 @@ def test_lower_group_op():
     input_info = {f"w/w({i},)": w_[i] for i in range(len(w_))}
     input_info.update({f"x/x({i},)": x_[i] for i in range(len(x_))})
     #
-    fine_grained_eval = lowered_graph("h/h4", input_info)
+    fine_grained_eval = lowered_graph("h/h(4,)", input_info)
     assert fine_grained_eval == np_result
     cwd = Path(f"{__file__}").parent
     base_path = f"{cwd}/pmlang_examples"
@@ -186,7 +186,7 @@ def test_lower_group_op():
     loaded_node = pm.pb_load(pb_path)    #
     input_info = {f"w/w({i},)": w_[i] for i in range(len(w_))}
     input_info.update({f"x/x({i},)": x_[i] for i in range(len(x_))})
-    loaded_res = loaded_node("h/h4", input_info)
+    loaded_res = loaded_node("h/h(4,)", input_info)
 
     assert loaded_node.func_hash() == lowered_graph.func_hash()
     assert loaded_res == np_result
@@ -300,7 +300,7 @@ def test_svm(m_):
 
 
 @pytest.mark.parametrize('m_',[
-    3
+    10
 ])
 def test_linear(m_):
     shape_dict = {"m": m_}
@@ -350,8 +350,8 @@ def test_multidim_sigmoid(m_):
         w = pm.state("w", shape=(m))
         i = pm.index(0, m-1, name="i")
         o = pm.sigmoid(w[i]*x[i], name="out")
-    x_ = np.random.randint(0, 10, m_)
-    w_ = np.random.randint(0, 10, m_)
+    x_ = np.random.randint(0, 10, m_).astype(np.float)
+    w_ = np.random.randint(0, 10, m_).astype(np.float)
     shape_dict = {"m": m_}
     input_dict = {"x": x_, "w": w_}
     np_res = sigmoid((x_*w_))
@@ -361,15 +361,15 @@ def test_multidim_sigmoid(m_):
     lowered = set_shape_and_lower(graph, shape_dict)
     keys = [f"out/out({i},)" for i in range(m_)]
 
-    x_ = np.random.randint(0, 10, m_)
-    w_ = np.random.randint(0, 10, m_)
+    x_ = np.random.randint(0, 10, m_).astype(np.float)
+    w_ = np.random.randint(0, 10, m_).astype(np.float)
     input_dict = {}
     for i in range(m_):
         input_dict[f"x/x({i},)"] = x_[i]
         input_dict[f"w/w({i},)"] = w_[i]
     np_res = sigmoid((x_*w_))
 
-    lower_res = lowered(keys, input_dict)
+    lower_res = np.asarray(lowered(keys, input_dict)).reshape(np_res.shape)
     np.testing.assert_allclose(lower_res, np_res)
 
 

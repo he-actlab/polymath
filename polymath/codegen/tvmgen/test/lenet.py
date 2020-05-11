@@ -277,8 +277,9 @@ def main():
 
 if __name__ == '__main__':
     import inspect
-    mname = "resnet18_v1"
-    test_yolo()
+    # mname = "resnet18_v1"
+    # test_yolo()
+    main()
     # test_resnet()
     # with tvm.autotvm.tophub.context("llvm"):
     #     dtype_dict = {"data": 'float32'}

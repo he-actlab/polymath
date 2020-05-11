@@ -66,9 +66,9 @@ def svm(m=3, coarse=False):
 
 def svm_data_gen(m=3, mu=1.0, lowered=False):
     input_info = {}
-    input_info["x"] = np.random.randint(-3, 3, m)
-    input_info["w"] = np.random.randint(-3, 3, m)
-    input_info["y"] = np.random.randint(-3, 3, 1)[0]
+    input_info["x"] = np.random.randint(-3, 50, m)
+    input_info["w"] = np.random.randint(-3, 50, m)
+    input_info["y"] = np.random.randint(-3, 50, 1)[0]
     input_info["mu"] = mu
     out_info = np_svm(input_info)
     if lowered:
@@ -265,6 +265,82 @@ def backprop_data_gen(l1, l2, l3, mu=1.0, lowered=False, debug=False):
 
     return input_info, all_keys, out_info
 
+# def np_lenet(input_info):
+#     out_info = {}
+#     out_info["c1_out"] =
+#     out_info["a2"] = sigmoid(input_info["w2"].dot(out_info["a1"]))
+#     out_info["d3"] = out_info["a2"] - input_info["y"]
+#
+#     out_info["d2"] = out_info["d3"].dot(input_info["w2"])*(out_info["a1"]*(1-out_info["a1"]))
+#     out_info["w1"] = input_info["w1"] - input_info["mu"]*(np.outer(input_info["x"], out_info["d2"]).T)
+#     out_info["w2"] = input_info["w2"] - input_info["mu"]*(np.outer(out_info["a1"], out_info["d3"]).T)
+#
+#     return out_info
+#
+# def lenet_data_gen(mu=1.0, lowered=False, debug=False):
+#     input_info = {}
+#     if debug:
+#         input_info["data"] = np.random.randint(-3, 3, (1,1,32,32))
+#
+#     else:
+#         input_info["data"] = np.random.randint(-3, 3, (1,1,32,32))
+#
+#     if debug:
+#         input_info["c1"] = np.random.randint(-3, 3, (6,1,5,5))
+#     else:
+#         input_info["c1"] = np.random.randint(-3, 3, (6,1,5,5))
+#
+#     if debug:
+#         input_info["c2"] = np.random.randint(-3, 3, (16,6,5,5))
+#     else:
+#         input_info["c2"] = np.random.randint(-3, 3, (16,6,5,5))
+#
+#     if debug:
+#         input_info["w3"] = np.random.randint(-3, 3, (120,400))
+#     else:
+#         input_info["w3"] = np.random.randint(-3, 3, (120,400))
+#
+#     if debug:
+#         input_info["w4"] = np.random.randint(-3, 3, (84, 120))
+#     else:
+#         input_info["w4"] = np.random.randint(-3, 3, (84, 120))
+#
+#     if debug:
+#         input_info["w5"] = np.random.randint(-3, 3, (10, 84))
+#     else:
+#         input_info["w5"] = np.random.randint(-3, 3, (10, 84))
+#
+#     if debug:
+#         input_info["w6"] = np.random.randint(-3, 3, (1, 10))
+#     else:
+#         input_info["w6"] = np.random.randint(-3, 3, (1, 10))
+#
+#
+#     input_info["mu"] = mu
+#     out_info = np_backprop(input_info)
+#     if lowered:
+#         all_keys = []
+#         for i1 in range(l1):
+#             input_info[f"x/x({i1},)"] = input_info["x"][i1]
+#             for i2 in range(l2):
+#                 w_key = f"w1/w1({i2}, {i1})"
+#                 all_keys.append(w_key)
+#                 input_info[w_key] = input_info["w1"][(i2,i1)]
+#         for i3 in range(l3):
+#             input_info[f"y/y({i3},)"] = input_info["y"][i3]
+#             for i2 in range(l2):
+#                 w_key = f"w2/w2({i3}, {i2})"
+#                 all_keys.append(w_key)
+#                 input_info[w_key] = input_info["w2"][(i3,i2)]
+#         input_info.pop("w1")
+#         input_info.pop("w2")
+#         input_info.pop("x")
+#         input_info.pop("y")
+#     else:
+#         all_keys = ["w1","w2"]
+#
+#     return input_info, all_keys, out_info
+
 def np_backprop(input_info):
     out_info = {}
     out_info["a1"] = sigmoid(input_info["w1"].dot(input_info["x"]))
@@ -292,10 +368,10 @@ def backprop(l1_=9, l2_=10, l3_=1, coarse=False, debug=False):
         i2 = pm.index(0, (l2 - 1), name="i2")
         i3 = pm.index(0, (l3 - 1), name="i3")
 
-        a1 = pm.sigmoid(pm.sum([i1], w1[i2, i1] * x[i1]))
-        a2 = pm.sigmoid(pm.sum([i2], w2[i3, i2] * a1[i2]))
-        d3 = a2[i3] - y[i3]
-        d2 = pm.sum([i3], (w2[i3, i2]*d3[i3]) * ( a1[i2]*(mu - a1[i2])))
+        a1 = pm.sigmoid(pm.sum([i1], (w1[i2, i1] * x[i1]).set_name("w1*x"),name="sum(w1*x)"),name="a1")
+        a2 = pm.sigmoid(pm.sum([i2], (w2[i3, i2] * a1[i2]).set_name("w2*a1"), name="sum(w2*a1)"), name="a2")
+        d3 = (a2[i3] - y[i3]).set_name("d3")
+        d2 = pm.sum([i3], (w2[i3, i2]*d3[i3]) * ( a1[i2]*(mu - a1[i2])), name="d2")
         g1 = (d2[i2]*x[i1]).set_name("g1")
         g2 = (d3[i3] * a1[i2]).set_name("g2")
         w1[i2, i1] = w1[i2, i1] - mu*g1[i2, i1]
@@ -336,9 +412,9 @@ def linear_raw(m=3, coarse=False):
 
 def linear_data_gen(m=3, mu=1.0, lowered=False):
     input_info = {}
-    input_info["x"] = np.random.randint(-3, 3, m)
-    input_info["w"] = np.random.randint(-3, 3, m)
-    input_info["y"] = np.random.randint(-3, 3, 1)[0]
+    input_info["x"] = np.random.randint(-3, 10, m)
+    input_info["w"] = np.random.randint(-3, 10, m)
+    input_info["y"] = np.random.randint(-3, 10, 1)[0]
     input_info["mu"] = mu
     out_info = np_linear(input_info)
     if lowered:
@@ -356,12 +432,13 @@ def linear_data_gen(m=3, mu=1.0, lowered=False):
     return input_info, all_keys, out_info
 
 def sigmoid(value):
-    return 1 / (1 + np.exp(-value))
+    return (1 / (1 + np.exp(-value)))
 
 def np_logistic(input_info):
     out_info = {}
-    out_info["x*w"] = input_info["x"]*input_info["w"]
-    out_info["h"] = sigmoid(np.sum(out_info["x*w"]))
+    out_info["x*w"] = (input_info["x"]*input_info["w"])
+    out_info["reduce"] = np.sum(out_info["x*w"])
+    out_info["h"] = sigmoid(out_info["reduce"])
     out_info["d"] = out_info["h"] - input_info["y"]
     out_info["g"] = out_info["d"] * input_info["x"]
     out_info["mu*g"] = input_info["mu"] * out_info["g"]
@@ -371,7 +448,7 @@ def np_logistic(input_info):
 def logistic(m_=3, coarse=False):
     with pm.Node(name="logistic") as graph:
         m = pm.parameter("m")
-        mu = pm.parameter(name="mu", default=1.0)
+        mu = pm.parameter(name="mu", default=1)
         x = pm.input("x", shape=(m))
         y = pm.input("y")
         w = pm.state("w", shape=(m))
@@ -392,9 +469,9 @@ def logistic(m_=3, coarse=False):
 
 def logistic_data_gen(m=3, mu=1.0, lowered=False):
     input_info = {}
-    input_info["x"] = np.random.randint(0, 10, m)
-    input_info["w"] = np.random.randint(0, 10, m)
-    input_info["y"] = np.random.randint(0, 10, 1)[0]
+    input_info["x"] = np.random.randint(-3, 3, m).astype(np.float)
+    input_info["w"] = np.random.randint(-3, 3, m).astype(np.float)
+    input_info["y"] = np.random.randint(-3, 3, 1)[0].astype(np.float)
     input_info["mu"] = mu
     out_info = np_logistic(input_info)
     if lowered:
@@ -472,15 +549,15 @@ def reco_data_gen(m_=3, n_=3, k_=2, mu=1.0, lowered=False):
     input_info["m"] = m_
     input_info["n"] = n_
     input_info["k"] = k_
-    input_info["w1"] = np.random.randint(1, 6, m_ * k_).reshape(m_, k_)
-    input_info["w2"] = np.random.randint(1, 6, n_ * k_).reshape(n_, k_)
-    input_info["x1"] = np.random.randint(1, 6, k_)
-    input_info["x2"] = np.random.randint(1, 6, k_)
+    input_info["w1"] = np.random.randint(1, 50, m_ * k_).reshape(m_, k_)
+    input_info["w2"] = np.random.randint(1, 50, n_ * k_).reshape(n_, k_)
+    input_info["x1"] = np.random.randint(1, 50, k_)
+    input_info["x2"] = np.random.randint(1, 50, k_)
 
     input_info["r1"] = np.random.randint(0, 2, m_)
-    input_info["y1"] = np.random.randint(0, 6, m_)
+    input_info["y1"] = np.random.randint(0, 50, m_)
     input_info["r2"] = np.random.randint(0, 2, n_)
-    input_info["y2"] = np.random.randint(0, 6, n_)
+    input_info["y2"] = np.random.randint(0, 50, n_)
     out_info = numpy_reco(input_dict=input_info)
     if lowered:
         pairs_w1 = list(product(*tuple([np.arange(i) for i in input_info["w1"].shape])))
@@ -728,10 +805,6 @@ def conv_t(data, w, bias, conv_param):
                                 test_var_idx[b][k][dy + stride*y][dx + x*stride] = x_padded[b][k][dy + stride*y][dx + stride*x]
                             tpairs.append(c1[-1])
 
-    # print(f"Xpad shape: {x_padded.shape}")
-    # print(np.allclose(test_var_idx, x_padded))
-
-    print(len(set(tpairs)))
     tout4 = np.sum(tout3, axis=(2, 4, 6))
     pairs = [(c1[i], c2[i]) for i in range(len(c1))]
     return out, tout3, all_pairs
@@ -745,7 +818,6 @@ def conv3d(x, w, b, conv_param):
     num_filters, _, filter_height, filter_width = w.shape
     stride, pad = conv_param['stride'], conv_param['pad']
 
-    print(f"Stride: {stride}\tPad:{pad}\n")
     # Check dimensions
     assert (W + 2 * pad - filter_width) % stride == 0, 'width does not work'
     assert (H + 2 * pad - filter_height) % stride == 0, 'height does not work'
@@ -753,7 +825,6 @@ def conv3d(x, w, b, conv_param):
     # Create output
     out_height = (H + 2 * pad - filter_height) / stride + 1
     out_width = (W + 2 * pad - filter_width) / stride + 1
-    print(f"OH: {out_height}\tPad:{out_width}\n")
     out = np.zeros((N, num_filters, int(out_height), int(out_width)), dtype=x.dtype)
     x_cols = im2col_indices(x, w.shape[2], w.shape[3], pad, stride)
     # x_cols = im2col_cython(x, w.shape[2], w.shape[3], pad, stride)
@@ -867,8 +938,6 @@ def _predict_one(x, w):
         res = res / sum(res)
     else:
         res = x.dot(w)
-        # res = res / sum(res)
-
     return res
 
 
@@ -892,14 +961,28 @@ def conv_data_gen(x_shape, w_shape, params, lowered=False, debug_matrix=False):
         input_info["bias"] = np.zeros((w_shape[0]))
     else:
         input_info["bias"] = np.random.randint(0, 10, (w_shape[0]))
-    tb = np.random.randint(0, 10, (w_shape[0]))
 
     out = conv3d(input_info["data"], input_info["w"], input_info["bias"], params)
     out_info = {"out": out[0]}
     if lowered:
-        all_keys = "w"
+        pairs_w = list(product(*tuple([np.arange(i) for i in input_info["w"].shape])))
+        pairs_data = list(product(*tuple([np.arange(i) for i in input_info["data"].shape])))
+        for p in pairs_w:
+            input_info[f"w/w({p[0]}, {p[1]}, {p[2]}, {p[3]})"] = input_info["w"][p]
+        input_info.pop("w")
+
+        for p in pairs_data:
+            input_info[f"data/data({p[0]}, {p[1]}, {p[2]}, {p[3]})"] = input_info["data"][p]
+        input_info.pop("data")
+
+        # for p in range(w_shape[0]):
+        #     input_info[f"bias/bias({p},)"] = input_info["bias"][p]
+        # input_info.pop("bias")
+        out_pairs = list(product(*tuple([np.arange(i) for i in out_info["out"].shape])))
+
+        all_keys = [f"out/out({p[0]}, {p[1]}, {p[2]}, {p[3]})" for p in out_pairs]
     else:
-        all_keys = "w"
+        all_keys = "out"
 
     return input_info, all_keys, out_info
 
@@ -914,10 +997,11 @@ def conv(x_shape, w_shape, params, coarse=False, debug_matrix=False):
         kw = pm.parameter(name="kw")
         x = pm.input(name="data", shape=(n, c, ih, iw))
         w = pm.state(name="w", shape=(nf, c, kh, kw))
-        b = pm.state(name="bias", shape=(c))
+        b = pm.state(name="bias", shape=(c,))
         stride = pm.parameter(name="stride")
         pad = pm.parameter(name="pad")
         out = pm.output(name="out")
+        pm.conv(x, w, b, out, stride, pad, name="conv_op")
 
     if coarse:
         in_info, keys, out_info = conv_data_gen(x_shape, w_shape, params, debug_matrix=debug_matrix)
@@ -1104,7 +1188,20 @@ def np_lenet(inp_info):
     out_info["a2"] = np_relu(out_info["c2"])
     out_info["l2"] = pooling(out_info["a2"], 2, 2, 0, 2)
 
+    out_info["f5"] = batch_flatten(out_info["l2"])
+    out_info["f6"] = inp_info["w6"].dot(out_info["f5"])
+    out_info["a6"] = np_relu(out_info["f6"])
+
+    out_info["f7"] = inp_info["w7"].dot(out_info["a6"])
+    out_info["a7"] = np_relu(out_info["f7"])
+
+    out_info["f8"] = inp_info["w8"].dot(out_info["a7"])
+    out_info["a8"] = np_relu(out_info["f8"])
+
     return out_info
+
+def batch_flatten(x):
+    return x.reshape(-1)
 
 def lenet():
     shape_dict = {"n": 1, "c": 1, "ih": 32, "iw": 32,
@@ -1314,4 +1411,5 @@ def matern32(X, Y):
     ll_var = np.std(Y)/np.sqrt(2)
     m = gpflow.models.GPR(X, Y.T, k1, noise_variance=ll_var)
     return m
+
 

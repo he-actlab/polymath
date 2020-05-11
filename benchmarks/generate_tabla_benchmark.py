@@ -60,7 +60,7 @@ def create_svm(m):
 def create_backprop(l1, l2, l3):
     shape_dict = {"l1": l1, "l2": l2 , "l3": l3}
     graph, input_info, out_info, keys = backprop(l1, l2, l3, coarse=True)
-    _, input_info, out_info, keys = backprop(l1, l2, l3, coarse=False)
+    _, input_info, out_info, keys = backprop(l1, l2, l3, coarse=False, debug=True)
 
     cwd = Path(f"{__file__}").parent
     full_path = f"{cwd}/outputs"

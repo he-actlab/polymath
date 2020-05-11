@@ -12,13 +12,16 @@ from onnx import numpy_helper, helper, defs
 
 
 def test_lenet():
-    # len_graph = lenet()
+    key = "f7"
     inp_info, graph, out_info = lenet()
+    res = graph(key, inp_info)
+
+    # np.testing.assert_allclose(res, out_info[key])
     tvm_code = pm.generate_tvm(graph, inp_info, "")
     pm_mod = tvm.IRModule.from_expr(tvm_code)
     pm_mod = tvm.relay.transform.InferType()(pm_mod)
-
-
+    #
+    #
     net = tvm_lenet()
     mod = tvm.IRModule.from_expr(net)
     mod = tvm.relay.transform.InferType()(mod)

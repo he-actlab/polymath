@@ -119,21 +119,24 @@ class Domain(object):
             dom_pairs = self.computed_set_pairs
         else:
             dom_pairs = []
-            for i in self.dom_set:
-                if _is_node_instance(i):
-                    if i.value is not None:
-                        dom_pairs.append(i.value)
+            if self.dom_set == DEFAULT_SHAPES[0]:
+                dom_pairs.append([0])
+            else:
+                for i in self.dom_set:
+                    if _is_node_instance(i):
+                        if i.value is not None:
+                            dom_pairs.append(i.value)
 
-                    elif _is_node_type_instance(i, "index"):
-                        assert isinstance(i.lbound, Integral) and isinstance(i.ubound, Integral)
-                        dom_pairs.append([x for x in range(i.lbound, i.ubound + 1)])
+                        elif _is_node_type_instance(i, "index"):
+                            assert isinstance(i.lbound, Integral) and isinstance(i.ubound, Integral)
+                            dom_pairs.append([x for x in range(i.lbound, i.ubound + 1)])
+                        else:
+                            raise ValueError(f"Could not use subscript for domain pair: {i.name} - {i.op_name}")
+                    elif isinstance(i, np.ndarray):
+                        dom_pairs.append(i.tolist())
                     else:
-                        raise ValueError(f"Could not use subscript for domain pair: {i.name} - {i.op_name}")
-                elif isinstance(i, np.ndarray):
-                    dom_pairs.append(i.tolist())
-                else:
-                    assert isinstance(i, list)
-                    dom_pairs.append(i)
+                        assert isinstance(i, list)
+                        dom_pairs.append(i)
 
             dom_pairs = tuple(dom_pairs)
             dom_pairs = np.array(list(product(*dom_pairs)))
@@ -177,26 +180,28 @@ class Domain(object):
             pairs = self.computed_pairs
         else:
             pairs = []
+            if self.doms == DEFAULT_SHAPES[0]:
+                pairs.append([0])
+            else:
+                for i in self.doms:
+                    if _is_node_instance(i):
 
-            for i in self.doms:
-                if _is_node_instance(i):
-
-                    if i.value is not None and is_iterable(i.value):
-                        pairs.append(i.value)
-                    elif _is_node_type_instance(i, "index"):
-                        assert isinstance(i.lbound, Integral) and isinstance(i.ubound, Integral)
-                        pairs.append([x for x in range(i.lbound, i.ubound + 1)])
-                    elif i.shape in DEFAULT_SHAPES:
+                        if i.value is not None and is_iterable(i.value):
+                            pairs.append(i.value)
+                        elif _is_node_type_instance(i, "index"):
+                            assert isinstance(i.lbound, Integral) and isinstance(i.ubound, Integral)
+                            pairs.append([x for x in range(i.lbound, i.ubound + 1)])
+                        elif i.shape in DEFAULT_SHAPES:
+                            continue
+                        else:
+                            raise ValueError(f"Could not use subscript for domain pair: {i.name} - {i.op_name}")
+                    elif isinstance(i, np.ndarray):
+                        pairs.append(i.tolist())
+                    elif isinstance(i, Integral):
                         continue
                     else:
-                        raise ValueError(f"Could not use subscript for domain pair: {i.name} - {i.op_name}")
-                elif isinstance(i, np.ndarray):
-                    pairs.append(i.tolist())
-                elif isinstance(i, Integral):
-                    continue
-                else:
-                    assert isinstance(i, list)
-                    pairs.append(i)
+                        assert isinstance(i, list)
+                        pairs.append(i)
             pairs = tuple(pairs)
             pairs = np.array(list(product(*pairs)))
             self.computed_pairs = pairs

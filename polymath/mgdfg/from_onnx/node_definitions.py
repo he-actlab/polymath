@@ -144,7 +144,7 @@ class mc_logistic_regressor_train(pm.Template):
 
     def define_graph(self, x, w, y, y_pred, mu, m, **kwargs):
         i = pm.index(0, (m - 1).set_name("m-1"), name="i")
-        h = pm.placeholder(name="h", shape=(m))
+        h = pm.temp(name="h", shape=(m))
         h = pm.sigmoid(pm.sum([i], (x[i] * w[i]), name="h"))
         d = (h - y).set_name("h-y")
         g = (d * x[i]).set_name("d*x")
@@ -215,6 +215,10 @@ def elem_mul(a, b, m, name=None, **kwargs):
     i = pm.index(0, (m - 1), name=f"{name}_i")
     return (a[i] * b[i]).set_name(name)
 
+def elem_sigmoid(x, m, name=None, **kwargs):
+    i = pm.index(0, (m - 1), name=f"{name}_i")
+    return pm.sigmoid(x[i]).set_name(name)
+
 # TODO: Add reshape operator, constant operator, gemm
 NODE_NAMES = {"SVMClassifier": svm_classifier_train,
               "Conv": conv,
@@ -230,6 +234,7 @@ NODE_NAMES = {"SVMClassifier": svm_classifier_train,
               "Gemm": gemm,
               "Dropout": dropout,
               "LogSoftmax": log_softmax,
+              "Sigmoid": elem_sigmoid,
               "Mul": elem_mul,
               "ReduceSum": reduce_sum,
               "Sub": elem_sub}

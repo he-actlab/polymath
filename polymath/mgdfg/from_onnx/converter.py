@@ -121,10 +121,10 @@ def convert_node(onnx_node, mgdfg, node_info):
         o_shape = node_info[o_name].shape
         attributes = get_attributes(onnx_node)
         args = tuple(args + list(attributes.values()) + list(o_shape))
-        indices = tuple([pm.index(0, s-1, graph=mgdfg) for s in o_shape])
+        indices = tuple([pm.index(0, s-1, name=f"{o_name}_i", graph=mgdfg) for s in o_shape])
         with mgdfg:
             new_node = NODE_NAMES[onnx_node.op_type](*args)
-            node_info[o_name].write(new_node[indices])
+            node_info[o_name][indices] = new_node[indices]
 
     return mgdfg
 

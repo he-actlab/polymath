@@ -37,6 +37,12 @@ class index(Node):  # pylint: disable=C0103,W0223
         return u
 
     def _evaluate(self, lbound, ubound, **kwargs):
+        if isinstance(self.lbound, index):
+            lbound = len(lbound) - 1
+
+        if isinstance(self.ubound, index):
+            ubound = len(ubound) - 1
+
         value = np.asarray([i for i in range(int(lbound), int(ubound) + 1)])
         return value
 

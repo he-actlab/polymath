@@ -2,6 +2,7 @@ from __future__ import print_function, division, absolute_import
 
 DEFAULT_SHAPES = [(1,), (1,)]
 UNSET_SHAPE = tuple([])
+SCALAR_IDX = (0,)
 # TODO: Need to add all func operators here from base class
 from polymath.mgdfg.domain import Domain
 from polymath.mgdfg.base import Node, nodeop, func_op, contains,\
