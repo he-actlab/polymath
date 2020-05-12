@@ -3,7 +3,7 @@ import polymath as pm
 import pprint
 import numpy as np
 from pathlib import Path
-from tests.util import reco, sigmoid, svm, logistic, linear, set_shape_and_lower
+from tests.util import reco, sigmoid, svm, logistic, linear, set_shape_and_lower, conv
 import pytest
 
 
@@ -176,7 +176,7 @@ def test_lower_group_op():
     input_info = {f"w/w({i},)": w_[i] for i in range(len(w_))}
     input_info.update({f"x/x({i},)": x_[i] for i in range(len(x_))})
     #
-    fine_grained_eval = lowered_graph("h/h(4,)", input_info)
+    fine_grained_eval = lowered_graph("h/h_pr_(4,)", input_info)
     assert fine_grained_eval == np_result
     cwd = Path(f"{__file__}").parent
     base_path = f"{cwd}/pmlang_examples"
@@ -186,7 +186,7 @@ def test_lower_group_op():
     loaded_node = pm.pb_load(pb_path)    #
     input_info = {f"w/w({i},)": w_[i] for i in range(len(w_))}
     input_info.update({f"x/x({i},)": x_[i] for i in range(len(x_))})
-    loaded_res = loaded_node("h/h(4,)", input_info)
+    loaded_res = loaded_node("h/h_pr_(4,)", input_info)
 
     assert loaded_node.func_hash() == lowered_graph.func_hash()
     assert loaded_res == np_result
@@ -371,5 +371,23 @@ def test_multidim_sigmoid(m_):
 
     lower_res = np.asarray(lowered(keys, input_dict)).reshape(np_res.shape)
     np.testing.assert_allclose(lower_res, np_res)
+
+
+# @pytest.mark.parametrize('x_shape, w_shape, params', [
+#     # ((1, 1, 32, 32), (6, 1, 5, 5), {"stride": 1, "pad": 0}),
+#     ((1, 1, 4, 4), (2, 1, 2, 2), {"stride": 2, "pad": 1}),
+#     # ((1, 1, 32, 32), (2, 1, 4, 4), {"stride": 2, "pad": 1}),
+# ])
+# def test_conv_embedded_values(x_shape, w_shape, params):
+#     shape_dict = {"n": x_shape[0], "ic": x_shape[1], "ih": x_shape[2], "iw": x_shape[3],
+#                   "nf": w_shape[0], "kh": w_shape[2], "kw": w_shape[3],
+#                   "stride": params["stride"], "pad": params["pad"]}
+#
+#     graph, input_info0, out_info, keys = conv(x_shape, w_shape, params, coarse=True, debug_matrix=True)
+#
+#     ngraph, input_info1, out_info, keys = conv(x_shape, w_shape, params, coarse=False, debug_matrix=True)
+#     lower_pass = pm.Lower({})
+#     lowered = lower_pass(ngraph)
+#     # scalar_out = ngraph()
 
 

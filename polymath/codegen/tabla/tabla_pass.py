@@ -86,7 +86,7 @@ class TablaPass(pm.Pass):
             self.add_constants(node)
             a0_key = self.node_key(node.args[0])
             if a0_key not in self.dfg:
-                raise KeyError(f"Arg1 with key {a0_key} not found in dfg for func op node {node.name}\n"
+                raise KeyError(f"Input value {a0_key} for NonLinear node {node.name} not found in dfg\n"
                                f"Args: {node.args}\n"
                                f"Keys: {self.dfg.keys()}")
             self.set_dfg_node(node, self.create_node(node.op_name, parents=[self.get_dfg_node(node.args[0])["id"]]))
@@ -124,7 +124,7 @@ class TablaPass(pm.Pass):
             self.add_dfg_params(node)
         elif isinstance(node, (pm.write)):
             node.graph.nodes[node.name] = node.args[0]
-            if self.add_kwargs:
+            if self.add_kwargs and isinstance(node.args[0], pm.Node):
                 self.add_dfg_params(node.args[0])
         elif key not in self.used and node.graph:
 
@@ -151,7 +151,6 @@ class TablaPass(pm.Pass):
                         raise RuntimeError(f"Cannot replace value with computed value for non-scalar value "
                                            f"{node} with value {self.test_values[node.name]}\n")
 
-                    print(self.test_values[node.name])
                     node_info["computed"] = int(self.test_values[node.name][0])
                 else:
                     node_info["computed"] = int(self.test_values[node.name])
@@ -238,7 +237,8 @@ class TablaPass(pm.Pass):
                 if isinstance(v, pm.Node) and v.name == node.name:
                     self.hsh_map[node] = node
                     return self.dfg[k]
-            raise ValueError(f"Could not find {key} in dfg for node {node.name} - {node.op_name}")
+            raise ValueError(f"Could not find {key} in dfg for node {node.name} - {node.op_name}\n"
+                             f"Node args: {node.args}.")
         else:
 
             return self.dfg[key]

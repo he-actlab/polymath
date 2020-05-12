@@ -35,7 +35,7 @@ class GroupNode(Node):
         elif self.is_shape_finalized() and len(self.nodes) > 0:
             if isinstance(key, int):
                 key = tuple([key])
-            idx = np.ravel_multi_index(key, dims=self.shape, order='F')
+            idx = np.ravel_multi_index(key, dims=self.shape, order='C')
             ret = self.output_nodes[idx]
             return ret
         else:
@@ -73,7 +73,6 @@ class GroupNode(Node):
 
         sum_axes = self.axes
         if not hasattr(input_res, "__len__"):
-            print(input_res)
             value = input_res * np.prod([len(bound) for bound in bounds])
         elif self.target.__name__ in self.builtin_np:
             value = self.target(input_res.reshape(self.args[1].domain.computed_set_shape), axis=sum_axes)

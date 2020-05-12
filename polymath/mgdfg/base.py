@@ -447,7 +447,6 @@ class Node(object):
         # Evaluate the node
         callback = callback or _noop_callback
         with callback(self, context):
-
             if self.__class__.__name__ == "Node":
                 context[self] = self.value = self._evaluate(*args, context=context, **kwargs)
             else:
@@ -1001,8 +1000,6 @@ class slice_op(Node):
                     s.append(int(d))
                 elif isinstance(d, var_index):
                     s.append(d.domain)
-                # elif _is_node_type_instance(d, "index"):
-                #     s.append((d.ubound - d.lbound + 1))
                 else:
                     s.append(d)
 

@@ -5,7 +5,7 @@ from numbers import Integral
 from collections import defaultdict
 from itertools import product
 import numpy as np
-import time
+import pprint
 from math import ceil
 
 @register_pass(analysis=True)
@@ -141,7 +141,8 @@ class NormalizeGraph(Pass):
                 if isinstance(s, pm.Node):
                     if s.name not in self.context and s not in self.evaluated:
                         raise RuntimeError(f"Unable to evaluate shape variable {s} for node {node}.\n"
-                                           f"\tContext keys: {list(self.context.keys())}.")
+                                           f"\tContext keys: {list(self.context.keys())}.\n"
+                                           f"")
                     if s.name in self.context:
                         new_shape.append(self.context[s.name])
                     elif isinstance(s, pm.index):
@@ -218,20 +219,20 @@ class NormalizeGraph(Pass):
     def populate_slice_op(self, node):
         op1_idx = node.domain.map_sub_domain(node.args[0].domain) if isinstance(node.args[0], pm.Node) and node.args[0].shape != pm.DEFAULT_SHAPES[0] else pm.SCALAR_IDX
         op2_idx = node.domain.map_sub_domain(node.args[1].domain) if isinstance(node.args[1], pm.Node) and node.args[1].shape != pm.DEFAULT_SHAPES[0] else pm.SCALAR_IDX
-
         dom_pairs = node.domain.compute_pairs()
+
         kwargs = {}
         kwargs["op_name"] = node.target.__name__
         kwargs["graph"] = node
         assert len(dom_pairs) == len(op1_idx) or op1_idx == pm.SCALAR_IDX
         assert len(dom_pairs) == len(op2_idx) or op2_idx == pm.SCALAR_IDX
+
         if len(op1_idx) > 1:
             ops1 = list(map(lambda x: node.args[0][op1_idx[x]], range(len(dom_pairs))))
         elif isinstance(node.args[0], pm.var_index):
             ops1 = list(map(lambda x: node.args[0][op1_idx[0]], range(len(dom_pairs))))
         else:
             ops1 = list(map(lambda x: node.args[0], range(len(dom_pairs))))
-
 
         if len(op2_idx) > 1:
             ops2 = list(map(lambda x: node.args[1][op2_idx[x]], range(len(dom_pairs))))
@@ -252,11 +253,14 @@ class NormalizeGraph(Pass):
             indices = np.array(list(product(*indices)))
             indices = list(map(lambda x: tuple(x), indices))
             out_shape = node.domain.shape_from_indices(node.args[1])
+            out_indices = tuple([np.arange(out_shape[i]) for i in range(len(out_shape))])
+            out_indices = np.array(list(product(*out_indices)))
             dom_pairs = node.domain.compute_pairs()
             dom_pairs = list(map(lambda x: x.tolist() if isinstance(x, np.ndarray) else x, dom_pairs))
         else:
             indices = [pm.SCALAR_IDX]
             out_shape = (1,)
+            out_indices = [pm.SCALAR_IDX]
             dom_pairs = [pm.SCALAR_IDX]
             idx_name = f"{node.var.name}{pm.SCALAR_IDX}"
 
@@ -265,20 +269,20 @@ class NormalizeGraph(Pass):
                     x = node.var.init_from_args(graph=node.var, name=idx_name, shape=(1,))
                 elif isinstance(node.var, pm.NonLinear):
                     # TODO: Add check or fix so that the input variable is checked to have nodes or not
-                    x = node.var.init_from_args(node.args[0], graph=node.var, name=idx_name, shape=(1,))
+                    x = node.var.init_from_args(node.var.args[0][pm.SCALAR_IDX], graph=node.var, name=idx_name, shape=(1,))
                 # TODO: Add initializers for other types of node
                 self.stored_objects[id(x)] = x
-
 
         node._shape = out_shape
         node.domain.set_computed(out_shape, dom_pairs)
         for i, d in enumerate(dom_pairs):
             ph_node = node.var[indices[i]]
-            name = f"{node.var.name}{d}"
+            name = f"{node.var.name}{out_indices[i]}"
             node.nodes[name] = ph_node
 
     def populate_temp(self, node):
         if node.shape != pm.DEFAULT_SHAPES[0]:
+
             indices = list(product(*tuple([np.arange(i) for i in node.shape])))
             for i in indices:
                 x = pm.temp(graph=node, name=f"{node.name}{i}", shape=(1,))
@@ -304,9 +308,6 @@ class NormalizeGraph(Pass):
             for i in indices:
                 x = pm.input(graph=node, name=f"{node.name}{i}", shape=(1,))
                 self.stored_objects[id(x)] = x
-        # else:
-        #     x = pm.input(graph=node, name=f"{node.name}{pm.SCALAR_IDX}", shape=(1,))
-        #     self.stored_objects[id(x)] = x
 
     def populate_state(self, node):
         if node.shape != pm.DEFAULT_SHAPES[0]:
@@ -320,11 +321,19 @@ class NormalizeGraph(Pass):
         if node.shape != pm.DEFAULT_SHAPES[0]:
 
             src, dst_key, dst = node.args
-            dst_indices = list(product(*tuple([np.arange(i) for i in node.shape])))
             key_indices = node.domain.compute_pairs()
+            dst_indices = list(product(*tuple([np.arange(i) for i in node.shape])))
+            # dst_indices = node.shape_domain.compute_shape_domain(indices=dst_key)
 
             if isinstance(src, pm.Node):
-                src_indices = node.domain.map_sub_domain(node.args[0].domain)
+                if isinstance(node.args[0], pm.index):
+                    src_dom = pm.Domain(node.args[0].domain)
+                    indices = [i.value for i in src_dom.dom_set]
+                    out_shape = src_dom.shape_from_indices(indices)
+                else:
+                    src_dom = node.args[0].domain
+                src_indices = node.domain.map_sub_domain(src_dom)
+
                 for i in dst_indices:
                     if i in key_indices:
                         idx = key_indices.index(i)
@@ -375,10 +384,12 @@ class NormalizeGraph(Pass):
             sum_domain = node.domain.compute_pairs(tuples=False)
             axes_idx = np.array([node.input_node.domain.index(s) for s in node.domain])
             make_tuple = lambda x: x if isinstance(x, tuple) else (tuple(x) if isinstance(x, (list)) else (tuple(x.tolist()) if isinstance(x, np.ndarray) else x))
-            sd_map = {str(sd): compute_sum_indices(axes_idx, input_domain, sd) for sd in sum_domain}
+            sd_map = [(str(tuple(sd)), compute_sum_indices(axes_idx, input_domain, sd)) for sd in sum_domain]
             assert node.graph
 
-            for k, v in sd_map.items():
+            for item in sd_map:
+                k = item[0]
+                v = item[1]
                 inputs = []
                 for d in v:
                     i = node.input_node[make_tuple(input_domain[d])]
@@ -407,32 +418,33 @@ class NormalizeGraph(Pass):
                 shapes[k] = v
         return shapes
 
+
     def _div_conquer_reduce(self, left, right, node):
         kwargs = {}
         kwargs["graph"] = node
         kwargs["op_name"] = kwargs["op_name"] if "op_name" in kwargs else node.scalar_target.__name__
 
         if len(left) == 1 and len(right) == 1:
-            kwargs["name"] = f"{node.name}{(len(node.nodes),)}"
+            kwargs["name"] = f"{node.name}_pr_{(len(node.nodes),)}"
             return pm.func_op.init_from_args(node.scalar_target, left[0], right[0], **kwargs)
         elif len(left) == 1:
             div = ceil(len(right)/2)
             right_op = self._div_conquer_reduce(right[0:div], right[div:], node)
-            kwargs["name"] = f"{node.name}{(len(node.nodes),)}"
+            kwargs["name"] = f"{node.name}_pr_{(len(node.nodes),)}"
             return pm.func_op.init_from_args(node.scalar_target, left[0], right_op, **kwargs)
         elif len(right) == 1:
             div = ceil(len(left)/2)
             left_op = self._div_conquer_reduce(left[0:div], left[div:], node)
-            kwargs["name"] = f"{node.name}{(len(node.nodes),)}"
+            kwargs["name"] = f"{node.name}_pr_{(len(node.nodes),)}"
             return pm.func_op.init_from_args(node.scalar_target, left_op, right[0], **kwargs)
 
         else:
             ldiv = ceil(len(left)/2)
             left_op = self._div_conquer_reduce(left[0:ldiv], left[ldiv:], node)
-            kwargs["name"] = f"{node.name}{(len(node.nodes),)}"
+            kwargs["name"] = f"{node.name}_pr_{(len(node.nodes),)}"
             rdiv = ceil(len(right)/2)
             right_op = self._div_conquer_reduce(right[0:rdiv], right[rdiv:], node)
-            kwargs["name"] = f"{node.name}{(len(node.nodes),)}"
+            kwargs["name"] = f"{node.name}_pr_{(len(node.nodes),)}"
             return pm.func_op.init_from_args(node.scalar_target, left_op, right_op, **kwargs)
 
 @register_pass

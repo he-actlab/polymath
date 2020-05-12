@@ -265,81 +265,6 @@ def backprop_data_gen(l1, l2, l3, mu=1.0, lowered=False, debug=False):
 
     return input_info, all_keys, out_info
 
-# def np_lenet(input_info):
-#     out_info = {}
-#     out_info["c1_out"] =
-#     out_info["a2"] = sigmoid(input_info["w2"].dot(out_info["a1"]))
-#     out_info["d3"] = out_info["a2"] - input_info["y"]
-#
-#     out_info["d2"] = out_info["d3"].dot(input_info["w2"])*(out_info["a1"]*(1-out_info["a1"]))
-#     out_info["w1"] = input_info["w1"] - input_info["mu"]*(np.outer(input_info["x"], out_info["d2"]).T)
-#     out_info["w2"] = input_info["w2"] - input_info["mu"]*(np.outer(out_info["a1"], out_info["d3"]).T)
-#
-#     return out_info
-#
-# def lenet_data_gen(mu=1.0, lowered=False, debug=False):
-#     input_info = {}
-#     if debug:
-#         input_info["data"] = np.random.randint(-3, 3, (1,1,32,32))
-#
-#     else:
-#         input_info["data"] = np.random.randint(-3, 3, (1,1,32,32))
-#
-#     if debug:
-#         input_info["c1"] = np.random.randint(-3, 3, (6,1,5,5))
-#     else:
-#         input_info["c1"] = np.random.randint(-3, 3, (6,1,5,5))
-#
-#     if debug:
-#         input_info["c2"] = np.random.randint(-3, 3, (16,6,5,5))
-#     else:
-#         input_info["c2"] = np.random.randint(-3, 3, (16,6,5,5))
-#
-#     if debug:
-#         input_info["w3"] = np.random.randint(-3, 3, (120,400))
-#     else:
-#         input_info["w3"] = np.random.randint(-3, 3, (120,400))
-#
-#     if debug:
-#         input_info["w4"] = np.random.randint(-3, 3, (84, 120))
-#     else:
-#         input_info["w4"] = np.random.randint(-3, 3, (84, 120))
-#
-#     if debug:
-#         input_info["w5"] = np.random.randint(-3, 3, (10, 84))
-#     else:
-#         input_info["w5"] = np.random.randint(-3, 3, (10, 84))
-#
-#     if debug:
-#         input_info["w6"] = np.random.randint(-3, 3, (1, 10))
-#     else:
-#         input_info["w6"] = np.random.randint(-3, 3, (1, 10))
-#
-#
-#     input_info["mu"] = mu
-#     out_info = np_backprop(input_info)
-#     if lowered:
-#         all_keys = []
-#         for i1 in range(l1):
-#             input_info[f"x/x({i1},)"] = input_info["x"][i1]
-#             for i2 in range(l2):
-#                 w_key = f"w1/w1({i2}, {i1})"
-#                 all_keys.append(w_key)
-#                 input_info[w_key] = input_info["w1"][(i2,i1)]
-#         for i3 in range(l3):
-#             input_info[f"y/y({i3},)"] = input_info["y"][i3]
-#             for i2 in range(l2):
-#                 w_key = f"w2/w2({i3}, {i2})"
-#                 all_keys.append(w_key)
-#                 input_info[w_key] = input_info["w2"][(i3,i2)]
-#         input_info.pop("w1")
-#         input_info.pop("w2")
-#         input_info.pop("x")
-#         input_info.pop("y")
-#     else:
-#         all_keys = ["w1","w2"]
-#
-#     return input_info, all_keys, out_info
 
 def np_backprop(input_info):
     out_info = {}
@@ -748,7 +673,6 @@ def im2col_indices(x, field_height, field_width, padding=1, stride=1):
   # Zero-pad the input
   p = padding
   x_padded = np.pad(x, ((0, 0), (0, 0), (p, p), (p, p)), mode='constant')
-
   k, i, j = get_im2col_indices(x.shape, field_height, field_width, padding,
                                stride)
 
@@ -770,7 +694,6 @@ def conv_t(data, w, bias, conv_param):
     out_width = (W + 2 * pad - filter_width) // stride + 1
     out = np.zeros((N, num_filters, int(out_height), int(out_width)), dtype=data.dtype)
     tout = np.zeros((N, num_filters, H + 2 * pad, W + 2 * pad, filter_height, filter_width, C))
-    # tout3 = np.zeros((N, num_filters, int(out_height), int(out_width), C, filter_height, filter_width))
     tout3 = np.zeros((N, C, filter_height, int(out_height), filter_width, int(out_width),  num_filters))
     vidx_pairs = np.zeros((N, C, filter_height, int(out_height), filter_width, int(out_width),  num_filters))
     tout32 = np.zeros((N, C, filter_height, int(out_height), filter_width, int(out_width),  num_filters))
@@ -779,13 +702,7 @@ def conv_t(data, w, bias, conv_param):
     c1 = []
     c2 = []
     all_pairs = {}
-    # print(f"N: {N}\n\t"
-    #       f"NF: {num_filters}\n\t"
-    #       f"OH: {out_height}\n\t"
-    #       f"OW: {out_width}\n\t"
-    #       f"FH: {filter_height}\n\t"
-    #       f"FW: {filter_width}\n\t"
-    #       f"C: {C}")
+
     tpairs = []
     for b in range(N):
         for k in range(C):
@@ -827,15 +744,10 @@ def conv3d(x, w, b, conv_param):
     out_width = (W + 2 * pad - filter_width) / stride + 1
     out = np.zeros((N, num_filters, int(out_height), int(out_width)), dtype=x.dtype)
     x_cols = im2col_indices(x, w.shape[2], w.shape[3], pad, stride)
-    # x_cols = im2col_cython(x, w.shape[2], w.shape[3], pad, stride)
-    # res = w.reshape((w.shape[0], -1)).dot(x_cols) + b.reshape(-1, 1)
-    res = w.reshape((w.shape[0], -1)).dot(x_cols)
+    res = w.reshape((w.shape[0], -1)).dot(x_cols) + b.reshape(-1,1)
 
     out = res.reshape(w.shape[0], out.shape[2], out.shape[3], x.shape[0])
     out = out.transpose(3, 0, 1, 2)
-    # print(x)
-    # print(w)
-    # print(f"Done")
     cache = (x, w, b, conv_param, x_cols)
     return out, cache
 
@@ -885,36 +797,6 @@ def conv_forward_strides(x, w, b, conv_param):
     cache = (x, w, b, conv_param, x_cols)
     return out, cache
 
-def gen_test_onnx(store_path):
-    from sklearn.datasets import load_iris
-    from sklearn.model_selection import train_test_split
-    iris = load_iris()
-    X, y = iris.data, iris.target
-    X_train, X_test, y_train, y_test = train_test_split(X, y)
-    print(X_test.shape)
-    from sklearn.linear_model import LogisticRegression, LinearRegression
-    # clr = LogisticRegression(solver='lbfgs', penalty='none', fit_intercept=False)
-    clr = LinearRegression(fit_intercept=False)
-    clr.fit(X_train, y_train)
-    p1 = clr.predict(X_test[:3])
-    print(p1)
-    # print([sum(i) for i in p1])
-    # p2 = clr.predict(X_test[:3])
-    # print((p1, p2))
-    print("\n")
-    # print(clr.coef_)
-    # print(X_test[:1].shape)
-    test_pred = predictions(X_test[:3], clr.coef_)
-    print(test_pred)
-    # print(actual_pred)
-    # initial_type = [('float_input', FloatTensorType([None, 4]))]
-    # onx = convert_sklearn(clr, initial_types=initial_type)
-    # with open(f"{store_path}/logreg_iris.onnx", "wb") as f:
-    #     f.write(onx.SerializeToString())
-    # return onx
-
-
-
 def get_iris_data():
     from sklearn.datasets import load_iris
     from sklearn.model_selection import train_test_split
@@ -932,7 +814,6 @@ def predictions(x, w):
     return res
 
 def _predict_one(x, w):
-    # res = np.asarray([sigmoid(x.dot(w[i])) for i in range(w.shape[0])])
     if len(w.shape) > 1:
         res = np.asarray([x.dot(w[i]) for i in range(w.shape[0])])
         res = res / sum(res)
@@ -951,6 +832,7 @@ def conv_data_gen(x_shape, w_shape, params, lowered=False, debug_matrix=False):
     else:
         input_info["data"] = np.random.randint(-5, 5, x_shape)
     input_info["data"] = input_info["data"].astype(np.float)
+
     if debug_matrix:
         input_info["w"] = np.arange(0, (np.prod(w_shape))).reshape(w_shape)
     else:
@@ -961,6 +843,8 @@ def conv_data_gen(x_shape, w_shape, params, lowered=False, debug_matrix=False):
         input_info["bias"] = np.zeros((w_shape[0]))
     else:
         input_info["bias"] = np.random.randint(0, 10, (w_shape[0]))
+    input_info["bias"] = input_info["bias"].astype(np.float)
+
 
     out = conv3d(input_info["data"], input_info["w"], input_info["bias"], params)
     out_info = {"out": out[0]}
@@ -975,9 +859,9 @@ def conv_data_gen(x_shape, w_shape, params, lowered=False, debug_matrix=False):
             input_info[f"data/data({p[0]}, {p[1]}, {p[2]}, {p[3]})"] = input_info["data"][p]
         input_info.pop("data")
 
-        # for p in range(w_shape[0]):
-        #     input_info[f"bias/bias({p},)"] = input_info["bias"][p]
-        # input_info.pop("bias")
+        for p in range(w_shape[0]):
+            input_info[f"bias/bias({p},)"] = input_info["bias"][p]
+        input_info.pop("bias")
         out_pairs = list(product(*tuple([np.arange(i) for i in out_info["out"].shape])))
 
         all_keys = [f"out/out({p[0]}, {p[1]}, {p[2]}, {p[3]})" for p in out_pairs]
@@ -997,7 +881,7 @@ def conv(x_shape, w_shape, params, coarse=False, debug_matrix=False):
         kw = pm.parameter(name="kw")
         x = pm.input(name="data", shape=(n, c, ih, iw))
         w = pm.state(name="w", shape=(nf, c, kh, kw))
-        b = pm.state(name="bias", shape=(c,))
+        b = pm.state(name="bias", shape=(nf))
         stride = pm.parameter(name="stride")
         pad = pm.parameter(name="pad")
         out = pm.output(name="out")
@@ -1291,7 +1175,7 @@ def lenet():
         pm.softmax(a8, out)
 
 
-    return input_info, graph, out_info
+    return graph, input_info, out_info
 
 def fft(m_=3, coarse=False):
     with pm.Node(name="fft") as graph:
@@ -1402,7 +1286,6 @@ def GP_Model_BO(X, Y):
     m.kern.lengthscales = np.std(X)
     m.kern.variance = np.std(Y) / np.sqrt(2)
     m.likelihood.variance = np.std(Y) / np.sqrt(2)
-    # print(m)
     return m
 
 def matern32(X, Y):

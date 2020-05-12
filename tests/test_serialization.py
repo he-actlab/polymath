@@ -1,6 +1,9 @@
 from pathlib import Path
 import polymath as pm
 import numpy as np
+import pytest
+from .util import logistic, linear, reco, svm, compare_tabla_dfg, set_shape_and_lower,\
+    unwound_fft, backprop, conv
 
 def test_linear_serialize():
 
@@ -60,3 +63,27 @@ def test_linear_deserialize():
     np.testing.assert_allclose(actual_res, new_graph_res)
 
     assert (node.func_hash()) == (graph.func_hash())
+
+@pytest.mark.parametrize('m_',[
+    55
+])
+def test_tabla_linear(m_):
+    shape_dict = {"m": m_}
+    graph, input_info, out_info, keys = linear(m=m_, coarse=True)
+    lgraph, input_info, out_info, keys = linear(m=m_, coarse=False)
+    cwd = Path(f"{__file__}").parent
+    base_path = f"{cwd}/pmlang_examples"
+    full_path = f"{base_path}/outputs"
+    graph_name = f"{graph.name}_{m_}"
+    tabla_path = f"{full_path}/{graph_name}_tabla.json"
+
+    tabla_ir, tabla_graph = pm.generate_tabla(graph,
+                                              shape_dict,
+                                              tabla_path,
+                                              context_dict=input_info, add_kwargs=True)
+    cwd = Path(f"{__file__}").parent
+    base_path = f"{cwd}/pmlang_examples"
+    full_path = f"{base_path}/outputs"
+    pb_path = f"{full_path}/{graph.name}.pb"
+    pm.pb_store(graph, full_path)
+    node = pm.pb_load(pb_path)

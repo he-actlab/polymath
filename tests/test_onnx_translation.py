@@ -21,9 +21,9 @@ def generate_test_inputs(n):
     y = np.random.randint(-3,3, 1)
     return x, w, y
 
-def test_load_files():
-    for f in ONNX_FILE_DIR.iterdir():
-        _ = pm.from_onnx(str(f))
+# def test_load_files():
+#     for f in ONNX_FILE_DIR.iterdir():
+#         _ = pm.from_onnx(str(f))
 
 @pytest.mark.parametrize('benchmark_name, feature_dict, data_func, input_keys, output_key',[
     # ("logistic", ['54'], logistic_data_gen, {"y":"y:0", "x":"x:0", "w":"W:0"}, ("w", "update:0")),
@@ -270,8 +270,7 @@ def test_translate_conv(x_shape, w_shape, params):
                   "nf": w_shape[0], "kh": w_shape[2], "kw": w_shape[3],
                   "stride": params["stride"], "pad": params["pad"]}
 
-
-    _, input_info, out_info, keys = conv(x_shape, w_shape, params, coarse=True, debug_matrix=True)
+    _, input_info, out_info, keys = conv(x_shape, w_shape, params, coarse=True, debug_matrix=False)
 
     n = pm.parameter(name="n")
     c = pm.parameter(name="ic")
@@ -288,12 +287,9 @@ def test_translate_conv(x_shape, w_shape, params):
     out = pm.output(name="out")
     graph = pm.conv(x, w, b, out, stride, pad)
     tinput_info = copy.deepcopy(input_info)
-
     res0 = graph("out", tinput_info)
+
     np.testing.assert_allclose(res0, out_info["out"])
-    input_info['populate'] = False
-    normalize_pass = pm.NormalizeGraph(input_info)
-    normalized = normalize_pass(graph)
 
 @pytest.mark.parametrize('x_shape', [
     (5, 5, 8, 8),

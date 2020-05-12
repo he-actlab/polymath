@@ -267,8 +267,9 @@ class temp(placeholder):
     def __init__(self, name=None, **kwargs):
         if "write_count" not in kwargs:
             kwargs["write_count"] = 0
+        self.type_modifier = "temp"
 
-        super(temp, self).__init__(name=name, type_modifier="temp", **kwargs)
+        super(temp, self).__init__(name=name, type_modifier=self.type_modifier, **kwargs)
         self.alias = self.name
 
     def __setitem__(self, key, value):
@@ -284,11 +285,12 @@ class temp(placeholder):
         if self.is_shape_finalized() and len(self.nodes) > 0:
             idx = np.ravel_multi_index(key, dims=self.shape, order='C')
             ret = self.current_value().nodes.item_by_index(idx)
+
             return ret
         else:
-
             idx_name = str(tuple([i.name if isinstance(i, Node) else i for i in key])).replace("'","")
             name = f"{self.current_value().name}{idx_name}"
+
             if name in self.graph.nodes:
                 return self.graph.nodes[name]
             else:
@@ -301,36 +303,22 @@ class temp(placeholder):
         callback = callback or _noop_callback
         with callback(self, context):
             if self not in context:
-                # if not self.is_shape_finalized() or self.shape in DEFAULT_SHAPES:
                 if not self.is_shape_finalized() or self.shape == DEFAULT_SHAPES[0]:
                     self.evaluate_shape(context)
-                context[self] = np.empty(shape=self.shape)
+                # TODO: Find a way to use the input value or determine correct datatype
+                context[self] = np.zeros(shape=self.shape)
                 for i in range(self.write_count):
-                    name = f"{self.name}{i}"
+                    name = f"{self.name.replace('/', str(i) + '/')}{i}"
+
                     w_node = self.graph.nodes[name]
                     context[w_node] = w_node.evaluate(context)
-                final = self.graph.nodes[f"{self.name}{self.write_count - 1}"]
+                fname = f"{self.name.replace('/', str(self.write_count-1) + '/')}{self.write_count - 1}"
+                final = self.graph.nodes[fname]
                 value = context[final]
             else:
                 value = context[self]
         return value
-    #
-    # def evaluate(self, context, callback=None):
-    #     callback = callback or _noop_callback
-    #
-    #     with callback(self, context):
-    #         value = self.get_context_value(context)
-    #
-    #         if isinstance(value, (list, tuple, np.ndarray)) and not self.is_shape_finalized():
-    #             value = value if isinstance(value, np.ndarray) else np.asarray(value)
-    #             assert len(value.shape) == len(self.shape)
-    #             # self.evaluate_shape(context)
-    #             # TODO: Figure out why this breaks stuff
-    #             for idx, dim in enumerate(value.shape):
-    #                 if isinstance(self.shape[idx], Node):
-    #                     context[self.shape[idx]] = dim
-    #                     _ = self.shape[idx].evaluate(context)
-    #     return value
+
 
     def __repr__(self):
         return "<temp '%s'>" % self.name
@@ -345,17 +333,21 @@ class temp(placeholder):
 
 class write(Node):
     def __init__(self, src, dst_key, dst, **kwargs):
+        if "type_modifier" in kwargs:
+            kwargs.pop("type_modifier")
+        self.type_modifier = dst.type_modifier
+
         if "shape" in kwargs:
             kwargs.pop("shape")
 
         if "domain" in kwargs:
             domain = tuple(kwargs.pop("domain")) if isinstance(kwargs["domain"], list) else kwargs.pop("domain")
         elif len(dst_key) == 0:
-
             domain = src.domain
         else:
             domain = Domain(dst_key)
-        super(write, self).__init__(src, dst_key, dst, domain=domain, shape=dst.shape, **kwargs)
+        super(write, self).__init__(src, dst_key, dst, domain=domain, shape=dst.shape, type_modifier=self.type_modifier,
+                                    **kwargs)
         self.alias = kwargs["alias"]
         self.shape_domain = Domain(self.dest.shape)
 
@@ -363,20 +355,11 @@ class write(Node):
     def domain(self):
         return self.kwargs["domain"]
 
-    def get_index_dom(self):
-        dom = Domain(self.args[0])
-        indices = [i.value for i in self.args[0].args]
-        out_shape = dom.shape_from_indices(indices)
-        indices = dom.compute_pairs()
-        indices = list(map(lambda x: x.tolist() if isinstance(x, np.ndarray) else x, indices))
-        dom.set_computed(out_shape, indices)
-        return dom
-
-
     def _evaluate(self, src, dst_key, dst, context=None, **kwargs):
         if not self.is_shape_finalized():
             self._shape = self.args[2].shape
 
+        # TODO: This should not be default shapes, fix
         if self.shape in DEFAULT_SHAPES:
             value = src
         elif not is_iterable(src):
@@ -392,7 +375,7 @@ class write(Node):
             else:
                 src_dom = self.args[0].domain
             src_indices = self.domain.map_sub_domain(src_dom)
-            value = np.empty(shape=dst.shape, dtype=src.dtype)
+            value = np.zeros(shape=dst.shape, dtype=src.dtype)
             for i in dst_indices:
                 if i in key_indices:
                     idx = key_indices.index(i)
@@ -400,6 +383,7 @@ class write(Node):
                     value[i] = src[test]
                 else:
                     value[i] = dst[i]
+
         return value
 
     def __getitem__(self, key):

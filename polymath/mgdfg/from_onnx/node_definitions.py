@@ -80,7 +80,7 @@ class conv(pm.Template):
         dx = pm.index(0, w.shape[3]-1, name="dx")
         iy = pm.index(0, data.shape[2]-1, name="iy")
         ix = pm.index(0, data.shape[3]-1, name="ix")
-        k = pm.index(0, data.shape[1] - 1, name="k")
+        k = pm.index(0, data.shape[1]-1, name="k")
 
         ihp = (data.shape[2] + pad*2)
         iwp = data.shape[3] + pad*2
@@ -90,7 +90,7 @@ class conv(pm.Template):
         padded[b, k, ihp_, iwp_] = 0
         padded[b, k, iy + pad, ix + pad] = data[b, k, iy, ix]
 
-        out[b, c, y, x] = pm.sum([dy, dx, k], (padded[b, k, dy + stride*y, dx + stride*x] * w[c, k, dy, dx]).set_name("p*w"))
+        out[b, c, y, x] = (pm.sum([dy, dx, k], (padded[b, k, dy + stride*y, dx + stride*x] * w[c, k, dy, dx]).set_name("p*w"), name="sum_part") + bias[c]).set_name("c+bias")
 
 class avg_pool2d(pm.Template):
     def define_graph(self, inp, out, kh, kw, stride, pad, **kwargs):
