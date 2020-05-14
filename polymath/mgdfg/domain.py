@@ -4,7 +4,9 @@ from polymath.mgdfg.util import is_iterable, _is_node_type_instance, _is_node_in
 from dataclasses import dataclass, field
 import numpy as np
 from numbers import Integral
-from itertools import product
+from itertools import product, groupby
+from operator import itemgetter
+from collections import defaultdict
 from functools import reduce
 
 dom_fields = ("doms", "names")
@@ -238,6 +240,8 @@ class Domain(object):
             pairs = [tuple(i) for i in pairs]
         return pairs
 
+    def get_filtered_indices(self, superset, target_axes, axes):
+        pass
 
     def map_sub_domain(self, dom):
 
@@ -258,9 +262,32 @@ class Domain(object):
 
         return out
 
-    def get_filtered_indices(self, superset, target_axes, axes):
-        pass
 
+    def map_reduction_dom(self, input_dom, axis_idx):
+
+        dom_set_pairs = input_dom.compute_set_pairs(tuples=False)
+
+        target_set_pairs = self.compute_set_pairs(tuples=False)
+        target_pairs = self.compute_pairs(tuples=False)
+        if self.computed:
+            target_pairs = np.asarray([self.computed[tuple(x)] for x in target_pairs])
+
+        pair_mappings = np.apply_along_axis(lambda x: x[axis_idx], 1, dom_set_pairs)
+        dims = target_set_pairs.max(0) + 1
+        X1D = np.ravel_multi_index(target_set_pairs.T, dims)
+        searched_valuesID = np.ravel_multi_index(pair_mappings.T, dims)
+        sidx = X1D.argsort()
+        out = sidx[np.searchsorted(X1D, searched_valuesID, sorter=sidx)]
+        out = np.apply_along_axis(lambda x: target_pairs[x], 0, out)
+        out = list(map(lambda x: tuple(x), out))
+        if input_dom.computed_set_shape != input_dom.computed_shape:
+            dom_set_pairs = np.asarray(np.unravel_index(np.ravel_multi_index(dom_set_pairs.T, input_dom.computed_set_shape), input_dom.computed_shape)).T
+
+        dom_set_pairs = list(map(lambda x: tuple(x), dom_set_pairs))
+        out = sorted(list(zip(out, dom_set_pairs)), key=lambda x: (x[0],x[1]))
+        mr_out = dict((k, [v[1] for v in itr]) for k, itr in groupby(
+                                out, itemgetter(0)))
+        return mr_out
 
     def compute_axes_index(self, dom, group_ops=False):
         names = [i.name if _is_node_instance(i) else i for i in dom.doms]

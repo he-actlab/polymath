@@ -5,7 +5,7 @@ from polymath.mgdfg.domain import Domain
 from .util import _flatten_iterable, _fnc_hash
 
 class GroupNode(Node):
-    builtin_np = ["sum", "prod", "max", "min", "argmin", "argmax"]
+    builtin_np = ["sum", "prod", "amax", "amin", "argmin", "argmax"]
     scalar_op_map = {"sum": operator.add, "prod": operator.mul, "amax": builtins.max, "amin": builtins.min, "argmin": min_, "argmax": max_, "bitreverse": lambda a, b: (a << 1) | (b & 1)}
     def __init__(self, target, bounds, input_node, **kwargs):
         self.output_nodes = []

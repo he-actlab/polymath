@@ -1,11 +1,11 @@
 from polymath.mgdfg.passes import register_pass, Pass
 from polymath.mgdfg.util import _flatten_iterable, is_iterable, compute_sum_indices
+from polymath import func_op, DEFAULT_SHAPES, UNSET_SHAPE, SCALAR_IDX
 import polymath as pm
 from numbers import Integral
 from collections import defaultdict
 from itertools import product
 import numpy as np
-import pprint
 from math import ceil
 
 @register_pass(analysis=True)
@@ -80,20 +80,19 @@ class DeadNodeElimination(Pass):
 
 @register_pass
 class NormalizeGraph(Pass):
-    def __init__(self, stored_shapes):
+    def __init__(self, stored_shapes, debug=False):
         self.context = self._check_input_shapes(stored_shapes) if stored_shapes else {}
         if "populate" in stored_shapes:
             self.populate = stored_shapes["populate"]
         else:
             self.populate = True
-
         self.evaluated = {}
         self.stored_objects = {}
         self.var_indices = {}
         self.output_shapes = {}
         self.output_shape_deps = defaultdict(list)
         self.delayed_evals = {}
-        super(NormalizeGraph, self).__init__({"shapes": {}})
+        super(NormalizeGraph, self).__init__({"shapes": {}}, debug=debug)
 
     def update_args(self, args):
         new_args = []
@@ -127,9 +126,9 @@ class NormalizeGraph(Pass):
         elif isinstance(node, pm.NonLinear):
             shape = node.args[0].shape
         elif isinstance(node, pm.func_op):
-            non_scalar = list(filter(lambda x: isinstance(x, pm.Node) and x.shape not in [pm.UNSET_SHAPE, pm.DEFAULT_SHAPES[0]], node.args))
+            non_scalar = list(filter(lambda x: isinstance(x, pm.Node) and x.shape not in [UNSET_SHAPE, DEFAULT_SHAPES[0]], node.args))
             assert len(non_scalar) <= 1
-            shape = pm.DEFAULT_SHAPES[0] if len(non_scalar) == 0 else non_scalar[0].shape
+            shape = DEFAULT_SHAPES[0] if len(non_scalar) == 0 else non_scalar[0].shape
         elif isinstance(node, pm.GroupNode):
             shape = node.domain.computed_shape
         else:
@@ -217,33 +216,36 @@ class NormalizeGraph(Pass):
 
 
     def populate_slice_op(self, node):
-        op1_idx = node.domain.map_sub_domain(node.args[0].domain) if isinstance(node.args[0], pm.Node) and node.args[0].shape != pm.DEFAULT_SHAPES[0] else pm.SCALAR_IDX
-        op2_idx = node.domain.map_sub_domain(node.args[1].domain) if isinstance(node.args[1], pm.Node) and node.args[1].shape != pm.DEFAULT_SHAPES[0] else pm.SCALAR_IDX
-        dom_pairs = node.domain.compute_pairs()
-
+        arg0 = node.args[0]
+        arg1 = node.args[1]
+        node_dom = node.domain
+        op1_idx = node_dom.map_sub_domain(arg0.domain) if isinstance(arg0, pm.Node) and arg0.shape != DEFAULT_SHAPES[0] else SCALAR_IDX
+        op2_idx = node_dom.map_sub_domain(arg1.domain) if isinstance(arg1, pm.Node) and arg1.shape != DEFAULT_SHAPES[0] else SCALAR_IDX
+        dom_pairs = node_dom.compute_pairs()
+        dom_pair_len = len(dom_pairs)
         kwargs = {}
         kwargs["op_name"] = node.target.__name__
         kwargs["graph"] = node
-        assert len(dom_pairs) == len(op1_idx) or op1_idx == pm.SCALAR_IDX
-        assert len(dom_pairs) == len(op2_idx) or op2_idx == pm.SCALAR_IDX
+        assert dom_pair_len == len(op1_idx) or op1_idx == SCALAR_IDX
+        assert dom_pair_len == len(op2_idx) or op2_idx == SCALAR_IDX
 
         if len(op1_idx) > 1:
-            ops1 = list(map(lambda x: node.args[0][op1_idx[x]], range(len(dom_pairs))))
-        elif isinstance(node.args[0], pm.var_index):
-            ops1 = list(map(lambda x: node.args[0][op1_idx[0]], range(len(dom_pairs))))
+            ops1 = list(map(lambda x: arg0[op1_idx[x]], range(dom_pair_len)))
+        elif isinstance(arg0, pm.var_index):
+            ops1 = list(map(lambda x: arg0[op1_idx[0]], range(dom_pair_len)))
         else:
-            ops1 = list(map(lambda x: node.args[0], range(len(dom_pairs))))
+            ops1 = list(map(lambda x: arg0, range(len(dom_pairs))))
 
         if len(op2_idx) > 1:
-            ops2 = list(map(lambda x: node.args[1][op2_idx[x]], range(len(dom_pairs))))
-        elif isinstance(node.args[1], pm.var_index):
-            ops2 = list(map(lambda x: node.args[1][op2_idx[0]], range(len(dom_pairs))))
+            ops2 = list(map(lambda x: arg1[op2_idx[x]], range(dom_pair_len)))
+        elif isinstance(arg1, pm.var_index):
+            ops2 = list(map(lambda x: arg1[op2_idx[0]], range(dom_pair_len)))
         else:
-            ops2 = list(map(lambda x: node.args[1], range(len(dom_pairs))))
+            ops2 = list(map(lambda x: arg1, range(dom_pair_len)))
 
         for p, v in enumerate(dom_pairs):
             kwargs["name"] = f"{node.name}{v}"
-            x = pm.func_op.init_from_args(node.target, ops1[p], ops2[p], **kwargs)
+            x = func_op.init_from_args(node.target, ops1[p], ops2[p], **kwargs)
             self.stored_objects[id(x)] = x
 
     def populate_var_index(self, node):
@@ -373,36 +375,31 @@ class NormalizeGraph(Pass):
                 node.nodes[i.name] = i
                 inputs.append(i)
             if node.graph:
-                div = ceil(len(inputs)/2)
-                x = self._div_conquer_reduce(inputs[0:div], inputs[div:], node)
+                x = self._iter_div_conquer_reduce(inputs, node)
                 node.output_nodes.append(x)
                 self.stored_objects[id(x)] = x
             node._shape = (1,)
         else:
             # TODO: Need to make this faster and make sure object ids are added
-            input_domain = node.input_node.domain.compute_pairs(tuples=False)
-            sum_domain = node.domain.compute_pairs(tuples=False)
             axes_idx = np.array([node.input_node.domain.index(s) for s in node.domain])
-            make_tuple = lambda x: x if isinstance(x, tuple) else (tuple(x) if isinstance(x, (list)) else (tuple(x.tolist()) if isinstance(x, np.ndarray) else x))
-            sd_map = [(str(tuple(sd)), compute_sum_indices(axes_idx, input_domain, sd)) for sd in sum_domain]
+            sd_map = node.domain.map_reduction_dom(node.input_node.domain, axes_idx)
             assert node.graph
+            append_outputs = node.output_nodes.append
+            for k,v in sd_map.items():
 
-            for item in sd_map:
-                k = item[0]
-                v = item[1]
                 inputs = []
                 for d in v:
-                    i = node.input_node[make_tuple(input_domain[d])]
+                    i = node.input_node[d]
                     node.nodes[i.name] = i
                     inputs.append(i)
-                if len(inputs) == 1:
-                    x = inputs[0]
-                else:
-                    x = self._div_conquer_reduce(inputs[0:len(inputs) // 2], inputs[len(inputs) // 2:], node)
+                x = self._iter_div_conquer_reduce(inputs, node)
+
+                if len(inputs) > 1:
                     x.set_name(f"{node.name}{k}")
-                node.output_nodes.append(x)
+                append_outputs(x)
                 self.stored_objects[id(x)] = x
-            node._shape = [node.input_node.shape[i] for i in sorted(axes_idx)]
+            node._shape = [node.input_node.domain.computed_set_shape[i] for i in sorted(axes_idx)]
+
 
 
     def _check_input_shapes(self, input_shapes):
@@ -419,54 +416,83 @@ class NormalizeGraph(Pass):
         return shapes
 
 
+    def _iter_div_conquer_reduce(self, input_nodes, node):
+        kwargs = {}
+        kwargs["graph"] = node
+        kwargs["op_name"] = kwargs["op_name"] if "op_name" in kwargs else node.scalar_target.__name__
+        working_set = input_nodes
+        while len(working_set) > 1:
+            kwargs["name"] = f"{node.name}_pr_{(len(node.nodes),)}"
+            lop = working_set.pop(0)
+            rop = working_set.pop(0)
+            x = func_op.init_from_args(node.scalar_target, lop, rop, **kwargs)
+
+            self.stored_objects[id(x)] = x
+            working_set.append(x)
+
+        return working_set[0]
+
     def _div_conquer_reduce(self, left, right, node):
         kwargs = {}
         kwargs["graph"] = node
         kwargs["op_name"] = kwargs["op_name"] if "op_name" in kwargs else node.scalar_target.__name__
-
-        if len(left) == 1 and len(right) == 1:
+        llen = len(left)
+        rlen = len(right)
+        if llen == 1 and rlen == 1:
             kwargs["name"] = f"{node.name}_pr_{(len(node.nodes),)}"
-            return pm.func_op.init_from_args(node.scalar_target, left[0], right[0], **kwargs)
-        elif len(left) == 1:
-            div = ceil(len(right)/2)
+            return func_op.init_from_args(node.scalar_target, left[0], right[0], **kwargs)
+        elif llen == 1:
+            div = ceil(rlen/2)
             right_op = self._div_conquer_reduce(right[0:div], right[div:], node)
+            self.stored_objects[id(right_op)] = right_op
+
             kwargs["name"] = f"{node.name}_pr_{(len(node.nodes),)}"
-            return pm.func_op.init_from_args(node.scalar_target, left[0], right_op, **kwargs)
-        elif len(right) == 1:
-            div = ceil(len(left)/2)
+            return func_op.init_from_args(node.scalar_target, left[0], right_op, **kwargs)
+        elif rlen == 1:
+            div = ceil(llen/2)
             left_op = self._div_conquer_reduce(left[0:div], left[div:], node)
+            self.stored_objects[id(left_op)] = left_op
+
             kwargs["name"] = f"{node.name}_pr_{(len(node.nodes),)}"
-            return pm.func_op.init_from_args(node.scalar_target, left_op, right[0], **kwargs)
+            return func_op.init_from_args(node.scalar_target, left_op, right[0], **kwargs)
 
         else:
-            ldiv = ceil(len(left)/2)
+            ldiv = ceil(llen/2)
             left_op = self._div_conquer_reduce(left[0:ldiv], left[ldiv:], node)
-            kwargs["name"] = f"{node.name}_pr_{(len(node.nodes),)}"
-            rdiv = ceil(len(right)/2)
+            self.stored_objects[id(left_op)] = left_op
+            rdiv = ceil(rlen/2)
             right_op = self._div_conquer_reduce(right[0:rdiv], right[rdiv:], node)
+            self.stored_objects[id(right_op)] = right_op
+
             kwargs["name"] = f"{node.name}_pr_{(len(node.nodes),)}"
-            return pm.func_op.init_from_args(node.scalar_target, left_op, right_op, **kwargs)
+            return func_op.init_from_args(node.scalar_target, left_op, right_op, **kwargs)
 
 @register_pass
 class Lower(Pass):
 
-    def __init__(self, supported_ops):
+    def __init__(self, supported_ops, debug=False):
         self.supported_ops = supported_ops
         self.top = None
         self.object_ids = {}
-        super(Lower, self).__init__({})
+        self.tobject_ids = {}
+        super(Lower, self).__init__({}, debug=debug)
 
     def apply_pass(self, node, ctx):
-        iter_copy = node.nodes.copy()
+
+        if id(node) not in self.tobject_ids:
+            self.tobject_ids[id(node)] = node
+        else:
+            raise RuntimeError
+
         if node.graph is None and not self.top:
             self.top = node
         if node.op_name in self.supported_ops or (
-                isinstance(node, (pm.func_op, pm.placeholder, pm.NonLinear, pm.write)) and len(node.nodes) == 0):
+                isinstance(node, (func_op, pm.placeholder, pm.NonLinear, pm.write)) and len(node.nodes) == 0):
 
             assert node.name != self.top.name
 
             self.update_args(node)
-            for k, n in iter_copy.items():
+            for k in list(node.nodes.keys()):
                 node.nodes.pop(k)
             scope_name = f"{node.graph.name}/{node.name}" if id(node.graph) != id(self.top) else node.name
 

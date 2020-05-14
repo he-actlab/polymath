@@ -42,8 +42,7 @@ def test_convert_benchmarks(benchmark_name, feature_dict, data_func, input_keys,
     np_res = out_info[output_key[0]]
     pm_res = graph(output_key[1], translated_inputs)
     np.testing.assert_allclose(np_res, pm_res)
-    for k,v in graph.nodes.items():
-        print(f"{k} - {v.op_name} - {v.shape}\n")
+
     cwd = Path(f"{__file__}").parent
     base_path = f"{cwd}/pmlang_examples"
     full_path = f"{base_path}/outputs"

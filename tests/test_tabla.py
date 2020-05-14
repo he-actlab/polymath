@@ -2,8 +2,13 @@ import polymath as pm
 from pathlib import Path
 import numpy as np
 import pytest
+import pickle
+
+CWD = Path(f"{__file__}").parent
+BASE_PATH = f"{CWD}/pmlang_examples"
+OUTPATH = f"{BASE_PATH}/outputs"
 from .util import logistic, linear, reco, svm, compare_tabla_dfg, set_shape_and_lower,\
-    unwound_fft, backprop, conv
+    unwound_fft, backprop, conv, lenet
 import pprint
 
 @pytest.mark.parametrize('m_',[
@@ -14,14 +19,10 @@ def test_linear_reg(m_):
     graph, input_info, out_info, keys = linear(m=m_, coarse=True)
     coarse_eval = graph(keys, input_info)
     np.testing.assert_allclose(coarse_eval, out_info["w"])
-
-    cwd = Path(f"{__file__}").parent
-    base_path = f"{cwd}/pmlang_examples"
-    full_path = f"{base_path}/outputs"
-    tabla_path = f"{full_path}/{graph.name}_tabla.json"
+    tabla_path = f"{OUTPATH}/{graph.name}_tabla.json"
 
     tabla_ir, tabla_graph = pm.generate_tabla(graph, shape_dict, tabla_path)
-    validation_path = f"{cwd}/tabla_examples/{graph.name}_{m_}.json"
+    validation_path = f"{CWD}/tabla_examples/{graph.name}_{m_}.json"
     compare_tabla_dfg(validation_path, tabla_ir, tabla_graph)
 
 @pytest.mark.parametrize('m_',[
@@ -31,10 +32,7 @@ def test_linear_reg_embedded_values(m_):
     shape_dict = {"m": m_}
     graph, input_info, out_info, keys = linear(m=m_, coarse=True)
     lgraph, input_info, out_info, keys = linear(m=m_, coarse=False)
-    cwd = Path(f"{__file__}").parent
-    base_path = f"{cwd}/pmlang_examples"
-    full_path = f"{base_path}/outputs"
-    tabla_path = f"{full_path}/{graph.name}_{m_}_tabla.json"
+    tabla_path = f"{OUTPATH}/{graph.name}_{m_}_tabla.json"
 
     tabla_ir, tabla_graph = pm.generate_tabla(graph,
                                               shape_dict,
@@ -52,18 +50,15 @@ def test_backprop_embedded_values(l1, l2, l3):
     np.testing.assert_allclose(test_out[0], out_info["w1"])
     np.testing.assert_allclose(test_out[1], out_info["w2"])
 
-    _, input_info, out_info, keys = backprop(l1, l2, l3, coarse=False)
+    _, input_info, out_info, keys = backprop(l1, l2, l3, coarse=False, pbar=True)
 
-    cwd = Path(f"{__file__}").parent
-    base_path = f"{cwd}/pmlang_examples"
-    full_path = f"{base_path}/outputs"
-    tabla_path = f"{full_path}/{graph.name}_{l1}_{l2}_{l3}_tabla.json"
+    tabla_path = f"{OUTPATH}/{graph.name}_{l1}_{l2}_{l3}_tabla.json"
 
     tabla_ir, tabla_graph = pm.generate_tabla(graph,
                                               shape_dict,
                                               tabla_path,
                                               context_dict=input_info,
-                                              add_kwargs=True, debug=False)
+                                              add_kwargs=True, debug=True)
 
 @pytest.mark.parametrize('m_',[
     55
@@ -72,10 +67,7 @@ def test_logreg_reg_embedded_values(m_):
     shape_dict = {"m": m_}
     graph, input_info, out_info, keys = logistic(m_=m_, coarse=True)
     _, input_info, out_info, keys = logistic(m_=m_, coarse=False)
-    cwd = Path(f"{__file__}").parent
-    base_path = f"{cwd}/pmlang_examples"
-    full_path = f"{base_path}/outputs"
-    tabla_path = f"{full_path}/{graph.name}_{m_}_tabla.json"
+    tabla_path = f"{OUTPATH}/{graph.name}_{m_}_tabla.json"
 
     tabla_ir, tabla_graph = pm.generate_tabla(graph,
                                               shape_dict,
@@ -88,10 +80,7 @@ def test_reco_embedded_values(m, n, k):
     shape_dict = {"m": m, "n": n, "k": k}
     graph, input_info, out_info, keys = reco(m_=m, n_=n, k_=k, coarse=True)
     ngraph, input_info, out_info, keys = reco(m_=m, n_=n, k_=k, coarse=False)
-    cwd = Path(f"{__file__}").parent
-    base_path = f"{cwd}/pmlang_examples"
-    full_path = f"{base_path}/outputs"
-    tabla_path = f"{full_path}/{graph.name}_{m}_{n}_{k}_tabla.json"
+    tabla_path = f"{OUTPATH}/{graph.name}_{m}_{n}_{k}_tabla.json"
     tabla_ir, tabla_graph = pm.generate_tabla(graph,
                                               shape_dict,
                                               tabla_path,
@@ -103,10 +92,7 @@ def test_svm_embedded_values(m):
     shape_dict = {"m": m}
     graph, input_info, out_info, keys = svm(m=m, coarse=True)
     ngraph, input_info, out_info, keys = svm(m=m, coarse=False)
-    cwd = Path(f"{__file__}").parent
-    base_path = f"{cwd}/pmlang_examples"
-    full_path = f"{base_path}/outputs"
-    tabla_path = f"{full_path}/{graph.name}_{m}_tabla.json"
+    tabla_path = f"{OUTPATH}/{graph.name}_{m}_tabla.json"
     tabla_ir, tabla_graph = pm.generate_tabla(graph,
                                               shape_dict,
                                               tabla_path,
@@ -114,33 +100,29 @@ def test_svm_embedded_values(m):
 
 
 @pytest.mark.parametrize('x_shape, w_shape, params', [
-    ((1, 1, 8, 8), (3, 1, 3, 3), {"stride": 1, "pad": 0}),
+    ((1, 1, 16, 16), (3, 1, 3, 3), {"stride": 1, "pad": 0}),
     ((1, 1, 4, 4), (2, 1, 2, 2), {"stride": 2, "pad": 1}),
-    # ((1, 1, 32, 32), (2, 1, 4, 4), {"stride": 2, "pad": 1}),
 ])
 def test_conv_embedded_values(x_shape, w_shape, params):
-    from itertools import product
     shape_dict = {"n": x_shape[0], "ic": x_shape[1], "ih": x_shape[2], "iw": x_shape[3],
                   "nf": w_shape[0], "kh": w_shape[2], "kw": w_shape[3],
                   "stride": params["stride"], "pad": params["pad"]}
     graph, input_info0, out_info, keys = conv(x_shape, w_shape, params, coarse=True, debug_matrix=True)
 
     ngraph, input_info1, out_info, keys = conv(x_shape, w_shape, params, coarse=False, debug_matrix=True)
-    #
+
     lower_pass = pm.Lower({})
     lowered = lower_pass(ngraph)
     res0 = np.asarray(lowered(keys, input_info1)).reshape(out_info["out"].shape)
 
     np.testing.assert_allclose(res0, out_info["out"])
-    #
-    cwd = Path(f"{__file__}").parent
-    base_path = f"{cwd}/pmlang_examples"
-    full_path = f"{base_path}/outputs"
-    tabla_path = f"{full_path}/{graph.name}_tabla.json"
+
+    tabla_path = f"{OUTPATH}/{graph.name}_tabla.json"
     tabla_ir, tabla_graph = pm.generate_tabla(graph,
                                               shape_dict,
                                               tabla_path,
-                                              context_dict=input_info1, add_kwargs=True)
+                                              context_dict=input_info1, add_kwargs=True, debug=True)
+
 @pytest.mark.parametrize('m',[
     200
 ])
@@ -148,10 +130,8 @@ def test_svm_embedded_values(m):
     shape_dict = {"m": m}
     graph, input_info, out_info, keys = svm(m=m, coarse=True)
     ngraph, input_info, out_info, keys = svm(m=m, coarse=False)
-    cwd = Path(f"{__file__}").parent
-    base_path = f"{cwd}/pmlang_examples"
-    full_path = f"{base_path}/outputs"
-    tabla_path = f"{full_path}/{graph.name}_{m}_tabla.json"
+
+    tabla_path = f"{OUTPATH}/{graph.name}_{m}_tabla.json"
     tabla_ir, tabla_graph = pm.generate_tabla(graph,
                                               shape_dict,
                                               tabla_path,
@@ -166,12 +146,10 @@ def test_svm(m_):
     coarse_eval = graph(keys, input_info)
     np.testing.assert_allclose(coarse_eval, out_info["w"])
 
-    cwd = Path(f"{__file__}").parent
-    base_path = f"{cwd}/pmlang_examples"
-    full_path = f"{base_path}/outputs"
-    tabla_path = f"{full_path}/{graph.name}_tabla.json"
+
+    tabla_path = f"{OUTPATH}/{graph.name}_tabla.json"
     tabla_ir, tabla_graph = pm.generate_tabla(graph, shape_dict, tabla_path)
-    validation_path = f"{cwd}/tabla_examples/{graph.name}_{m_}.json"
+    validation_path = f"{CWD}/tabla_examples/{graph.name}_{m_}.json"
     compare_tabla_dfg(validation_path, tabla_ir, tabla_graph)
 
 
@@ -184,10 +162,7 @@ def test_logistic_reg(m_):
     coarse_eval = graph(keys, input_info)
     np.testing.assert_allclose(coarse_eval, out_info["w"])
 
-    cwd = Path(f"{__file__}").parent
-    base_path = f"{cwd}/pmlang_examples"
-    full_path = f"{base_path}/outputs"
-    tabla_path = f"{full_path}/{graph.name}_tabla.json"
+    tabla_path = f"{OUTPATH}/{graph.name}_tabla.json"
 
     tabla_ir, tabla_graph = pm.generate_tabla(graph, shape_dict, tabla_path)
 
@@ -201,20 +176,16 @@ def test_reco_state_write(m_, n_, k_):
     coarse_eval = graph(keys, input_info)
     np.testing.assert_allclose(coarse_eval[0], out_info["w1"])
     np.testing.assert_allclose(coarse_eval[1], out_info["w2"])
-    cwd = Path(f"{__file__}").parent
-    base_path = f"{cwd}/pmlang_examples"
-    full_path = f"{base_path}/outputs"
-    tabla_path = f"{full_path}/{graph.name}_tabla.json"
+    tabla_path = f"{OUTPATH}/{graph.name}_tabla.json"
     lowered = set_shape_and_lower(graph, shape_dict)
     tabla_ir, tabla_graph = pm.generate_tabla(graph, shape_dict, tabla_path)
 
 @pytest.mark.parametrize('m', [
-    (64),
+    (32),
 ])
 def test_fft(m):
     x = np.random.randint(-5,5, m).astype(np.complex)
 
     pm_output, np_output = unwound_fft(x)
     np.testing.assert_allclose(pm_output, np_output)
-
 

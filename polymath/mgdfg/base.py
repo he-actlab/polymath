@@ -30,6 +30,7 @@ from polymath.mgdfg.graph import Graph
 from polymath.mgdfg.domain import Domain
 from .util import _noop_callback, _flatten_iterable, node_hash, \
     _is_node_type_instance, is_iterable, is_single_valued
+import sys
 
 class Node(object):
     """
@@ -53,6 +54,7 @@ class Node(object):
         Keyword arguments passed to the `_evaluate` method.
     """
     _graph_stack = deque([None])
+    stack_size = 5
     evaluated_nodes = 0
     def __init__(self, *args,
                  name=None,
@@ -85,8 +87,9 @@ class Node(object):
         self.name = name or uuid.uuid4().hex
         self._op_name = None
         self.op_name = op_name
+
         # Get the stack context so we can report where the node was defined
-        self._stack = traceback.extract_stack()
+        self._stack = traceback.extract_stack(limit=1)
 
     @property
     def graph(self):
@@ -385,6 +388,7 @@ class Node(object):
         KeyError
             If the current name of the node cannot be found in the associated graph.
         """
+
         name = name or uuid.uuid4().hex
         # TODO: Need a way to check if the existing node is not equal to the current ndoe as ewll
         if self.graph and name in self.graph.nodes:
@@ -394,8 +398,8 @@ class Node(object):
 
         if self.graph:
             graph = self.graph
-            if self._name is not None and self._name in graph.nodes:
-                self.graph.update_graph_key(self._name, name)
+            if self._name and self._name in graph.nodes:
+                graph.update_graph_key(self._name, name)
             else:
                 graph.nodes[name] = self
 
@@ -488,14 +492,16 @@ class Node(object):
             for n in node:
                 stack = []
                 if isinstance(n, Node):
+
                     for frame in reversed(n._stack):  # pylint: disable=protected-access
                         # Do not capture any internal stack traces
-                        if 'polymath' in frame.filename:
+                        fname = frame.filename
+                        if 'polymath' in fname:
                             continue
                         # Stop tracing at the last interactive cell
-                        if interactive and not frame.filename.startswith('<'):
+                        if interactive and not fname.startswith('<'):
                             break  # pragma: no cover
-                        interactive = frame.filename.startswith('<')
+                        interactive = fname.startswith('<')
                         stack.append(frame)
                     stack = "".join(traceback.format_list(reversed(stack)))
                 message = "Failed to evaluate node `%s` defined at:\n\n%s" % (n, stack)
@@ -758,7 +764,7 @@ class var_index(Node):  # pylint: disable=C0103,W0223
         if self.graph:
             graph = self.graph
             if self._name is not None and self._name in graph.nodes:
-                self.graph.update_graph_key(self._name, name)
+                graph.update_graph_key(self._name, name)
             else:
                 graph.nodes[name] = self
 

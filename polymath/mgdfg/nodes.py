@@ -267,6 +267,8 @@ class temp(placeholder):
     def __init__(self, name=None, **kwargs):
         if "write_count" not in kwargs:
             kwargs["write_count"] = 0
+        if "type_modifier" in kwargs:
+            kwargs.pop("type_modifier")
         self.type_modifier = "temp"
 
         super(temp, self).__init__(name=name, type_modifier=self.type_modifier, **kwargs)

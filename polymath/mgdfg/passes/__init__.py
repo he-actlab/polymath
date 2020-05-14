@@ -4,14 +4,19 @@ from collections import deque
 import inspect
 from polymath.mgdfg.util import _flatten_iterable, DebugTimer
 import pickle
+import tqdm
+import sys
 from pytools import ProcessTimer
 
 
 KEY_ARGS = ["name", "shape", "graph", "dependencies", "op_name"]
 class Visitor(object):
 
-    def __init__(self):
+    def __init__(self, debug=False, pbar=None, cls_name=None):
+        self.debug = debug
+        self.pbar = pbar
         self.memo_map = {}
+        self.cls_name = cls_name
         self.graph_stack = deque([None])
 
     def reset_visitor(self):
@@ -177,6 +182,9 @@ class NodePass(Visitor):
         if isinstance(graph_object, Graph):
             self.visit_graph(graph_object, ctx, pass_fn=pass_fn)
         elif isinstance(graph_object, Node):
+            if self.debug and graph_object.graph:
+                self.pbar.set_description(f"{self.cls_name}: Applying {pass_fn.__name__} pass to node {graph_object.name} - {graph_object.op_name}")
+                self.pbar.update(n=1)
             pass_fn(graph_object, ctx)
             self.visit_node(graph_object, ctx, pass_fn=pass_fn)
         else:
@@ -194,9 +202,7 @@ class NodePass(Visitor):
     def visit_graph(self, graph, ctx, **kwargs):
 
         keys = list(graph.keys())
-        for name in keys:
-            if name in graph:
-                _ = self.visit(graph[name], ctx, **kwargs)
+        _ = [self.visit(graph[name], ctx, **kwargs) for name in keys if name in graph]
         return graph
 
     def visit_value(self, val, ctx, **kwargs):
@@ -205,32 +211,30 @@ class NodePass(Visitor):
 
 class Pass(object):
     analyzer = None
-    def __init__(self, ctx=None):
+    def __init__(self, ctx=None, debug=False):
         self.ctx = ctx
+        self.debug = debug
 
-    def __call__(self, node, ctx=None, debug_timer=False):
-
-        visitor = NodePass()
+    def __call__(self, node, ctx=None, debug=False):
+        self.pbar = tqdm.tqdm(desc=f"Applying {self.__class__.__name__} to nodes", file=sys.stdout, dynamic_ncols=True,
+                              disable=not self.debug)
+        visitor = NodePass(debug=self.debug, pbar=self.pbar, cls_name=self.__class__.__name__)
         self.ctx = self.ctx if self.ctx else ctx
         gcpy = pickle.loads(pickle.dumps(node))
 
         initialized_node = self.initialize_pass(gcpy, self.ctx)
-        if debug_timer:
-            plog = DebugTimer()
-            with plog:
-                transformed_node = visitor.visit(initialized_node, self.ctx, pass_fn=self.apply_pass)
-            visitor.reset_visitor()
-
-            tcpy = pickle.loads(pickle.dumps(transformed_node))
-
-            with plog:
-                final_node = visitor.visit(tcpy, self.ctx, pass_fn=self.finalize_pass)
-        else:
-            transformed_node = visitor.visit(initialized_node, self.ctx, pass_fn=self.apply_pass)
-            visitor.reset_visitor()
-            tcpy = pickle.loads(pickle.dumps(transformed_node))
-            final_node = visitor.visit(tcpy, self.ctx, pass_fn=self.finalize_pass)
+        if self.debug:
+            self.pbar.clear()
+            self.pbar.reset(total=len(gcpy.nodes))
+        transformed_node = visitor.visit(initialized_node, self.ctx, pass_fn=self.apply_pass)
+        if self.debug:
+            self.pbar.clear()
+            self.pbar.reset(total=len(transformed_node.nodes))
+        visitor.reset_visitor()
+        tcpy = pickle.loads(pickle.dumps(transformed_node))
+        final_node = visitor.visit(tcpy, self.ctx, pass_fn=self.finalize_pass)
         packaged_node = self.package_pass(final_node, self.ctx)
+        self.pbar.close()
         return packaged_node
 
     def evaluate_node(self, node, context):

@@ -19,7 +19,6 @@ class TablaPass(pm.Pass):
 
     def __init__(self, test_values=None, add_kwargs=False, debug=True):
         self.evaluations = 0
-        self.debug = debug
         self.dfg = OrderedDict()
         self.used = {}
         self.hsh_map = {}
@@ -29,18 +28,13 @@ class TablaPass(pm.Pass):
 
         self.dfg["source"] = self.create_node("source")
         self.dfg["sink"] = self.create_node("sink")
-        self.pbar = tqdm.tqdm(desc="Applying first pass to nodes", file=sys.stdout, dynamic_ncols=True,)
-        super(TablaPass, self).__init__(self.dfg)
+        super(TablaPass, self).__init__(self.dfg, debug=debug)
 
     def apply_pass(self, node, ctx):
 
         if node.graph is None:
             return node
 
-        if self.debug:
-            if not self.pbar.total:
-                self.pbar.reset(total=len(node.graph.nodes))
-            self.pbar.update(1)
         n_key = self.node_key(node)
         if isinstance(node, pm.parameter):
             self.add_constants(node)
@@ -100,12 +94,6 @@ class TablaPass(pm.Pass):
         if node.graph is None:
             self.norm_context = {node.nodes[n]: v for n, v in self.test_values.items()}
             return node
-        if self.debug:
-            if self.pbar.n == self.pbar.total:
-                self.pbar.reset(total=len(node.graph.nodes))
-            self.pbar.set_description(f"Applying finalize pass to node {node.name} - {node.op_name}")
-            self.pbar.update(1)
-
         key = self.node_key(node)
 
         if key not in self.used and not isinstance(node, (pm.output, pm.state, pm.temp, pm.write)):

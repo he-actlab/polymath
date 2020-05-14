@@ -382,7 +382,6 @@ def test_conditional():
         condition = pm.placeholder(name='condition')
         z = pm.predicate(condition, x, y)
 
-    # assert graph(z, condition=True) == 4
     assert graph(z, condition=False, y=5) == 5
     # We expect a value error if we evaluate the other branch without a placeholder
     with pytest.raises(ValueError):

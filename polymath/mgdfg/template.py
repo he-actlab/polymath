@@ -9,6 +9,16 @@ class Template(pm.Node):
         self.flow_map = {}
         self.graph_map = {}
         self.initialize_args()
+
+        if "graph" in kwargs:
+            kwargs.pop("graph")
+
+        if "dependencies" in kwargs:
+            kwargs.pop("dependencies")
+
+        if "dependencies" in kwargs:
+            kwargs.pop("dependencies")
+
         with self:
            self.define_graph(*self.args, **kwargs)
         if self.graph:

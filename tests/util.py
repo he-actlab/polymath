@@ -278,7 +278,7 @@ def np_backprop(input_info):
 
     return out_info
 
-def backprop(l1_=9, l2_=10, l3_=1, coarse=False, debug=False):
+def backprop(l1_=9, l2_=10, l3_=1, coarse=False, debug=False, pbar=False):
     with pm.Node(name="backprop") as graph:
         mu = pm.parameter("mu", default=1.0)
         l1 = pm.parameter("l1")
@@ -307,7 +307,7 @@ def backprop(l1_=9, l2_=10, l3_=1, coarse=False, debug=False):
         in_info, keys, out_info = backprop_data_gen(l1_, l2_, l3_, debug=debug)
         return graph, in_info, out_info, keys
     else:
-        shape_val_pass = pm.NormalizeGraph({"l1": l1_, "l2": l2_, "l3": l3_})
+        shape_val_pass = pm.NormalizeGraph({"l1": l1_, "l2": l2_, "l3": l3_}, debug=pbar)
         new_graph = shape_val_pass(graph)
         in_info, keys, out_info = backprop_data_gen(l1_, l2_, l3_, lowered=True, debug=debug)
         return new_graph, in_info, out_info, keys
@@ -1060,37 +1060,13 @@ def tvm_lenet(num_classes=10, data_shape=(1, 1, 32, 32),
 def np_relu(x):
     return x * (x > 0)
 
-def np_lenet(inp_info):
-    out_info = {}
-    c1_params = {"stride": inp_info["s1"], "pad": inp_info["p1"]}
-    out_info["c1"] = conv3d(inp_info["data"], inp_info["w1"], inp_info["b1"], c1_params)[0]
-    out_info["a1"] = np_relu(out_info["c1"])
-    out_info["l1"] = pooling(out_info["a1"], 2, 2, 0, 2)
+def np_softmax(x):
+    """Compute softmax values for each sets of scores in x."""
+    e_x = np.exp(x - np.max(x))
+    return e_x / e_x.sum()
 
-    c2_params = {"stride": inp_info["s2"], "pad": inp_info["p2"]}
-    out_info["c2"] = conv3d(out_info["l1"], inp_info["w2"], inp_info["b2"], c2_params)[0]
-    out_info["a2"] = np_relu(out_info["c2"])
-    out_info["l2"] = pooling(out_info["a2"], 2, 2, 0, 2)
 
-    out_info["f5"] = batch_flatten(out_info["l2"])
-    out_info["f6"] = inp_info["w6"].dot(out_info["f5"])
-    out_info["a6"] = np_relu(out_info["f6"])
-
-    out_info["f7"] = inp_info["w7"].dot(out_info["a6"])
-    out_info["a7"] = np_relu(out_info["f7"])
-
-    out_info["f8"] = inp_info["w8"].dot(out_info["a7"])
-    out_info["a8"] = np_relu(out_info["f8"])
-
-    return out_info
-
-def batch_flatten(x):
-    return x.reshape(-1)
-
-def lenet():
-    shape_dict = {"n": 1, "c": 1, "ih": 32, "iw": 32,
-                  "nf1": 6, "kh1": 5, "kw1": 5, "stride1": 1, "pad1": (0,0),
-                  }
+def np_lenet(lowered=False):
     input_info = {}
     input_info["data"] = np.random.randint(0, 5, (1, 1, 32, 32))
     input_info["w1"] = np.random.randint(0, 5, (6, 1, 5, 5))
@@ -1106,8 +1082,56 @@ def lenet():
     input_info["w6"] = np.random.randint(0, 5, (120, 400))
     input_info["w7"] = np.random.randint(0, 5, (84, 120))
     input_info["w8"] = np.random.randint(0, 5, (10, 84))
-    out_info = np_lenet(input_info)
-    with pm.Node("lenet") as graph:
+    out_info = {}
+    c1_params = {"stride": input_info["s1"], "pad": input_info["p1"]}
+    out_info["c1"] = conv3d(input_info["data"], input_info["w1"], input_info["b1"], c1_params)[0]
+    out_info["a1"] = np_relu(out_info["c1"])
+    out_info["l1"] = pooling(out_info["a1"], 2, 2, 0, 2)
+
+    c2_params = {"stride": input_info["s2"], "pad": input_info["p2"]}
+    out_info["c2"] = conv3d(out_info["l1"], input_info["w2"], input_info["b2"], c2_params)[0]
+    out_info["a2"] = np_relu(out_info["c2"])
+    out_info["l2"] = pooling(out_info["a2"], 2, 2, 0, 2)
+
+    out_info["f5"] = batch_flatten(out_info["l2"])
+    out_info["f6"] = input_info["w6"].dot(out_info["f5"])
+    out_info["a6"] = np_relu(out_info["f6"])
+
+    out_info["f7"] = input_info["w7"].dot(out_info["a6"])
+    out_info["a7"] = np_relu(out_info["f7"])
+
+    out_info["f8"] = input_info["w8"].dot(out_info["a7"])
+    out_info["a8"] = np_relu(out_info["f8"])
+    out_info["sm"] = np_softmax(out_info["a8"])
+    if lowered:
+        for k in list(input_info.keys()):
+            if hasattr(input_info[k], "shape"):
+                pairs = list(product(*tuple([np.arange(i) for i in input_info[k].shape])))
+                for p in pairs:
+                    input_info[f"{k}/{k}{p}"] = input_info[k][p]
+                input_info.pop(k)
+        key = []
+        for k in list(out_info.keys()):
+            if hasattr(out_info[k], "shape"):
+                pairs = list(product(*tuple([np.arange(i) for i in out_info[k].shape])))
+
+                for p in pairs:
+                    if k == "sm":
+                        key.append(f"{k}/{k}{p}")
+                    out_info[f"{k}/{k}{p}"] = out_info[k][p]
+
+                if k != "sm":
+                    out_info.pop(k)
+    else:
+        key = "sm"
+    return input_info, key, out_info
+
+def batch_flatten(x):
+    return x.reshape(-1)
+
+def lenet(coarse=True, debug=False):
+
+    with pm.Node(name="lenet") as graph:
         n = pm.parameter(name="n")
         c = pm.parameter(name="ic")
         ih = pm.parameter(name="ih")
@@ -1126,56 +1150,67 @@ def lenet():
         l1 = pm.output(name="l1")
 
         pm.conv(data, w1, b1, c1, s1, p1)
-        pm.relu(c1, a1)
-        pm.avg_pool2d(a1, l1, 2, 2, 2, 0)
+        # pm.relu(c1, a1)
+        # pm.avg_pool2d(a1, l1, 2, 2, 2, 0)
+        #
+        # nf2 = pm.parameter(name="nf2")
+        # kh2 = pm.parameter(name="kh2")
+        # kw2 = pm.parameter(name="kw2")
+        # w2 = pm.state(name="w2", shape=(nf2, nf1, kh2, kw2))
+        # b2 = pm.state(name="b2", shape=(nf2))
+        # s2 = pm.parameter(name="s2")
+        # p2 = pm.parameter(name="p2")
+        # c2 = pm.output(name="c2")
+        # a2 = pm.output(name="a2")
+        # l2 = pm.output(name="l2")
+        #
+        # pm.conv(l1, w2, b2, c2, s2, p2)
+        # pm.relu(c2, a2)
+        # pm.avg_pool2d(a2, l2, 2, 2, 2, 0)
+        #
+        # f5 = pm.output(name="f5")
+        # pm.batch_flatten(l2, f5)
+        #
+        # f6 = pm.output(name="f6")
+        # m6 = pm.parameter(name="m6")
+        # n6 = pm.parameter(name="n6")
+        # w6 = pm.state(name="w6", shape=(n6, m6))
+        # a6 = pm.output(name="a6")
+        # pm.dense(f5, w6, f6)
+        # pm.relu1d(f6, a6)
+        #
+        # f7 = pm.output(name="f7")
+        # m7 = pm.parameter(name="m7")
+        # n7 = pm.parameter(name="n7")
+        # w7 = pm.state(name="w7", shape=(n7, m7))
+        # a7 = pm.output(name="a7")
+        # pm.dense(a6, w7, f7)
+        # pm.relu1d(f7, a7)
 
-        nf2 = pm.parameter(name="nf2")
-        kh2 = pm.parameter(name="kh2")
-        kw2 = pm.parameter(name="kw2")
-        w2 = pm.state(name="w2", shape=(nf2, nf1, kh2, kw2))
-        b2 = pm.state(name="b2", shape=(nf2))
-        s2 = pm.parameter(name="s2")
-        p2 = pm.parameter(name="p2")
-        c2 = pm.output(name="c2")
-        a2 = pm.output(name="a2")
-        l2 = pm.output(name="l2")
+        # f8 = pm.output(name="f8")
+        # m8 = pm.parameter(name="m8")
+        # n8 = pm.parameter(name="n8")
+        # w8 = pm.state(name="w8", shape=(n8, m8))
+        # a8 = pm.output(name="a8")
+        # pm.dense(a7, w8, f8)
+        # pm.relu1d(f8, a8)
+        #
+        # out = pm.output(name="sm")
+        # pm.softmax(a8, out)
+    if coarse:
+        in_info, keys, out_info = np_lenet()
+        return graph, in_info, out_info, keys
+    else:
 
-        pm.conv(l1, w2, b2, c2, s2, p2)
-        pm.relu(c2, a2)
-        pm.avg_pool2d(a2, l2, 2, 2, 2, 0)
-
-        f5 = pm.output(name="f5")
-        pm.batch_flatten(l2, f5)
-
-        f6 = pm.output(name="f6")
-        m6 = pm.parameter(name="m6")
-        n6 = pm.parameter(name="n6")
-        w6 = pm.state(name="w6", shape=(n6, m6))
-        a6 = pm.output(name="a6")
-        pm.dense(f5, w6, f6)
-        pm.relu1d(f6, a6)
-
-        f7 = pm.output(name="f7")
-        m7 = pm.parameter(name="m7")
-        n7 = pm.parameter(name="n7")
-        w7 = pm.state(name="w7", shape=(n7, m7))
-        a7 = pm.output(name="a7")
-        pm.dense(a6, w7, f7)
-        pm.relu1d(f7, a7)
-
-        f8 = pm.output(name="f8")
-        m8 = pm.parameter(name="m8")
-        n8 = pm.parameter(name="n8")
-        w8 = pm.state(name="w8", shape=(n8, m8))
-        a8 = pm.output(name="a8")
-        pm.dense(a7, w8, f8)
-        pm.relu1d(f8, a8)
-
-        out = pm.output(name="sm")
-        pm.softmax(a8, out)
-
-
-    return graph, input_info, out_info
+        shape_dict = {"n": 1, "ic": 1, "ih": 32, "iw": 32,
+                      "nf1": 6, "kh1": 5, "kw1": 5, "s1": 1, "p1": 0,
+                      "nf2": 16, "kh2": 5, "kw2": 5, "s2": 1, "p2": 0,
+                      "m6": 400, "n6": 120, "m7": 120, "n7": 84, "m8": 84, "n8": 10
+                      }
+        shape_val_pass = pm.NormalizeGraph(shape_dict, debug=debug)
+        new_graph = shape_val_pass(graph)
+        in_info, keys, out_info = np_lenet(lowered=True)
+        return new_graph, in_info, out_info, keys
 
 def fft(m_=3, coarse=False):
     with pm.Node(name="fft") as graph:

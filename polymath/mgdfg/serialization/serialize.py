@@ -1,13 +1,9 @@
 import polymath.mgdfg.serialization.mgdfgv3_pb2 as pb
-from polymath.mgdfg.base import Node
-from polymath.mgdfg.domain import Domain
+from polymath import Node, Domain, Template
 from numproto import ndarray_to_proto, proto_to_ndarray
 from typing import Iterable, Union
 from numbers import Integral
-
-
 import numpy as np
-
 
 def pb_store(node, file_path, outname=None):
     if outname:
@@ -127,14 +123,6 @@ def _deserialize_domain(pb_dom, graph):
 def _deserialize_node(pb_node, graph=None):
     set_fields = pb_node.DESCRIPTOR.fields_by_name
     kwargs = {}
-    shape_list = []
-    for shape in pb_node.shape:
-        val_type = shape.WhichOneof("value")
-        if val_type == "shape_const":
-            shape_list.append(shape.shape_const)
-        else:
-            shape_list.append(graph.nodes[shape.shape_id])
-    kwargs["shape"] = tuple(shape_list)
     kwargs["name"] = pb_node.name
     kwargs["op_name"] = pb_node.op_name
 
@@ -224,13 +212,30 @@ def _deserialize_node(pb_node, graph=None):
         else:
             node = getattr(mod, cls_name)(*args, graph=graph, **kwargs)
     else:
-
+        template_subclass_names = [c.__name__ for c in Template.__subclasses__()]
+        if cls_name in template_subclass_names:
+            kwargs.pop("op_name")
         node = getattr(mod, cls_name)(*args, graph=graph, **kwargs)
 
     for pb_n in pb_node.nodes:
         if pb_n.name in node.nodes:
             continue
         node.nodes[pb_n.name] = _deserialize_node(pb_n, graph=node)
+
+    shape_list = []
+    for shape in pb_node.shape:
+        val_type = shape.WhichOneof("value")
+        if val_type == "shape_const":
+            shape_list.append(shape.shape_const)
+        else:
+            if shape.shape_id not in graph.nodes:
+                print(node.nodes.keys())
+                shape_list.append(node.nodes[shape.shape_id])
+            else:
+                shape_list.append(graph.nodes[shape.shape_id])
+    node._shape = tuple(shape_list)
+
+
     return node
 
 
@@ -342,9 +347,13 @@ def _serialize_node(node_instance):
                 new_arg.type = pb.Attribute.Type.BOOLS
                 new_arg.bs.extend(arg)
         else:
-
             raise TypeError(f"Cannot find serializable method for argument {name}={arg} with type {type(arg)} in {node_instance}")
-
-    pb_node.nodes.extend([_serialize_node(node) for _, node in node_instance.nodes.items() if node.name != node_instance.name])
+    serialized = []
+    for k, node in node_instance.nodes.items():
+        if not isinstance(node, Node):
+            raise RuntimeError(f"Non-node object included in graph for {node_instance.name} with name {k}.")
+        elif node.name != node_instance.name:
+            serialized.append(_serialize_node(node))
+    pb_node.nodes.extend(serialized)
 
     return pb_node

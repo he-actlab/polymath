@@ -5,6 +5,7 @@ import json
 def generate_tabla(graph, input_dict, filepath, context_dict=None, add_kwargs=False, debug=True):
     assert len(input_dict) > 0
     shape_pass = pm.NormalizeGraph(input_dict)
+    context_dict = context_dict or {}
 
     lower_pass = pm.Lower({})
     print(f"Starting graph normalization...")

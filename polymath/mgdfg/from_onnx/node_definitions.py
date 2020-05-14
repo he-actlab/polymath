@@ -6,6 +6,7 @@ class dense(pm.Template):
     def define_graph(self, x, w, y, **kwargs):
         i = pm.index(0, (w.shape[1] - 1), name="i")
         j = pm.index(0, (w.shape[0] - 1), name="j")
+        y.set_shape((w.shape[0]))
         y[j] = pm.sum([i], w[j, i] * x[i], name="h")
 
 class dense_sigmoid(pm.Template):
@@ -99,16 +100,24 @@ class avg_pool2d(pm.Template):
         ow = ((inp.shape[3] + 2 * pad - kw) // stride + 1)
         out.set_shape((inp.shape[0], inp.shape[1], oh, ow))
 
-        b = pm.index(0, inp.shape[0]-1)
-        c = pm.index(0, inp.shape[1]-1)
-        y = pm.index(0, oh-1)
-        x = pm.index(0, ow-1)
-        m = pm.index(0, kh-1)
-        n = pm.index(0, kw-1)
-        # padded = pm.temp(name="padded", shape=(ns, ic, ihp, iwp))
+        b = pm.index(0, inp.shape[0]-1, name="b")
+        c = pm.index(0, inp.shape[1]-1, name="c")
+        y = pm.index(0, oh-1, name="y")
+        x = pm.index(0, ow-1, name="x")
+        m = pm.index(0, kh-1, name="m")
+        n = pm.index(0, kw-1, name="n_")
+        ihp = (inp.shape[2] + pad*2)
+        iwp = inp.shape[3] + pad*2
+        ihp_ = pm.index(0, ihp-1, name="ihp")
+        iwp_ = pm.index(0, iwp-1, name="iwp")
+        iy = pm.index(0, inp.shape[2]-1, name="iy")
+        ix = pm.index(0, inp.shape[3]-1, name="ix")
+        padded = pm.temp(name="padded", shape=(inp.shape[0], inp.shape[1], ihp, iwp))
+        padded[b, c, ihp_, iwp_] = 0
+        padded[b, c, iy + pad, ix + pad] = inp[b, c, iy, ix]
         # padded[b, k, ihp_, iwp_] = 0
         # padded[b, k, iy + pad, ix + pad] = data[b, k, iy, ix]
-        out[b, c, y, x] = ((1/(kh*kw)) * pm.sum([m, n], inp[b, c, stride*y + m, stride*x + n])).set_name("final")
+        out[b, c, y, x] = ((1/(kh*kw)) * pm.sum([m, n], padded[b, c, stride*y + m, stride*x + n])).set_name("final")
 
 class max_pool2d(pm.Node):
     pass
@@ -184,11 +193,12 @@ class log_softmax(pm.Template):
 
 class softmax(pm.Template):
     def define_graph(self, data, out, **kwargs):
-        e = pm.parameter(name="e", default=np.e)
         out.set_shape(data.shape)
         i = pm.index(0, data.shape[0]-1)
         j = pm.index(0, data.shape[0]-1)
-        out[i] = (e ** (data[i]))/ pm.sum([j], e**data[j], name="num")
+        mval = pm.max([i], data[i], name="max_test")
+        e_x = pm.exp((data[i] - mval))
+        out[i] = e_x[i] / pm.sum([j], e_x[j], name="num")
 
 class batch_flatten(pm.Template):
     def define_graph(self, data, out, **kwargs):
