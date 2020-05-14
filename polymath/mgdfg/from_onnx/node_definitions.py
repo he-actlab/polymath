@@ -91,7 +91,7 @@ class conv(pm.Template):
         padded[b, k, ihp_, iwp_] = 0
         padded[b, k, iy + pad, ix + pad] = data[b, k, iy, ix]
 
-        out[b, c, y, x] = (pm.sum([dy, dx, k], (padded[b, k, dy + stride*y, dx + stride*x] * w[c, k, dy, dx]).set_name("p*w"), name="sum_part") + bias[c]).set_name("c+bias")
+        out[b, c, y, x] = (pm.sum([dy, dx, k], (padded[b, k, dy + stride*y, dx + stride*x] * w[c, k, dy, dx]).set_name("p*w"), name="conv_sum") + bias[c]).set_name("c+bias")
 
 class avg_pool2d(pm.Template):
     def define_graph(self, inp, out, kh, kw, stride, pad, **kwargs):
@@ -115,9 +115,7 @@ class avg_pool2d(pm.Template):
         padded = pm.temp(name="padded", shape=(inp.shape[0], inp.shape[1], ihp, iwp))
         padded[b, c, ihp_, iwp_] = 0
         padded[b, c, iy + pad, ix + pad] = inp[b, c, iy, ix]
-        # padded[b, k, ihp_, iwp_] = 0
-        # padded[b, k, iy + pad, ix + pad] = data[b, k, iy, ix]
-        out[b, c, y, x] = ((1/(kh*kw)) * pm.sum([m, n], padded[b, c, stride*y + m, stride*x + n])).set_name("final")
+        out[b, c, y, x] = ((1/(kh*kw)) * pm.sum([m, n], padded[b, c, stride*y + m, stride*x + n], name="apool_sum")).set_name("final")
 
 class max_pool2d(pm.Node):
     pass

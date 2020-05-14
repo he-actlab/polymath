@@ -87,6 +87,94 @@ class GroupNode(Node):
 
         return value
 
+    def __add__(self, other):
+        return slice_op(operator.add, self, other, graph=self.graph) if len(self.domain.doms) > 0 else add(self, other,
+                                                                                                       graph=self.graph)
+
+    def __radd__(self, other):
+        return slice_op(operator.add, other, self, graph=self.graph) if len(self.domain.doms) > 0 else add(other, self,
+                                                                                                       graph=self.graph)
+    def __sub__(self, other):
+        return slice_op(operator.sub, self, other, graph=self.graph) if len(self.domain.doms) > 0 else sub(self, other,
+                                                                                                       graph=self.graph)
+    def __rsub__(self, other):
+        return slice_op(operator.sub, other, self, graph=self.graph) if len(self.domain.doms) > 0 else sub(other, self,
+                                                                                                       graph=self.graph)
+    def __pow__(self, other):
+        return slice_op(builtins.pow, self, other, graph=self.graph)
+
+    def __rpow__(self, other):
+        return slice_op(builtins.pow, other, self, graph=self.graph)
+
+    def __mul__(self, other):
+        return slice_op(operator.mul, self, other, graph=self.graph) if len(self.domain.doms) > 0 else mul(self, other, graph=self.graph)
+
+    def __rmul__(self, other):
+        return slice_op(operator.mul, other, self, graph=self.graph) if len(self.domain.doms) > 0 else mul(other, self, graph=self.graph)
+
+    def __truediv__(self, other):
+        return slice_op(operator.truediv, self, other, graph=self.graph)
+
+    def __rtruediv__(self, other):
+        return slice_op(operator.truediv, other, self, graph=self.graph)
+
+    def __floordiv__(self, other):
+        return slice_op(operator.floordiv, self, other, graph=self.graph)
+
+    def __rfloordiv__(self, other):
+        return slice_op(operator.floordiv, other, self, graph=self.graph)
+
+    def __mod__(self, other):
+        return slice_op(operator.mod, self, other, graph=self.graph)
+
+    def __rmod__(self, other):
+        return slice_op(operator.mod, other, self, graph=self.graph)
+
+    def __lshift__(self, other):
+        return slice_op(operator.lshift, self, other, graph=self.graph)
+
+    def __rlshift__(self, other):
+        return slice_op(operator.lshift, other, self, graph=self.graph)
+
+    def __rshift__(self, other):
+        return slice_op(operator.rshift, self, other, graph=self.graph)
+
+    def __rrshift__(self, other):
+        return slice_op(operator.rshift, other, self, graph=self.graph)
+
+    def __and__(self, other):
+        return slice_op(operator.and_, self, other, graph=self.graph)
+
+    def __rand__(self, other):
+        return slice_op(operator.and_, other, self, graph=self.graph)
+
+    def __or__(self, other):
+        return slice_op(operator.or_, self, other, graph=self.graph)
+
+    def __ror__(self, other):
+        return slice_op(operator.or_, other, self, graph=self.graph)
+
+    def __xor__(self, other):
+        return slice_op(operator.xor, self, other, graph=self.graph)
+
+    def __rxor__(self, other):
+        return slice_op(operator.xor, other, self, graph=self.graph)
+
+    def __lt__(self, other):
+        return slice_op(operator.lt, self, other, graph=self.graph)
+
+    def __le__(self, other):
+        return slice_op(operator.lt, other, self, graph=self.graph)
+
+    def __ne__(self, other):
+        return slice_op(operator.ne, self, other, graph=self.graph)
+
+    def __gt__(self, other):
+        return slice_op(operator.gt, self, other, graph=self.graph)
+
+    def __ge__(self, other):
+        return slice_op(operator.ge, self, other, graph=self.graph)
+
     def __repr__(self):
         return f"<group_{self.op_name} '{self.name}'>"
 

@@ -21,6 +21,8 @@ class NonLinear(Node):
     def __init__(self, target, val, **kwargs):
         kwargs["op_name"] = kwargs["op_name"] if "op_name" in kwargs \
             else f"{self.__class__.__name__}"
+        if "domain" in kwargs:
+            kwargs.pop("domain")
         domain = val.domain if isinstance(val, Node) else Domain((1,))
         kwargs['shape'] = 1 if isinstance(val, Integral) else val.shape
         super(NonLinear, self).__init__(val, target=f"{target.__module__}.{target.__name__}", domain=domain, **kwargs)

@@ -26,59 +26,6 @@ class CountNodes(Pass):
         return node
 
 @register_pass
-class DeadNodeElimination(Pass):
-
-
-    def apply_pass(self, node, ctx):
-        if node.op_name == "index":
-            node.graph.pop(node.name)
-            return node
-        elif node.op_name == "var_index":
-
-            if node.args[0].op_name == "placeholder":
-                if node.args[0].name in node.args[0].graph.nodes:
-                    node.args[0].graph.pop(node.args[0].name)
-                new_node = pm.placeholder(name=node.name, type_modifier=node.args[0].kwargs["type_modifier"],
-                                          shape=(1,))
-                node.graph.nodes[node.name] = new_node
-                new_node.graph = node.graph
-                return new_node
-            else:
-                return node
-        elif isinstance(node, (pm.func_op, pm.slice_op, pm.NonLinear)):
-            new_args = []
-            for i, a in enumerate(node.args):
-                if isinstance(a, pm.Node):
-                    assert a.name in node.graph.nodes
-                    new_args.append(node.graph.nodes[a.name])
-                elif isinstance(a, tuple):
-                    for ii, aa in a:
-
-                        if isinstance(aa, pm.Node):
-                            continue
-                else:
-                    new_args.append(a)
-
-            node.args = tuple(new_args)
-            return node
-        else:
-            new_args = []
-            for i, a in enumerate(node.args):
-
-                if isinstance(a, pm.Node):
-                    assert a.name in node.graph.nodes
-                    new_args.append(node.graph.nodes[a.name])
-                elif isinstance(a, tuple):
-                    for aa in a:
-                        if isinstance(aa, pm.Node):
-                            continue
-                else:
-                    new_args.append(a)
-            node.args = tuple(new_args)
-
-            return node
-
-@register_pass
 class NormalizeGraph(Pass):
     def __init__(self, stored_shapes, debug=False):
         self.context = self._check_input_shapes(stored_shapes) if stored_shapes else {}
@@ -214,7 +161,6 @@ class NormalizeGraph(Pass):
                 x = node.__class__.init_from_args(node.args[0][i], graph=node, name=f"{node.name}{i}", shape=(1,))
                 self.stored_objects[id(x)] = x
 
-
     def populate_slice_op(self, node):
         arg0 = node.args[0]
         arg1 = node.args[1]
@@ -287,35 +233,35 @@ class NormalizeGraph(Pass):
 
             indices = list(product(*tuple([np.arange(i) for i in node.shape])))
             for i in indices:
-                x = pm.temp(graph=node, name=f"{node.name}{i}", shape=(1,))
+                x = pm.temp(graph=node, name=f"{node.name}{i}", root_name=node.name, shape=(1,))
                 self.stored_objects[id(x)] = x
 
     def populate_placeholder(self, node):
         if node.shape != pm.DEFAULT_SHAPES[0]:
             indices = list(product(*tuple([np.arange(i) for i in node.shape])))
             for i in indices:
-                x = pm.placeholder(graph=node, name=f"{node.name}{i}", shape=(1,), type_modifier=node.type_modifier)
+                x = pm.placeholder(graph=node, name=f"{node.name}{i}", root_name=node.name, shape=(1,), type_modifier=node.type_modifier)
                 self.stored_objects[id(x)] = x
 
     def populate_output(self, node):
         if node.shape != pm.DEFAULT_SHAPES[0]:
             indices = list(product(*tuple([np.arange(i) for i in node.shape])))
             for i in indices:
-                x = pm.output(graph=node, name=f"{node.name}{i}", shape=(1,))
+                x = pm.output(graph=node, name=f"{node.name}{i}", root_name=node.name, shape=(1,))
                 self.stored_objects[id(x)] = x
 
     def populate_input(self, node):
         if node.shape != pm.DEFAULT_SHAPES[0]:
             indices = list(product(*tuple([np.arange(i) for i in node.shape])))
             for i in indices:
-                x = pm.input(graph=node, name=f"{node.name}{i}", shape=(1,))
+                x = pm.input(graph=node, name=f"{node.name}{i}", root_name=node.name, shape=(1,))
                 self.stored_objects[id(x)] = x
 
     def populate_state(self, node):
         if node.shape != pm.DEFAULT_SHAPES[0]:
             indices = list(product(*tuple([np.arange(i) for i in node.shape])))
             for i in indices:
-                x = pm.state(graph=node, name=f"{node.name}{i}", shape=(1,))
+                x = pm.state(graph=node, name=f"{node.name}{i}", root_name=node.name, shape=(1,))
                 self.stored_objects[id(x)] = x
 
     def populate_write(self, node):
@@ -325,7 +271,6 @@ class NormalizeGraph(Pass):
             src, dst_key, dst = node.args
             key_indices = node.domain.compute_pairs()
             dst_indices = list(product(*tuple([np.arange(i) for i in node.shape])))
-            # dst_indices = node.shape_domain.compute_shape_domain(indices=dst_key)
 
             if isinstance(src, pm.Node):
                 if isinstance(node.args[0], pm.index):
@@ -492,20 +437,18 @@ class Lower(Pass):
             assert node.name != self.top.name
 
             self.update_args(node)
-            for k in list(node.nodes.keys()):
-                node.nodes.pop(k)
-            scope_name = f"{node.graph.name}/{node.name}" if id(node.graph) != id(self.top) else node.name
-
+            node.nodes = pm.Graph()
+            scope_name = self.get_scope_name(node)
             if node.name in node.graph.nodes:
                 node.graph.nodes.pop(node.name)
 
             if len(node.graph.nodes) == 0:
                 node.graph.graph.nodes.pop(node.graph.name)
             node.graph = self.top
+
             if scope_name in self.top.nodes:
                 self.object_ids[self.top.nodes[scope_name]] = [self.top.nodes[scope_name], node]
             else:
-                assert scope_name not in self.top.nodes
                 node.name = scope_name
                 self.top.nodes[scope_name] = node
         return node
@@ -513,6 +456,14 @@ class Lower(Pass):
     def finalize_pass(self, node, ctx):
         if len(node.nodes) > 0 and node.name != self.top.name:
             node.graph.nodes.pop(node.name)
+
+    def get_scope_name(self, node):
+        scope_names = [node.name]
+        cgraph = node.graph
+        while cgraph and id(cgraph) != id(self.top):
+            scope_names.append(cgraph.name)
+            cgraph = cgraph.graph
+        return "/".join(list(reversed(scope_names)))
 
     def update_args(self, node):
         new_args = []

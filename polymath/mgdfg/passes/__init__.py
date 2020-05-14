@@ -224,12 +224,14 @@ class Pass(object):
 
         initialized_node = self.initialize_pass(gcpy, self.ctx)
         if self.debug:
-            self.pbar.clear()
-            self.pbar.reset(total=len(gcpy.nodes))
+            ncount = self.total_nodes(initialized_node, 0)
+            self.pbar.reset(total=ncount)
+
         transformed_node = visitor.visit(initialized_node, self.ctx, pass_fn=self.apply_pass)
         if self.debug:
+            ncount = self.total_nodes(transformed_node, 0)
             self.pbar.clear()
-            self.pbar.reset(total=len(transformed_node.nodes))
+            self.pbar.reset(total=ncount)
         visitor.reset_visitor()
         tcpy = pickle.loads(pickle.dumps(transformed_node))
         final_node = visitor.visit(tcpy, self.ctx, pass_fn=self.finalize_pass)
@@ -241,6 +243,12 @@ class Pass(object):
         res = Node.evaluate_node(node, context)
         node.graph.nodes[node.name].value = res
         return res
+
+    def total_nodes(self, graph, count):
+        count += len(graph.nodes)
+        for _, n in graph.nodes.items():
+            count = self.total_nodes(n, count)
+        return count
 
     @classmethod
     def init_from_cls(cls):

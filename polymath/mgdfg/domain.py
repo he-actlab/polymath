@@ -262,7 +262,7 @@ class Domain(object):
 
         return out
 
-
+    # ref: https://stackoverflow.com/questions/49964765/for-each-row-of-a-2d-numpy-array-get-the-index-of-an-equal-row-in-a-second-2d-ar
     def map_reduction_dom(self, input_dom, axis_idx):
 
         dom_set_pairs = input_dom.compute_set_pairs(tuples=False)

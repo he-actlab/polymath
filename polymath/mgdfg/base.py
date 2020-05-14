@@ -110,6 +110,10 @@ class Node(object):
         return tuple(self._args)
 
     @property
+    def argnames(self):
+        return [a.name if isinstance(a, Node) else a for a in self.args]
+
+    @property
     def shape(self):
         """
         tuple : Shape of the output for a node. This can be a tuple of integers or parameter node names.

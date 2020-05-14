@@ -131,8 +131,11 @@ def _deserialize_node(pb_node, graph=None):
     args = []
     for arg in pb_node.args:
         if arg.type == pb.Attribute.Type.NODE:
-            assert arg.s.decode("utf-8") in graph.nodes
-            arg_node = graph.nodes[arg.s.decode("utf-8")]
+            arg_str = arg.s.decode("utf-8")
+            if arg_str not in graph.nodes:
+                raise RuntimeError(f"Could not find {arg_str} in nodes for {graph.name} - {graph}\n"
+                                   f"Node name: {pb_node.name} - {pb_node.op_name}")
+            arg_node = graph.nodes[arg_str]
             args.append(arg_node)
         elif arg.type == pb.Attribute.Type.NDARRAY:
             args.append(proto_to_ndarray(arg.nda))

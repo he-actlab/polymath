@@ -10,11 +10,12 @@ class placeholder(Node):  # pylint: disable=C0103,R0903
     """
     Placeholder that needs to be given in the context to be evaluated.
     """
-    def __init__(self, name=None, type_modifier=None, default=None, uid=None, **kwargs):
+    def __init__(self, name=None, type_modifier=None, default=None, uid=None, root_name=None, **kwargs):
         # TODO: Remove this and change to state, input, param, output
         self.type_modifier = type_modifier or "declaration"
         kwargs["uid"] = uid if uid else uuid.uuid4().hex
-        super(placeholder, self).__init__(name=name, type_modifier=self.type_modifier, default=default, **kwargs)
+        root_name = root_name or name
+        super(placeholder, self).__init__(name=name, root_name=root_name, type_modifier=self.type_modifier, default=default, **kwargs)
         assert isinstance(self.shape, tuple)
         self._domain = Domain(self.shape)
         if self.shape == UNSET_SHAPE:
@@ -39,6 +40,10 @@ class placeholder(Node):  # pylint: disable=C0103,R0903
                         context[self.shape[idx]] = dim
                         _ = self.shape[idx].evaluate(context)
         return value
+
+    @property
+    def root_name(self):
+        return self.kwargs["root_name"]
 
     def get_context_value(self, context):
         if self in context:
@@ -161,7 +166,6 @@ class output(placeholder):
         callback = callback or _noop_callback
         with callback(self, context):
             if self not in context:
-                # if not self.is_shape_finalized() or self.shape == UNSET_SHAPE:
                 if not self.is_shape_finalized() or self.shape == UNSET_SHAPE:
                     self.evaluate_shape(context)
 
@@ -310,11 +314,12 @@ class temp(placeholder):
                 # TODO: Find a way to use the input value or determine correct datatype
                 context[self] = np.zeros(shape=self.shape)
                 for i in range(self.write_count):
-                    name = f"{self.name.replace('/', str(i) + '/')}{i}"
-
+                    name = f"{self.name.replace(f'{self.root_name}/', f'{self.root_name}{str(i)}/')}{i}"
                     w_node = self.graph.nodes[name]
                     context[w_node] = w_node.evaluate(context)
-                fname = f"{self.name.replace('/', str(self.write_count-1) + '/')}{self.write_count - 1}"
+                old_str = f"{self.root_name}/"
+                repl_str = f"{self.root_name}{self.write_count - 1}/"
+                fname = f"{self.name.replace(old_str, repl_str)}{self.write_count-1}"
                 final = self.graph.nodes[fname]
                 value = context[final]
             else:
