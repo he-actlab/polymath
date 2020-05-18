@@ -1,4 +1,5 @@
 from onnx import load, numpy_helper, helper, shape_inference
+from onnx.mapping import TENSOR_TYPE_TO_NP_TYPE
 import pathlib
 import numpy as np
 from .node_definitions import NODE_NAMES
@@ -64,14 +65,46 @@ def get_initializers(initializers):
         init_dict[i.name] = val
     return init_dict
 
+def get_states_by_gradient(onnx_graph):
+    state_vars = {}
+    input_names = [i.name for i in onnx_graph.input]
+    output_names = [o.name for o in onnx_graph.output]
+    for n in onnx_graph.node:
+        if n.output[0] in output_names and n.op_type == "Sub":
+            for i in n.input:
+                if i in input_names:
+                    state_vars[n.output[0]] = i
+                    break
+
+    return state_vars
+
 def generate_nn_mdfg(onnx_graph):
     names = [des.name for des in onnx_graph.DESCRIPTOR.fields]
     graph_name = getattr(onnx_graph, "name")
     initializers = get_initializers(onnx_graph.initializer)
     mgdfg = pm.Node(name=graph_name)
+    # TODO: This is a hotfix for identifying gradient updates, but weights should have initializers
+    state_variables = get_states_by_gradient(onnx_graph)
     node_info = {}
+
+    for o in onnx_graph.output:
+
+        assert o.name not in node_info
+        if o.name in initializers:
+            node_info[o.name] = pm.variable(initializers[o.name], name=o.name, shape=get_value_info_shape(o),
+                                            graph=mgdfg)
+        elif o.name in state_variables:
+            node_info[o.name] = pm.state(name=state_variables[o.name], shape=get_value_info_shape(o), graph=mgdfg)
+            node_info[state_variables[o.name]] = node_info[o.name]
+        else:
+            node_info[o.name] = pm.output(name=o.name, shape=get_value_info_shape(o), graph=mgdfg)
+
     for i in onnx_graph.input:
+        if i.name in state_variables.values():
+            assert i.name in node_info
+            continue
         assert i.name not in node_info
+
         if i.name in initializers:
             if itercheck(initializers[i.name]):
                 node_info[i.name] = pm.variable(initializers[i.name], name=i.name, shape=get_value_info_shape(i), graph=mgdfg)
@@ -80,12 +113,7 @@ def generate_nn_mdfg(onnx_graph):
         else:
             node_info[i.name] = pm.input(name=i.name, shape=get_value_info_shape(i), graph=mgdfg)
 
-    for o in onnx_graph.output:
-        assert o.name not in node_info
-        if o.name in initializers:
-            node_info[o.name] = pm.variable(initializers[o.name], name=o.name, shape=get_value_info_shape(o), graph=mgdfg)
-        else:
-            node_info[o.name] = pm.output(name=o.name, shape=get_value_info_shape(o), graph=mgdfg)
+
 
     for v in onnx_graph.value_info:
         assert v.name not in node_info
@@ -94,36 +122,47 @@ def generate_nn_mdfg(onnx_graph):
         else:
             node_info[v.name] = {"name": v.name, "shape": get_value_info_shape(v)}
 
+
     for n in onnx_graph.node:
         assert n.op_type in NODE_NAMES
-        _ = convert_node(n, mgdfg, node_info)
+        _ = convert_node(n, mgdfg, node_info, state_variables)
 
     return mgdfg
 
-def convert_node(onnx_node, mgdfg, node_info):
+def convert_node(onnx_node, mgdfg, node_info, state_vars):
     name = onnx_node.name
     args = []
 
     for i in onnx_node.input:
-        assert i in mgdfg.nodes
+        if i not in mgdfg.nodes:
+            raise KeyError(f"Input node {i} not in graph nodes:\n"
+                           f"Nodes: {list(mgdfg.nodes.keys())}")
+
         args.append(mgdfg.nodes[i])
 
     assert len(onnx_node.output) == 1 and onnx_node.output[0] in node_info
-
-    o_name = onnx_node.output[0]
+    o_name = state_vars[onnx_node.output[0]] if onnx_node.output[0] in state_vars else onnx_node.output[0]
     if isinstance(node_info[o_name], dict):
         o_shape = node_info[o_name]["shape"]
         attributes = get_attributes(onnx_node)
-        args = tuple(args + list(attributes.values()) + list(o_shape))
+        args = tuple(args)
+        kwargs = attributes
+        kwargs['shape'] = tuple(list(o_shape))
         with mgdfg:
-            new_node = NODE_NAMES[onnx_node.op_type](*args, name=o_name)
+            new_node = NODE_NAMES[onnx_node.op_type](*args, name=o_name, **kwargs)
+            new_node.shape = o_shape
+
     else:
+
         o_shape = node_info[o_name].shape
         attributes = get_attributes(onnx_node)
-        args = tuple(args + list(attributes.values()) + list(o_shape))
-        indices = tuple([pm.index(0, s-1, name=f"{o_name}_i", graph=mgdfg) for s in o_shape])
+        # args = tuple(args + list(attributes.values()) + list(o_shape))
+        args = tuple(args)
+        kwargs = attributes
+        kwargs['shape'] = tuple(list(o_shape))
+        indices = tuple([pm.index(0, s-1, graph=mgdfg) for s in o_shape])
         with mgdfg:
-            new_node = NODE_NAMES[onnx_node.op_type](*args)
+            new_node = NODE_NAMES[onnx_node.op_type](*args, **kwargs)
             node_info[o_name][indices] = new_node[indices]
 
     return mgdfg
@@ -132,7 +171,7 @@ def _print_proto_fields(pb):
     print(f"{pb} fields : {[n.name for n in pb.DESCRIPTOR.fields]}")
 
 def get_value_info_shape(vi):
-    ret = tuple([dim.dim_value for dim in vi.type.tensor_type.shape.dim if dim.dim_value > 0])
+    ret = tuple([dim.dim_value for dim in vi.type.tensor_type.shape.dim if dim.dim_value > 1])
     return ret if len(ret) > 0 else (1,)
 
 def get_attributes(node):
@@ -146,7 +185,8 @@ def get_attributes(node):
                 val = np.asarray(val)
             else:
                 val = val[0]
-
+        if a.name in ["from","to"]:
+            val = TENSOR_TYPE_TO_NP_TYPE[val]
         attributes[a.name] = val
 
     return attributes
@@ -156,6 +196,7 @@ def itercheck(obj):
         return len(obj.shape) > 0
     else:
         return hasattr(obj, '__iter__') and not isinstance(obj, str)
+
 
 def gen_from_shape(graph_type, input_shape, params=None):
     if graph_type == "linear":

@@ -215,7 +215,7 @@ def linear(m=3, coarse=False):
 
 
 
-def backprop_data_gen(l1, l2, l3, mu=1.0, lowered=False, debug=False):
+def backprop_data_gen(l1=None, l2=None, l3=None, mu=1.0, lowered=False, debug=False):
     input_info = {}
     if debug:
         input_info["x"] = np.arange(-1*l1//2, l1//2).clip(-3,3)
@@ -225,41 +225,45 @@ def backprop_data_gen(l1, l2, l3, mu=1.0, lowered=False, debug=False):
 
     if debug:
         w1 = np.arange(-l2//2, l2//2)
-        input_info["w1"] = np.repeat(w1, l1).reshape((l2,l1)).clip(-3,3)
+        input_info["w1"] = np.repeat(w1, l1).reshape((l1,l2)).clip(-3,3)
     else:
-        input_info["w1"] = np.random.randint(-3, 3, (l2,l1))
+        input_info["w1"] = np.random.randint(-3, 3, (l1,l2))
 
     if debug:
         w2 = np.arange(-l3//2, l3//2)
-        input_info["w2"] = np.repeat(w2, l2).reshape((l3,l2)).clip(-3,3)
+        input_info["w2"] = np.repeat(w2, l2).reshape((l2,l3)).clip(-3,3)
     else:
-        input_info["w2"] = np.random.randint(-3, 3, (l3,l2))
+        input_info["w2"] = np.random.randint(-3, 3, (l2,l3))
 
     if debug:
         input_info["y"] = np.arange(-1*l3//2, l3//2).clip(-3,3)
     else:
         input_info["y"] = np.random.randint(-3, 3, l3)
 
+    # if debug:
+    #     input_info["b1"] = np.arange(-1*l2//2, l2//2).clip(-3,3)
+    # else:
+    #     input_info["b1"] = np.random.randint(-3, 3, l2)
+    #
+    #
+    # if debug:
+    #     input_info["b2"] = np.arange(-1*l2//2, l2//2).clip(-3,3)
+    # else:
+    #     input_info["b2"] = np.random.randint(-3, 3, l2)
+
+
     input_info["mu"] = mu
     out_info = np_backprop(input_info)
     if lowered:
         all_keys = []
-        for i1 in range(l1):
-            input_info[f"x/x({i1},)"] = input_info["x"][i1]
-            for i2 in range(l2):
-                w_key = f"w1/w1({i2}, {i1})"
-                all_keys.append(w_key)
-                input_info[w_key] = input_info["w1"][(i2,i1)]
-        for i3 in range(l3):
-            input_info[f"y/y({i3},)"] = input_info["y"][i3]
-            for i2 in range(l2):
-                w_key = f"w2/w2({i3}, {i2})"
-                all_keys.append(w_key)
-                input_info[w_key] = input_info["w2"][(i3,i2)]
-        input_info.pop("w1")
-        input_info.pop("w2")
-        input_info.pop("x")
-        input_info.pop("y")
+        for k in list(input_info.keys()):
+            if hasattr(input_info[k], "shape"):
+                pairs = list(product(*tuple([np.arange(i) for i in input_info[k].shape])))
+                for p in pairs:
+                    input_info[f"{k}/{k}{p}"] = input_info[k][p]
+                    if k in ['w1','w2']:
+                        all_keys.append(f"{k}/{k}{p}")
+                input_info.pop(k)
     else:
         all_keys = ["w1","w2"]
 
@@ -268,48 +272,48 @@ def backprop_data_gen(l1, l2, l3, mu=1.0, lowered=False, debug=False):
 
 def np_backprop(input_info):
     out_info = {}
-    out_info["a1"] = sigmoid(input_info["w1"].dot(input_info["x"]))
-    out_info["a2"] = sigmoid(input_info["w2"].dot(out_info["a1"]))
+    out_info["a1"] = sigmoid(input_info["x"].dot(input_info["w1"]))
+    out_info["a2"] = sigmoid(out_info["a1"].dot(input_info["w2"]))
     out_info["d3"] = out_info["a2"] - input_info["y"]
 
-    out_info["d2"] = out_info["d3"].dot(input_info["w2"])*(out_info["a1"]*(1-out_info["a1"]))
-    out_info["w1"] = input_info["w1"] - input_info["mu"]*(np.outer(input_info["x"], out_info["d2"]).T)
-    out_info["w2"] = input_info["w2"] - input_info["mu"]*(np.outer(out_info["a1"], out_info["d3"]).T)
+    out_info["d2"] = input_info["w2"].dot(out_info["d3"])*(out_info["a1"]*(1-out_info["a1"]))
+    out_info["w1"] = input_info["w1"] - input_info["mu"]*(np.outer(input_info["x"], out_info["d2"]))
+    out_info["w2"] = input_info["w2"] - input_info["mu"]*(np.outer(out_info["a1"], out_info["d3"]))
 
     return out_info
 
-def backprop(l1_=9, l2_=10, l3_=1, coarse=False, debug=False, pbar=False):
+def backprop(l1=9, l2=10, l3=1, coarse=False, debug=False, pbar=False):
     with pm.Node(name="backprop") as graph:
-        mu = pm.parameter("mu", default=1.0)
-        l1 = pm.parameter("l1")
-        l2 = pm.parameter("l2")
-        l3 = pm.parameter("l3")
-        x = pm.input("x", shape=(l1))
-        y = pm.input("y", shape=(l3))
-        w1 = pm.state("w1", shape=(l2, l1))
-        w2 = pm.state("w2", shape=(l3, l2))
+        mu = pm.parameter("mu", default=1)
+        l1_ = pm.parameter("l1")
+        l2_ = pm.parameter("l2")
+        l3_ = pm.parameter("l3")
+        x = pm.input("x", shape=(l1_))
+        y = pm.input("y", shape=(l3_))
+        w1 = pm.state("w1", shape=(l1_, l2_))
+        w2 = pm.state("w2", shape=(l2_, l3_))
 
-        i1 = pm.index(0, (l1 - 1), name="i1")
-        i2 = pm.index(0, (l2 - 1), name="i2")
-        i3 = pm.index(0, (l3 - 1), name="i3")
+        i1 = pm.index(0, (l1_ - 1), name="i1")
+        i2 = pm.index(0, (l2_ - 1), name="i2")
+        i3 = pm.index(0, (l3_ - 1), name="i3")
 
-        a1 = pm.sigmoid(pm.sum([i1], (w1[i2, i1] * x[i1]).set_name("w1*x"),name="sum(w1*x)"),name="a1")
-        a2 = pm.sigmoid(pm.sum([i2], (w2[i3, i2] * a1[i2]).set_name("w2*a1"), name="sum(w2*a1)"), name="a2")
+        a1 = pm.sigmoid(pm.sum([i1], x[i1]*(w1[i1, i2]).set_name("w1*x"),name="sum(w1*x)"),name="a1")
+        a2 = pm.sigmoid(pm.sum([i2], (w2[i2, i3] * a1[i2]).set_name("w2*a1"), name="sum(w2*a1)"), name="a2")
         d3 = (a2[i3] - y[i3]).set_name("d3")
-        d2 = pm.sum([i3], (w2[i3, i2]*d3[i3]) * ( a1[i2]*(mu - a1[i2])), name="d2")
-        g1 = (d2[i2]*x[i1]).set_name("g1")
-        g2 = (d3[i3] * a1[i2]).set_name("g2")
-        w1[i2, i1] = w1[i2, i1] - mu*g1[i2, i1]
-        w2[i3, i2] = w2[i3, i2] - mu*g2[i3, i2]
+        d2 = pm.sum([i3], (w2[i2, i3]*d3[i3]) * ( a1[i2]*(mu - a1[i2])), name="d2")
+        g1 = (x[i1]*d2[i2]).set_name("g1")
+        g2 = (a1[i2]*d3[i3]).set_name("g2")
+        w1[i1, i2] = w1[i1, i2] - mu*g1[i1, i2]
+        w2[i2, i3] = w2[i2, i3] - mu*g2[i2, i3]
 
 
     if coarse:
-        in_info, keys, out_info = backprop_data_gen(l1_, l2_, l3_, debug=debug)
+        in_info, keys, out_info = backprop_data_gen(l1, l2, l3, debug=debug)
         return graph, in_info, out_info, keys
     else:
-        shape_val_pass = pm.NormalizeGraph({"l1": l1_, "l2": l2_, "l3": l3_}, debug=pbar)
+        shape_val_pass = pm.NormalizeGraph({"l1": l1, "l2": l2, "l3": l3}, debug=pbar)
         new_graph = shape_val_pass(graph)
-        in_info, keys, out_info = backprop_data_gen(l1_, l2_, l3_, lowered=True, debug=debug)
+        in_info, keys, out_info = backprop_data_gen(l1, l2, l3, lowered=True, debug=debug)
         return new_graph, in_info, out_info, keys
 
 def linear_raw(m=3, coarse=False):
@@ -370,26 +374,26 @@ def np_logistic(input_info):
     out_info["w"] = input_info["w"] - out_info["mu*g"]
     return out_info
 
-def logistic(m_=3, coarse=False):
+def logistic(m=3, coarse=False):
     with pm.Node(name="logistic") as graph:
-        m = pm.parameter("m")
+        m_ = pm.parameter("m")
         mu = pm.parameter(name="mu", default=1)
-        x = pm.input("x", shape=(m))
+        x = pm.input("x", shape=(m_))
         y = pm.input("y")
-        w = pm.state("w", shape=(m))
-        i = pm.index(0, (m - 1).set_name("m-1"), name="i")
+        w = pm.state("w", shape=(m_))
+        i = pm.index(0, (m_ - 1).set_name("m-1"), name="i")
         h = pm.sigmoid(pm.sum([i], (x[i] * w[i]), name="h"))
         d = (h - y).set_name("h-y")
         g = (d * x[i]).set_name("d*x")
         w[i] = w[i] - mu * g[i]
 
     if coarse:
-        in_info, keys, out_info = logistic_data_gen(m=m_)
+        in_info, keys, out_info = logistic_data_gen(m=m)
         return graph, in_info, out_info, keys
     else:
-        shape_val_pass = pm.NormalizeGraph({"m": m_})
+        shape_val_pass = pm.NormalizeGraph({"m": m})
         new_graph = shape_val_pass(graph)
-        in_info, keys, out_info = logistic_data_gen(m=m_, lowered=True)
+        in_info, keys, out_info = logistic_data_gen(m=m, lowered=True)
         return new_graph, in_info, out_info, keys
 
 def logistic_data_gen(m=3, mu=1.0, lowered=False):
@@ -474,15 +478,15 @@ def reco_data_gen(m_=3, n_=3, k_=2, mu=1.0, lowered=False):
     input_info["m"] = m_
     input_info["n"] = n_
     input_info["k"] = k_
-    input_info["w1"] = np.random.randint(1, 50, m_ * k_).reshape(m_, k_)
-    input_info["w2"] = np.random.randint(1, 50, n_ * k_).reshape(n_, k_)
-    input_info["x1"] = np.random.randint(1, 50, k_)
-    input_info["x2"] = np.random.randint(1, 50, k_)
+    input_info["w1"] = np.random.randint(-3, 5, m_ * k_).reshape(m_, k_)
+    input_info["w2"] = np.random.randint(-3, 5, n_ * k_).reshape(n_, k_)
+    input_info["x1"] = np.random.randint(-3, 5, k_)
+    input_info["x2"] = np.random.randint(-3, 5, k_)
 
     input_info["r1"] = np.random.randint(0, 2, m_)
-    input_info["y1"] = np.random.randint(0, 50, m_)
+    input_info["y1"] = np.random.randint(0, 5, m_)
     input_info["r2"] = np.random.randint(0, 2, n_)
-    input_info["y2"] = np.random.randint(0, 50, n_)
+    input_info["y2"] = np.random.randint(0, 5, n_)
     out_info = numpy_reco(input_dict=input_info)
     if lowered:
         pairs_w1 = list(product(*tuple([np.arange(i) for i in input_info["w1"].shape])))
@@ -520,28 +524,30 @@ def reco_data_gen(m_=3, n_=3, k_=2, mu=1.0, lowered=False):
         all_keys = ["w1", "w2"]
     return input_info, all_keys, out_info
 
-def reco(m_=3, n_=3, k_=2, coarse=False):
+def reco(m=3, n=3, k=3, coarse=False):
     with pm.Node(name="reco") as graph:
-        m = pm.parameter("m")
-        n = pm.parameter("n")
-        k = pm.parameter("k")
+        m_ = pm.parameter("m")
+        n_ = pm.parameter("n")
+        k_ = pm.parameter("k")
         mu = pm.parameter("mu")
-        x1 = pm.input("x1", shape=(k))
-        x2 = pm.input("x2", shape=(k))
+        x1 = pm.input("x1", shape=(k_))
+        x2 = pm.input("x2", shape=(k_))
 
-        r1 = pm.input("r1", shape=(m))
-        y1 = pm.input("y1", shape=(m))
+        r1 = pm.input("r1", shape=(m_))
+        y1 = pm.input("y1", shape=(m_))
 
-        r2 = pm.input("r2", shape=(n))
-        y2 = pm.input("y2", shape=(n))
+        r2 = pm.input("r2", shape=(n_))
+        y2 = pm.input("y2", shape=(n_))
 
-        w1 = pm.state("w1", shape=(m, k))
-        w2 = pm.state("w2", shape=(n, k))
-        i = pm.index(0, (m - 1).set_name("m-1"), name="i")
-        j = pm.index(0, (n - 1).set_name("n-1"), name="j")
-        l = pm.index(0, (k - 1).set_name("k-1"), name="l")
+        w1 = pm.state("w1", shape=(m_, k_))
+        w2 = pm.state("w2", shape=(n_, k_))
+        i = pm.index(0, (m_ - 1).set_name("m-1"), name="i")
+        j = pm.index(0, (n_ - 1).set_name("n-1"), name="j")
+        l = pm.index(0, (k_ - 1).set_name("k-1"), name="l")
+
         h1_sum = pm.sum([l], (w1[i, l] * x2[l]).set_name("w1*x2")).set_name("h1_sum")
         h1 = (h1_sum[i] * r1[i]).set_name("h1")
+
         h2_sum = pm.sum([l], (w2[j, l] * x1[l]).set_name("w2*x1")).set_name("h2_sum")
         h2 = (h2_sum[j] * r2[j]).set_name("h2")
 
@@ -553,12 +559,12 @@ def reco(m_=3, n_=3, k_=2, coarse=False):
         w2[j, l] = (w2[j, l] - (mu*g2[j, l]).set_name("mu*g2")).set_name("w2-g2")
 
     if coarse:
-        in_info, keys, out_info = reco_data_gen(m_=m_,n_=n_, k_=k_)
+        in_info, keys, out_info = reco_data_gen(m_=m,n_=n, k_=k)
         return graph, in_info, out_info, keys
     else:
-        shape_val_pass = pm.NormalizeGraph({"m": m_, "n": n_, "k": k_})
+        shape_val_pass = pm.NormalizeGraph({"m": m, "n": n, "k": k})
         new_graph = shape_val_pass(graph)
-        in_info, keys, out_info = reco_data_gen(m_=m_,n_=n_, k_=k_, lowered=True)
+        in_info, keys, out_info = reco_data_gen(m_=m, n_=n, k_=k, lowered=True)
         return new_graph, in_info, out_info, keys
 
 def debug_node_attr(node, tabs=None):
@@ -604,7 +610,6 @@ def compare_nodes(node_x, node_y):
 
         return False
 
-    # for idx, s in enumerate(node_x.shape):
     if len(node_x.args) != len(node_y.args):
         return False
 
@@ -1129,7 +1134,7 @@ def np_lenet(lowered=False):
 def batch_flatten(x):
     return x.reshape(-1)
 
-def lenet(coarse=True, debug=False):
+def lenet(lenet_type="lenet5", coarse=True, debug=False):
 
     with pm.Node(name="lenet") as graph:
         n = pm.parameter(name="n")
@@ -1150,53 +1155,53 @@ def lenet(coarse=True, debug=False):
         l1 = pm.output(name="l1")
 
         pm.conv(data, w1, b1, c1, s1, p1)
-        # pm.relu(c1, a1)
-        # pm.avg_pool2d(a1, l1, 2, 2, 2, 0)
-        #
-        # nf2 = pm.parameter(name="nf2")
-        # kh2 = pm.parameter(name="kh2")
-        # kw2 = pm.parameter(name="kw2")
-        # w2 = pm.state(name="w2", shape=(nf2, nf1, kh2, kw2))
-        # b2 = pm.state(name="b2", shape=(nf2))
-        # s2 = pm.parameter(name="s2")
-        # p2 = pm.parameter(name="p2")
-        # c2 = pm.output(name="c2")
-        # a2 = pm.output(name="a2")
-        # l2 = pm.output(name="l2")
-        #
-        # pm.conv(l1, w2, b2, c2, s2, p2)
-        # pm.relu(c2, a2)
-        # pm.avg_pool2d(a2, l2, 2, 2, 2, 0)
-        #
-        # f5 = pm.output(name="f5")
-        # pm.batch_flatten(l2, f5)
-        #
-        # f6 = pm.output(name="f6")
-        # m6 = pm.parameter(name="m6")
-        # n6 = pm.parameter(name="n6")
-        # w6 = pm.state(name="w6", shape=(n6, m6))
-        # a6 = pm.output(name="a6")
-        # pm.dense(f5, w6, f6)
-        # pm.relu1d(f6, a6)
-        #
-        # f7 = pm.output(name="f7")
-        # m7 = pm.parameter(name="m7")
-        # n7 = pm.parameter(name="n7")
-        # w7 = pm.state(name="w7", shape=(n7, m7))
-        # a7 = pm.output(name="a7")
-        # pm.dense(a6, w7, f7)
-        # pm.relu1d(f7, a7)
+        pm.relu(c1, a1)
+        pm.avg_pool2d(a1, l1, 2, 2, 2, 0)
 
-        # f8 = pm.output(name="f8")
-        # m8 = pm.parameter(name="m8")
-        # n8 = pm.parameter(name="n8")
-        # w8 = pm.state(name="w8", shape=(n8, m8))
-        # a8 = pm.output(name="a8")
-        # pm.dense(a7, w8, f8)
-        # pm.relu1d(f8, a8)
-        #
-        # out = pm.output(name="sm")
-        # pm.softmax(a8, out)
+        nf2 = pm.parameter(name="nf2")
+        kh2 = pm.parameter(name="kh2")
+        kw2 = pm.parameter(name="kw2")
+        w2 = pm.state(name="w2", shape=(nf2, nf1, kh2, kw2))
+        b2 = pm.state(name="b2", shape=(nf2))
+        s2 = pm.parameter(name="s2")
+        p2 = pm.parameter(name="p2")
+        c2 = pm.output(name="c2")
+        a2 = pm.output(name="a2")
+        l2 = pm.output(name="l2")
+
+        pm.conv(l1, w2, b2, c2, s2, p2)
+        pm.relu(c2, a2)
+        pm.avg_pool2d(a2, l2, 2, 2, 2, 0)
+
+        f5 = pm.output(name="f5")
+        pm.batch_flatten(l2, f5)
+
+        f6 = pm.output(name="f6")
+        m6 = pm.parameter(name="m6")
+        n6 = pm.parameter(name="n6")
+        w6 = pm.state(name="w6", shape=(n6, m6))
+        a6 = pm.output(name="a6")
+        pm.dense(f5, w6, f6)
+        pm.relu1d(f6, a6)
+
+        f7 = pm.output(name="f7")
+        m7 = pm.parameter(name="m7")
+        n7 = pm.parameter(name="n7")
+        w7 = pm.state(name="w7", shape=(n7, m7))
+        a7 = pm.output(name="a7")
+        pm.dense(a6, w7, f7)
+        pm.relu1d(f7, a7)
+
+        f8 = pm.output(name="f8")
+        m8 = pm.parameter(name="m8")
+        n8 = pm.parameter(name="n8")
+        w8 = pm.state(name="w8", shape=(n8, m8))
+        a8 = pm.output(name="a8")
+        pm.dense(a7, w8, f8)
+        pm.relu1d(f8, a8)
+
+        out = pm.output(name="sm")
+        pm.softmax(a8, out)
     if coarse:
         in_info, keys, out_info = np_lenet()
         return graph, in_info, out_info, keys

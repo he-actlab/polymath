@@ -1,4 +1,4 @@
-from polymath.mgdfg.passes.compiler_passes import DeadNodeElimination, NormalizeGraph, Lower
+from polymath.mgdfg.passes.compiler_passes import NormalizeGraph, Lower
 import polymath as pm
 import pprint
 import numpy as np
@@ -40,7 +40,7 @@ def test_reco():
     m_ = 3
     n_ = 3
     k_ = 2
-    shape_dict = {"m_": n_, "k_": k_, "n_": n_}
+    shape_dict = {"m": n_, "k": k_, "n": n_}
     graph, input_info, out_info, keys = reco(coarse=True, **shape_dict)
     coarse_eval = graph(keys, input_info)
     np.testing.assert_allclose(coarse_eval[0], out_info["w1"])

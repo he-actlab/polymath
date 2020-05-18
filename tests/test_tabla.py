@@ -33,7 +33,6 @@ def test_linear_reg_embedded_values(m_):
     graph, input_info, out_info, keys = linear(m=m_, coarse=True)
     lgraph, input_info, out_info, keys = linear(m=m_, coarse=False)
     tabla_path = f"{OUTPATH}/{graph.name}_{m_}_tabla.json"
-
     tabla_ir, tabla_graph = pm.generate_tabla(graph,
                                               shape_dict,
                                               tabla_path,
@@ -65,8 +64,8 @@ def test_backprop_embedded_values(l1, l2, l3):
 ])
 def test_logreg_reg_embedded_values(m_):
     shape_dict = {"m": m_}
-    graph, input_info, out_info, keys = logistic(m_=m_, coarse=True)
-    _, input_info, out_info, keys = logistic(m_=m_, coarse=False)
+    graph, input_info, out_info, keys = logistic(m=m_, coarse=True)
+    _, input_info, out_info, keys = logistic(m=m_, coarse=False)
     tabla_path = f"{OUTPATH}/{graph.name}_{m_}_tabla.json"
 
     tabla_ir, tabla_graph = pm.generate_tabla(graph,
@@ -78,8 +77,8 @@ def test_logreg_reg_embedded_values(m_):
 ])
 def test_reco_embedded_values(m, n, k):
     shape_dict = {"m": m, "n": n, "k": k}
-    graph, input_info, out_info, keys = reco(m_=m, n_=n, k_=k, coarse=True)
-    ngraph, input_info, out_info, keys = reco(m_=m, n_=n, k_=k, coarse=False)
+    graph, input_info, out_info, keys = reco(m=m, n=n, k=k, coarse=True)
+    ngraph, input_info, out_info, keys = reco(m=m, n=n, k=k, coarse=False)
     tabla_path = f"{OUTPATH}/{graph.name}_{m}_{n}_{k}_tabla.json"
     tabla_ir, tabla_graph = pm.generate_tabla(graph,
                                               shape_dict,
@@ -158,7 +157,7 @@ def test_svm(m_):
 ])
 def test_logistic_reg(m_):
     shape_dict = {"m": m_}
-    graph, input_info, out_info, keys = logistic(m_=m_, coarse=True)
+    graph, input_info, out_info, keys = logistic(m=m_, coarse=True)
     coarse_eval = graph(keys, input_info)
     np.testing.assert_allclose(coarse_eval, out_info["w"])
 
@@ -172,7 +171,7 @@ def test_logistic_reg(m_):
 ])
 def test_reco_state_write(m_, n_, k_):
     shape_dict = {"m": m_, "n": n_, "k": k_}
-    graph, input_info, out_info, keys = reco(m_=m_, n_=n_, k_=k_, coarse=True)
+    graph, input_info, out_info, keys = reco(m=m_, n=n_, k=k_, coarse=True)
     coarse_eval = graph(keys, input_info)
     np.testing.assert_allclose(coarse_eval[0], out_info["w1"])
     np.testing.assert_allclose(coarse_eval[1], out_info["w2"])

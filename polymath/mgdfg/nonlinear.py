@@ -32,7 +32,7 @@ class NonLinear(Node):
 
         if isinstance(key, (tuple, list, np.ndarray)) and len(key) == 0:
             return self
-        elif self.is_shape_finalized() or len(self.nodes) > 0:
+        elif self.is_shape_finalized() and len(self.nodes) > 0:
             if isinstance(key, (int, Node)):
                 key = tuple([key])
             if len(key) != len(self.shape):
@@ -113,6 +113,10 @@ class sqrt(NonLinear):
     def __init__(self, input_node, **kwargs):
         super(sqrt, self).__init__(_sqrt, input_node, **kwargs)
 
+class cast(NonLinear):
+    def __init__(self, np_dtype, input_node, **kwargs):
+        super(cast, self).__init__(np.cast[np_dtype], input_node, **kwargs)
+
 def _log2(value):
     return np.log2(value)
 
@@ -127,3 +131,7 @@ def _abs(value):
 
 def _sqrt(value):
     return np.sqrt(value)
+
+def _cast(target, value):
+    return target(value)
+

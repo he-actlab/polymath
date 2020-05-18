@@ -151,7 +151,17 @@ class Domain(object):
 
     def compute_shape_domain(self, indices=None):
         if indices:
-            dom_pairs = np.asarray([i.value if _is_node_instance(i) else i for i in indices])
+            dom_pairs = []
+            for i in indices:
+                if _is_node_instance(i):
+                    dom_pairs.append(i.value)
+                elif isinstance(i, Integral):
+                    dom_pairs.append((i,))
+                else:
+                    dom_pairs.append(i)
+
+            # dom_pairs = np.asarray([i.value if _is_node_instance(i) else i for i in indices])
+            dom_pairs = np.asarray(dom_pairs)
         else:
             dom_pairs = []
             for i in self.doms:

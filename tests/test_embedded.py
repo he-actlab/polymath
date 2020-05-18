@@ -721,14 +721,6 @@ def test_stack_trace():
         assert isinstance(ex.__cause__, pm.EvaluationError)
 
 
-# def test_placeholder_with_kwargs():
-#     with pm.Node() as graph:
-#         a = pm.placeholder(name="None", shape=(2))
-#         b, c = a
-#
-#     assert graph([b, c], {a: [1, 2]}) == (1, 2)
-
-
 def test_thread_compatibility():
     def work(event):
         with pm.Node() as graph:

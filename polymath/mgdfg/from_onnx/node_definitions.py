@@ -126,8 +126,6 @@ class linear_classifier(pm.Node):
 class normalizer(pm.Node):
     pass
 
-class cast(pm.Node):
-    pass
 
 class zipmap(pm.Template):
     pass
@@ -172,14 +170,6 @@ class linear_regressor_train(pm.Template):
         g = (d * x[i]).set_name("d*x")
         w[i] = w[i] - mu * g[i]
 
-class reshape(pm.Template):
-    def define_graph(self, *args, **kwargs):
-        pass
-
-class gemm(pm.Template):
-    def define_graph(self, *args, **kwargs):
-        pass
-
 class dropout(pm.Template):
     def define_graph(self, *args, **kwargs):
         pass
@@ -211,25 +201,93 @@ class batch_flatten(pm.Template):
         l = pm.index(0, data.shape[3]-1, name="l")
         out[((i*m + j)*n + k)*p + l] = data[i, j, k, l]
 
-def reduce_sum(data, axis, keepdims, m, name=None, **kwargs):
-    i = pm.index(0, data.shape[axis] - 1, name=f"{name}_i")
+def reduce_sum(data, axes=None, keepdims=None, shape=None, name=None, **kwargs):
+    i = pm.index(0, data.shape[axes] - 1)
     return pm.sum([i], data[i], name=name)
 
-def elem_sub(a, b, m, name=None, **kwargs):
-    i = pm.index(0, (m - 1), name=f"{name}_i")
-    return (a[i] - b[i]).set_name(name)
+def elem_greater(a, b, shape=None, name=None, **kwargs):
+    indices = tuple([pm.index(0, s - 1) for s in shape])
+    return (a[indices] < b[indices]).set_name(name)
 
-def elem_mul(a, b, m, name=None, **kwargs):
-    i = pm.index(0, (m - 1), name=f"{name}_i")
-    return (a[i] * b[i]).set_name(name)
+def elem_sub(a, b, shape=None, name=None, **kwargs):
 
-def elem_sigmoid(x, m, name=None, **kwargs):
-    i = pm.index(0, (m - 1), name=f"{name}_i")
-    return pm.sigmoid(x[i]).set_name(name)
+    indices = tuple([pm.index(0, s - 1) for s in shape])
+    return (a[indices] - b[indices]).set_name(name)
+
+def elem_mul(a, b, shape=None, name=None, **kwargs):
+    indices = tuple([pm.index(0, s - 1) for s in shape])
+    return (a[indices] * b[indices]).set_name(name)
+
+def elem_sigmoid(x, shape=None, name=None, **kwargs):
+    indices = tuple([pm.index(0, s - 1) for s in shape])
+    ret = pm.sigmoid(x[indices]).set_name(name)
+    return ret
+
+def cast(x, nptype, m, shape=None, name=None, **kwargs):
+    i = pm.index(0, (m - 1))
+    return pm.cast(nptype, x[i]).set_name(name)
+
+def unsqueeze(x, axis, *args, name=None, **kwargs):
+    x.graph.nodes[name] = x
+    return x
+
+# TODO: Check this works after changes
+def squeeze(x, axis, *args, shape=None, name=None, **kwargs):
+    x.graph.nodes[name] = x
+    return x
+
+def matmul(a, b, shape=None, name=None, **kwargs):
+    i = pm.index(0, a.shape[0] - 1)
+    j = pm.index(0, b.shape[0] - 1)
+    k = pm.index(0, b.shape[1] - 1)
+    return pm.sum([j], a[i, j]*b[j, k], name=name)
+
+def lvmatmul(a, b, shape=None, name=None, **kwargs):
+    i = pm.index(0, a.shape[0] - 1)
+    j = pm.index(0, b.shape[1] - 1)
+    return pm.sum([i], a[i]*b[i, j], name=name)
+
+def rvmatmul(a, b, shape=None, name=None, **kwargs):
+    i = pm.index(0, a.shape[0] - 1)
+    j = pm.index(0, b.shape[0] - 1)
+    return pm.sum([j], a[i, j]*b[j], name=name)
+
+def get_matmul(a, b, **kwargs):
+    if len(a.shape) == len(b.shape):
+        return matmul(a,b,**kwargs)
+    elif len(a.shape) > len(b.shape):
+        return rvmatmul(a, b, **kwargs)
+    else:
+        return lvmatmul(a, b, **kwargs)
+
+# TODO: Check this works after changes
+def reshape(data, *args, shape=None, name=None, **kwargs):
+    data._shape = shape
+    data.graph.nodes[name] = data
+    return data
+
+# TODO: Check this works after changes
+def gemm(a, b, shape=None, name=None, **kwargs):
+    i = pm.index(0, shape[0] - 1)
+    j = pm.index(0, b.shape[0] - 1)
+    k = pm.index(0, shape[1] - 1)
+    return pm.sum([j], a[i, j]*b[j, k], name=name)
+
+def transpose(data, shape=None, name=None, **kwargs):
+    indices = tuple([pm.index(0, s - 1) for s in shape])
+    out = pm.temp(name=name, shape=shape)
+    out[indices] = data[tuple(reversed(indices))]
+
+    return out
+
+def identity(data, shape=None, name=None, **kwargs):
+    data.set_name(name)
+    return data
 
 # TODO: Add reshape operator, constant operator, gemm
 NODE_NAMES = {"SVMClassifier": svm_classifier_train,
               "Conv": conv,
+              "MatMul": get_matmul,
               "MaxPool": max_pool2d,
               "Relu": relu,
               "LinearClassifier": linear_classifier,
@@ -240,9 +298,14 @@ NODE_NAMES = {"SVMClassifier": svm_classifier_train,
               "Constant": pm.parameter,
               "Reshape": reshape,
               "Gemm": gemm,
+              "Identity": identity,
               "Dropout": dropout,
               "LogSoftmax": log_softmax,
               "Sigmoid": elem_sigmoid,
               "Mul": elem_mul,
               "ReduceSum": reduce_sum,
-              "Sub": elem_sub}
+              "Unsqueeze": unsqueeze,
+              "Squeeze": squeeze,
+              "Sub": elem_sub,
+              "Transpose": transpose,
+              "Greater": elem_greater}

@@ -21,8 +21,8 @@ def create_linear(m):
                                               context_dict=input_info, add_kwargs=True)
 def create_logistic(m):
     shape_dict = {"m": m}
-    graph, input_info, out_info, keys = logistic(m_=m, coarse=True)
-    _, input_info, out_info, keys = logistic(m_=m, coarse=False)
+    graph, input_info, out_info, keys = logistic(m=m, coarse=True)
+    _, input_info, out_info, keys = logistic(m=m, coarse=False)
     cwd = Path(f"{__file__}").parent
     full_path = f"{cwd}/outputs"
     tabla_path = f"{full_path}/{graph.name}_{m}_tabla.json"
@@ -70,7 +70,6 @@ def create_backprop(l1, l2, l3):
                                               shape_dict,
                                               tabla_path,
                                               context_dict=input_info, add_kwargs=True)
-
 def generate_test_inputs(n):
     n = int(n)
     x = np.random.randint(-3,3, n)

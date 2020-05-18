@@ -211,13 +211,14 @@ class NormalizeGraph(Pass):
             out_indices = [pm.SCALAR_IDX]
             dom_pairs = [pm.SCALAR_IDX]
             idx_name = f"{node.var.name}{pm.SCALAR_IDX}"
-
             if idx_name not in node.var.nodes:
                 if isinstance(node.var, pm.placeholder):
                     x = node.var.init_from_args(graph=node.var, name=idx_name, shape=(1,))
                 elif isinstance(node.var, pm.NonLinear):
                     # TODO: Add check or fix so that the input variable is checked to have nodes or not
                     x = node.var.init_from_args(node.var.args[0][pm.SCALAR_IDX], graph=node.var, name=idx_name, shape=(1,))
+                elif isinstance(node.var, pm.GroupNode):
+                    x = node.var[pm.SCALAR_IDX]
                 # TODO: Add initializers for other types of node
                 self.stored_objects[id(x)] = x
 
@@ -367,7 +368,7 @@ class NormalizeGraph(Pass):
         kwargs["op_name"] = kwargs["op_name"] if "op_name" in kwargs else node.scalar_target.__name__
         working_set = input_nodes
         while len(working_set) > 1:
-            kwargs["name"] = f"{node.name}_pr_{(len(node.nodes),)}"
+            kwargs["name"] = f"{node.name}{(len(node.nodes),)}"
             lop = working_set.pop(0)
             rop = working_set.pop(0)
             x = func_op.init_from_args(node.scalar_target, lop, rop, **kwargs)
@@ -384,21 +385,21 @@ class NormalizeGraph(Pass):
         llen = len(left)
         rlen = len(right)
         if llen == 1 and rlen == 1:
-            kwargs["name"] = f"{node.name}_pr_{(len(node.nodes),)}"
+            kwargs["name"] = f"{node.name}{(len(node.nodes),)}"
             return func_op.init_from_args(node.scalar_target, left[0], right[0], **kwargs)
         elif llen == 1:
             div = ceil(rlen/2)
             right_op = self._div_conquer_reduce(right[0:div], right[div:], node)
             self.stored_objects[id(right_op)] = right_op
 
-            kwargs["name"] = f"{node.name}_pr_{(len(node.nodes),)}"
+            kwargs["name"] = f"{node.name}{(len(node.nodes),)}"
             return func_op.init_from_args(node.scalar_target, left[0], right_op, **kwargs)
         elif rlen == 1:
             div = ceil(llen/2)
             left_op = self._div_conquer_reduce(left[0:div], left[div:], node)
             self.stored_objects[id(left_op)] = left_op
 
-            kwargs["name"] = f"{node.name}_pr_{(len(node.nodes),)}"
+            kwargs["name"] = f"{node.name}{(len(node.nodes),)}"
             return func_op.init_from_args(node.scalar_target, left_op, right[0], **kwargs)
 
         else:
@@ -409,7 +410,7 @@ class NormalizeGraph(Pass):
             right_op = self._div_conquer_reduce(right[0:rdiv], right[rdiv:], node)
             self.stored_objects[id(right_op)] = right_op
 
-            kwargs["name"] = f"{node.name}_pr_{(len(node.nodes),)}"
+            kwargs["name"] = f"{node.name}{(len(node.nodes),)}"
             return func_op.init_from_args(node.scalar_target, left_op, right_op, **kwargs)
 
 @register_pass

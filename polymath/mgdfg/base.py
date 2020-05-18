@@ -20,7 +20,7 @@ from typing import Any
 import contextlib
 import functools
 import importlib
-from numbers import Integral, Rational
+from numbers import Integral, Rational, Real
 
 import operator
 import traceback
@@ -810,20 +810,12 @@ class var_index(Node):  # pylint: disable=C0103,W0223
             indices = self.domain.compute_pairs()
             single = False
 
-        if isinstance(var, (Integral, str)):
+        if isinstance(var, (Integral, Real, str)):
             var = np.asarray([var])
-        elif not isinstance(var, (np.ndarray,list)):
-            raise TypeError(f"Variable {var} is not a list or numpy array, and cannot be sliced for {self.name}")
+        elif not isinstance(var, (np.ndarray, list)):
+            raise TypeError(f"Variable {var} with type {type(var)} is not a list or numpy array, and cannot be sliced for {self.name}")
         elif isinstance(var, list):
             var = np.asarray(var)
-
-        if len(var.shape) != len(out_shape) and np.prod(var.shape) != np.prod(out_shape):
-            raise ValueError(f"Index list {self.domain} does not match {var.shape} dimensions for slice {self.args[0].name} with {out_shape}")
-        if not single and not all([(idx_val - 1) >= indices[-1][idx] for idx, idx_val in enumerate(var.shape)]):
-            raise ValueError(f"var_index {self.name} has indices which are greater than the variable shape:\n"
-                             f"\tArgs: {self.args}\n"
-                             f"\tVar shape: {var.shape}\n"
-                             f"\tIndex Upper bounds: {indices[-1]}")
 
         if len(var.shape) != len(out_shape) and np.prod(var.shape) == np.prod(out_shape):
             if len(out_shape) > len(var.shape):
@@ -832,6 +824,19 @@ class var_index(Node):  # pylint: disable=C0103,W0223
                         var = np.expand_dims(var, axis=i)
             else:
                 var = np.squeeze(var)
+
+        if len(var.shape) != len(out_shape) and np.prod(var.shape) != np.prod(out_shape):
+            raise ValueError(f"Index list {self.domain} does not match {var.shape} dimensions for slice {self.args[0].name} with {out_shape}")
+
+
+
+        if not single and not all([(idx_val - 1) >= indices[-1][idx] for idx, idx_val in enumerate(var.shape)]):
+            raise ValueError(f"var_index {self.name} has indices which are greater than the variable shape:\n"
+                             f"\tArgs: {self.args}\n"
+                             f"\tVar shape: {var.shape}\n"
+                             f"\tNode shape: {self.var.shape}\n"
+                             f"\tIndex Upper bounds: {indices[-1]}")
+
 
         indices = list(map(lambda x: x.tolist() if isinstance(x, np.ndarray) else x, indices))
         res = var[indices] if single else np.asarray([var[idx] for idx in indices]).reshape(out_shape)
@@ -983,8 +988,7 @@ class slice_op(Node):
                     else:
                         name.append(str(k))
             else:
-                name.append(key)
-
+                name.append(str(key))
             name = self.var.name + "[" + "][".join(name) + "]"
             if name in self.graph.nodes:
                 return self.graph.nodes[name]
@@ -1240,7 +1244,6 @@ def call(func, *args, **kwargs):
         Mapping of keyword arguments passed to `func`.
     """
     return func(*args, **kwargs)
-
 
 @contextlib.contextmanager
 def control_dependencies(dependencies, graph=None):
