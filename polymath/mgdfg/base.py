@@ -1,36 +1,19 @@
-# pylint: disable=missing-docstring
-# pylint: enable=missing-docstring
-# Copyright 2017 Spotify AB
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+
 from polymath import UNSET_SHAPE, DEFAULT_SHAPES
 import builtins
-from collections import OrderedDict, Mapping, Sequence, deque
-from typing import Any
-import contextlib
-import functools
-import importlib
-from numbers import Integral, Rational, Real
-
 import operator
+from collections import OrderedDict, Mapping, Sequence, deque
+import functools
+from numbers import Integral, Rational, Real
+import contextlib
 import traceback
 import uuid
 import numpy as np
-from polymath.mgdfg.graph import Graph
-from polymath.mgdfg.domain import Domain
+import importlib
+from .graph import Graph
+from .domain import Domain
 from .util import _noop_callback, _flatten_iterable, node_hash, \
-    _is_node_type_instance, is_iterable, is_single_valued
-import sys
+    _is_node_type_instance, is_iterable
 
 class Node(object):
     """
@@ -565,6 +548,9 @@ class Node(object):
         for i in range(num):
             yield self[i]
 
+    def __eq__(self, other):
+        return hash(self) == hash(other)
+
     def __getattr__(self, name):
         return getattr_(self, name, graph=self.graph)
 
@@ -666,8 +652,6 @@ class Node(object):
     def __le__(self, other):
         return le(self, other, graph=self.graph) if not _is_node_type_instance(other, ("slice_op", "var_index", "index")) else other.__ge__(self)
 
-    def __eq__(self, other):
-        return hash(self) == hash(other)
 
     def __ne__(self, other):
         return ne(self, other, graph=self.graph) if not _is_node_type_instance(other, ("slice_op", "var_index", "index")) else other.__ne__(self)
@@ -693,8 +677,6 @@ class Node(object):
     def __reversed__(self):
         return reversed_(self, graph=self.graph)
 
-    def is_eq(self, other):
-        return eq(self, other, graph=self.graph)
 
     def update_graph_key(self, old_key, new_key):
         n = list(map(lambda k: (new_key, self.nodes[k]) if k == old_key else (k, self.nodes[k]), self.nodes.keys()))
@@ -725,6 +707,7 @@ class var_index(Node):  # pylint: disable=C0103,W0223
             domain = tuple(kwargs.pop("domain")) if isinstance(kwargs["domain"], list) else kwargs.pop("domain")
         else:
             domain = Domain(idx)
+
         super(var_index, self).__init__(var, idx, name=name, domain=domain, **kwargs)
 
     @property
@@ -816,7 +799,6 @@ class var_index(Node):  # pylint: disable=C0103,W0223
             raise TypeError(f"Variable {var} with type {type(var)} is not a list or numpy array, and cannot be sliced for {self.name}")
         elif isinstance(var, list):
             var = np.asarray(var)
-
         if len(var.shape) != len(out_shape) and np.prod(var.shape) == np.prod(out_shape):
             if len(out_shape) > len(var.shape):
                 for i in range(len(out_shape)):
@@ -827,7 +809,6 @@ class var_index(Node):  # pylint: disable=C0103,W0223
 
         if len(var.shape) != len(out_shape) and np.prod(var.shape) != np.prod(out_shape):
             raise ValueError(f"Index list {self.domain} does not match {var.shape} dimensions for slice {self.args[0].name} with {out_shape}")
-
 
 
         if not single and not all([(idx_val - 1) >= indices[-1][idx] for idx, idx_val in enumerate(var.shape)]):
@@ -988,7 +969,7 @@ class slice_op(Node):
                     else:
                         name.append(str(k))
             else:
-                name.append(str(key))
+                name.append(key)
             name = self.var.name + "[" + "][".join(name) + "]"
             if name in self.graph.nodes:
                 return self.graph.nodes[name]
@@ -1005,6 +986,7 @@ class slice_op(Node):
         if all([isinstance(sv, Integral) for sv in shape]) and len(self.domain) == np.product(shape) and len(shape) > 0:
             self._shape = shape if isinstance(shape, tuple) else tuple(shape)
         else:
+
             for idx, d in enumerate(self.domain.dom_set):
                 if shape and isinstance(shape[idx], (func_op, Integral)):
                     s.append(shape[idx])
@@ -1162,7 +1144,6 @@ class func_op(Node):  # pylint: disable=C0103,R0903
             all_args = _flatten_iterable(args)
             slice1_var, slice1_idx, slice2_var, slice2_idx = self.get_index_nodes(all_args[0], all_args[1])
             domain = slice1_idx.combine_set_domains(slice2_idx)
-
         else:
             domain = Domain(tuple([]))
         self._target = None
@@ -1179,6 +1160,9 @@ class func_op(Node):  # pylint: disable=C0103,R0903
         self._target = fnc
         self.op_name = f"{fnc.__name__}"
         self.kwargs["target"] = f"{fnc.__module__}.{fnc.__name__}"
+
+    def __getitem__(self, key):
+        return self
 
     @property
     def domain(self):
@@ -1212,7 +1196,6 @@ class func_op(Node):  # pylint: disable=C0103,R0903
     def __repr__(self):
         return "<func_op '%s' target=%s args=<%d items>>" % \
             (self.name, self.kwargs["target"], len(self.args))
-
 
 def nodeop(target=None, **kwargs):
     """
@@ -1263,7 +1246,7 @@ def control_dependencies(dependencies, graph=None):
     # Remove dependencies from the graph
     del graph.dependencies[-len(dependencies):]
 
-# pylint: disable=C0103
+#pylint: disable=C0103
 abs_ = nodeop(builtins.abs)
 dict_ = nodeop(builtins.dict)
 help_ = nodeop(builtins.help)
@@ -1374,3 +1357,6 @@ truth = nodeop(operator.truth)
 xor = nodeop(operator.xor)
 
 import_ = nodeop(importlib.import_module)
+
+
+

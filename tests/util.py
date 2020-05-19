@@ -218,27 +218,27 @@ def linear(m=3, coarse=False):
 def backprop_data_gen(l1=None, l2=None, l3=None, mu=1.0, lowered=False, debug=False):
     input_info = {}
     if debug:
-        input_info["x"] = np.arange(-1*l1//2, l1//2).clip(-3,3)
+        input_info["x"] = np.arange(-1*l1//2, l1//2).clip(-3,3).astype(np.float)
 
     else:
-        input_info["x"] = np.random.randint(-3, 3, l1)
+        input_info["x"] = np.random.randint(-3, 3, l1).astype(np.float)
 
     if debug:
         w1 = np.arange(-l2//2, l2//2)
-        input_info["w1"] = np.repeat(w1, l1).reshape((l1,l2)).clip(-3,3)
+        input_info["w1"] = np.repeat(w1, l1).reshape((l1,l2)).clip(-3,3).astype(np.float)
     else:
-        input_info["w1"] = np.random.randint(-3, 3, (l1,l2))
+        input_info["w1"] = np.random.randint(-3, 3, (l1,l2)).astype(np.float)
 
     if debug:
         w2 = np.arange(-l3//2, l3//2)
-        input_info["w2"] = np.repeat(w2, l2).reshape((l2,l3)).clip(-3,3)
+        input_info["w2"] = np.repeat(w2, l2).reshape((l2,l3)).clip(-3,3).astype(np.float)
     else:
-        input_info["w2"] = np.random.randint(-3, 3, (l2,l3))
+        input_info["w2"] = np.random.randint(-3, 3, (l2,l3)).astype(np.float)
 
     if debug:
-        input_info["y"] = np.arange(-1*l3//2, l3//2).clip(-3,3)
+        input_info["y"] = np.arange(-1*l3//2, l3//2).clip(-3,3).astype(np.float)
     else:
-        input_info["y"] = np.random.randint(-3, 3, l3)
+        input_info["y"] = np.random.randint(-3, 3, l3).astype(np.float)
 
     # if debug:
     #     input_info["b1"] = np.arange(-1*l2//2, l2//2).clip(-3,3)
@@ -257,7 +257,7 @@ def backprop_data_gen(l1=None, l2=None, l3=None, mu=1.0, lowered=False, debug=Fa
     if lowered:
         all_keys = []
         for k in list(input_info.keys()):
-            if hasattr(input_info[k], "shape"):
+            if hasattr(input_info[k], "shape") and input_info[k].shape != (1,):
                 pairs = list(product(*tuple([np.arange(i) for i in input_info[k].shape])))
                 for p in pairs:
                     input_info[f"{k}/{k}{p}"] = input_info[k][p]
@@ -284,7 +284,7 @@ def np_backprop(input_info):
 
 def backprop(l1=9, l2=10, l3=1, coarse=False, debug=False, pbar=False):
     with pm.Node(name="backprop") as graph:
-        mu = pm.parameter("mu", default=1)
+        mu = pm.parameter("mu", default=1.0)
         l1_ = pm.parameter("l1")
         l2_ = pm.parameter("l2")
         l3_ = pm.parameter("l3")

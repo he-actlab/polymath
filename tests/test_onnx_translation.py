@@ -2,14 +2,11 @@ import polymath as pm
 from tests.util import linear, op_counts, logistic, svm, reco,\
     dense, conv, two_layer_dense, pooling, backprop
 from pathlib import Path
-import islpy as isl
-
+import pickle
 import pytest
 import pprint
 import numpy as np
 import copy
-import onnxruntime as rt
-from onnx import numpy_helper, helper, defs
 BENCH_DIR = Path(f"{Path(__file__).parent}/../benchmarks/onnx_files")
 CWD = Path(f"{__file__}").parent
 BASE_PATH = f"{CWD}/pmlang_examples"
@@ -27,12 +24,12 @@ def generate_test_inputs(n):
 #     for f in ONNX_FILE_DIR.iterdir():
 #         _ = pm.from_onnx(str(f))
 
-
+#
 @pytest.mark.parametrize('benchmark_name, feature_dict, data_func, input_keys, output_key',[
-    ("linear", {'m': 54}, linear, {"y":"y:0", "x":"x:0", "w":"W:0"}, ("w", "W:0")),
-    ("logistic", {'m': 54}, logistic, {"y":"y:0", "x":"x:0", "w":"W:0"}, ("w", "W:0")),
-    # ("svm", {'m': 54}, svm, {"y":"y:0", "x":"x:0", "w":"W:0"}, ("w", "W:0")),
-    # ("backprop", {'l1': 61, 'l2':128, 'l3':4}, backprop, {"y":"y:0", "x":"x:0", "w1":"W1:0","w2":"W2:0"}, ("w1", "W1_out:0")),
+    ("linear", {'m': 54}, linear, {"y":"y:0", "x":"x:0", "w":"W:0"}, [("w", "W:0")]),
+    # ("logistic", {'m': 54}, logistic, {"y":"y:0", "x":"x:0", "w":"W:0"}, [("w", "W:0")]),
+    # ("svm", {'m': 54}, svm, {"y":"y:0", "x":"x:0", "w":"W:0"}, [("c", "mul_1:0")]),
+    # ("backprop", {'l1': 8, 'l2':16, 'l3':4}, backprop, {"y":"y:0", "x":"x:0", "w1":"W1:0","w2":"W2:0"}, [("w1", "W1_out:0"), ("w2", "W2_out:0")]),
     # ("recommender", {'m': 138, 'n':130 , 'k': 10}, reco, {"x1":"x2:0", "x2":"x1:0", "w2":"W1:0", "w1":"W2:0",
     #                                  "y2":"y1:0", "y1":"y1_1:0","r2":"r1:0", "r1":"r1_1:0"}, ("d1", "Sub_1:0")),
 ])
@@ -50,17 +47,18 @@ def test_convert_benchmarks(benchmark_name, feature_dict, data_func, input_keys,
     int_feat_dict['coarse'] = True
     ref_graph, in_info, out_info, ref_keys = data_func(**int_feat_dict)
     translated_inputs = {input_keys[k]: v for k,v in in_info.items() if k in input_keys}
-
-    np_res = out_info[output_key[0]]
-    onnx_res = graph(output_key[1], translated_inputs)
-    np.testing.assert_allclose(np.squeeze(np_res), np.squeeze(onnx_res))
+    for i in output_key:
+        input_cpy = pickle.loads(pickle.dumps(translated_inputs))
+        np_res = out_info[i[0]]
+        onnx_res = graph(i[1], input_cpy)
+        np.testing.assert_allclose(np.squeeze(np_res), np.squeeze(onnx_res))
     tabla_ir, tabla_graph = pm.generate_tabla(graph,
                                               feature_dict,
-                                              tabla_path,
+                                              tabla_path,debug=False,
                                               context_dict=translated_inputs, add_kwargs=True)
     ref_tabla_ir, ref_tabla_graph = pm.generate_tabla(ref_graph,
                                               feature_dict,
-                                              ref_tabla_path,
+                                              ref_tabla_path,debug=False,
                                               context_dict=ref_in_info, add_kwargs=True)
     assert len(ref_tabla_ir) == len(tabla_ir)
 

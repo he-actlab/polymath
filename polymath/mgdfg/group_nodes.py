@@ -1,8 +1,9 @@
-
-from polymath.mgdfg.base import *
-from polymath.mgdfg.nodes import parameter
-from polymath.mgdfg.domain import Domain
-from .util import _flatten_iterable, _fnc_hash
+import operator
+import builtins
+import numpy as np
+from .nodes import slice_op
+from .base import Node, add, sub, mul, min_, max_, var_index, DEFAULT_SHAPES
+from .util import _flatten_iterable
 
 class GroupNode(Node):
     builtin_np = ["sum", "prod", "amax", "amin", "argmin", "argmax"]
@@ -32,6 +33,8 @@ class GroupNode(Node):
     def __getitem__(self, key):
         if isinstance(key, (tuple, list, np.ndarray)) and len(key) == 0:
             return self
+        # elif self.is_shape_finalized() and self.shape == DEFAULT_SHAPES[0]:
+        #     return self
         elif self.is_shape_finalized() and len(self.nodes) > 0:
             if isinstance(key, int):
                 key = tuple([key])
@@ -47,7 +50,7 @@ class GroupNode(Node):
                     if isinstance(k, Node):
                         name.append(k.name)
                     else:
-                        name.append(str(k))
+                        name.append(k)
             else:
                 name.append(key)
 
@@ -88,17 +91,17 @@ class GroupNode(Node):
         return value
 
     def __add__(self, other):
-        return slice_op(operator.add, self, other, graph=self.graph) if len(self.domain.doms) > 0 else add(self, other,
+        return slice_op(operator.add, self, other, graph=self.graph) if not self.domain.is_scalar else add(self, other,
                                                                                                        graph=self.graph)
 
     def __radd__(self, other):
-        return slice_op(operator.add, other, self, graph=self.graph) if len(self.domain.doms) > 0 else add(other, self,
+        return slice_op(operator.add, other, self, graph=self.graph) if not self.domain.is_scalar else add(other, self,
                                                                                                        graph=self.graph)
     def __sub__(self, other):
-        return slice_op(operator.sub, self, other, graph=self.graph) if len(self.domain.doms) > 0 else sub(self, other,
+        return slice_op(operator.sub, self, other, graph=self.graph) if not self.domain.is_scalar else sub(self, other,
                                                                                                        graph=self.graph)
     def __rsub__(self, other):
-        return slice_op(operator.sub, other, self, graph=self.graph) if len(self.domain.doms) > 0 else sub(other, self,
+        return slice_op(operator.sub, other, self, graph=self.graph) if not self.domain.is_scalar else sub(other, self,
                                                                                                        graph=self.graph)
     def __pow__(self, other):
         return slice_op(builtins.pow, self, other, graph=self.graph)
@@ -107,10 +110,10 @@ class GroupNode(Node):
         return slice_op(builtins.pow, other, self, graph=self.graph)
 
     def __mul__(self, other):
-        return slice_op(operator.mul, self, other, graph=self.graph) if len(self.domain.doms) > 0 else mul(self, other, graph=self.graph)
+        return slice_op(operator.mul, self, other, graph=self.graph) if not self.domain.is_scalar else mul(self, other, graph=self.graph)
 
     def __rmul__(self, other):
-        return slice_op(operator.mul, other, self, graph=self.graph) if len(self.domain.doms) > 0 else mul(other, self, graph=self.graph)
+        return slice_op(operator.mul, other, self, graph=self.graph) if not self.domain.is_scalar else mul(other, self, graph=self.graph)
 
     def __truediv__(self, other):
         return slice_op(operator.truediv, self, other, graph=self.graph)

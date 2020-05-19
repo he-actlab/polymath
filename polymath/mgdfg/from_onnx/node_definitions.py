@@ -207,25 +207,33 @@ def reduce_sum(data, axes=None, keepdims=None, shape=None, name=None, **kwargs):
 
 def elem_greater(a, b, shape=None, name=None, **kwargs):
     indices = tuple([pm.index(0, s - 1) for s in shape])
-    return (a[indices] < b[indices]).set_name(name)
+    a_idx = tuple([i for idx, i in enumerate(indices) if len(a.shape) > idx and shape[idx] == a.shape[idx]])
+    b_idx = tuple([i for idx, i in enumerate(indices) if len(b.shape) > idx and shape[idx] == b.shape[idx]])
+    return (a[a_idx] < b[b_idx]).set_name(name)
 
 def elem_sub(a, b, shape=None, name=None, **kwargs):
+    indices = tuple([pm.index(0, s - 1) if s > 1 else 0 for s in shape])
+    a_idx = tuple([i for idx, i in enumerate(indices) if len(a.shape) > idx and shape[idx] == a.shape[idx]])
+    b_idx = tuple([i for idx, i in enumerate(indices) if len(b.shape) > idx and shape[idx] == b.shape[idx]])
 
-    indices = tuple([pm.index(0, s - 1) for s in shape])
-    return (a[indices] - b[indices]).set_name(name)
+    return (a[a_idx] - b[b_idx]).set_name(name)
 
 def elem_mul(a, b, shape=None, name=None, **kwargs):
-    indices = tuple([pm.index(0, s - 1) for s in shape])
-    return (a[indices] * b[indices]).set_name(name)
+    indices = tuple([pm.index(0, s - 1) if s > 1 else 0 for s in shape])
+    a_idx = tuple([i for idx, i in enumerate(indices) if len(a.shape) > idx and shape[idx] == a.shape[idx]])
+    b_idx = tuple([i for idx, i in enumerate(indices) if len(b.shape) > idx and shape[idx] == b.shape[idx]])
+    return (a[a_idx] * b[b_idx]).set_name(name)
 
 def elem_sigmoid(x, shape=None, name=None, **kwargs):
     indices = tuple([pm.index(0, s - 1) for s in shape])
     ret = pm.sigmoid(x[indices]).set_name(name)
     return ret
 
-def cast(x, nptype, m, shape=None, name=None, **kwargs):
-    i = pm.index(0, (m - 1))
-    return pm.cast(nptype, x[i]).set_name(name)
+def cast(data, to=None, shape=None, name=None, **kwargs):
+    indices = tuple([pm.index(0, s - 1) for s in shape])
+    out = pm.temp(name=name, shape=shape, dtype=to)
+    out[indices] = data[indices]
+    return out
 
 def unsqueeze(x, axis, *args, name=None, **kwargs):
     x.graph.nodes[name] = x

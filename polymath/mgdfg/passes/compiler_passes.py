@@ -34,6 +34,7 @@ class NormalizeGraph(Pass):
         else:
             self.populate = True
         self.evaluated = {}
+        self.scalar_translations = {}
         self.stored_objects = {}
         self.var_indices = {}
         self.output_shapes = {}
@@ -44,7 +45,9 @@ class NormalizeGraph(Pass):
     def update_args(self, args):
         new_args = []
         for a in args:
-            if isinstance(a, pm.Node) and not isinstance(a, (pm.input, pm.state, pm.output, pm.temp)):
+            if isinstance(a, pm.var_index) and a in self.scalar_translations:
+                new_args.append(self.scalar_translations[a])
+            elif isinstance(a, pm.Node) and not isinstance(a, (pm.input, pm.state, pm.output, pm.temp)):
                 if a.name in self.context:
                     new_args.append(self.context[a.name])
                 elif a in self.evaluated:
@@ -68,7 +71,9 @@ class NormalizeGraph(Pass):
 
     def apply_pass(self, node, info):
         new_shape = []
-        if isinstance(node, pm.var_index):
+        if node.is_shape_finalized():
+            shape = node.shape
+        elif isinstance(node, pm.var_index):
             shape = node.args[1]
         elif isinstance(node, pm.NonLinear):
             shape = node.args[0].shape
@@ -103,16 +108,19 @@ class NormalizeGraph(Pass):
             node._shape = tuple(new_shape)
             node._args = self.update_args(node.args)
 
-
-            if isinstance(node, pm.write) and isinstance(node.dest, pm.output):
-                node.dest._shape = node._shape
-
-            eval_ready = all([not isinstance(i, pm.Node) for i in _flatten_iterable(node.args)])
-            if eval_ready and isinstance(node, (pm.func_op, pm.index)):
-                res = node._evaluate(*node.args, **node.kwargs)
-                node.value = res
-                self.evaluated[node] = res
+            if isinstance(node, pm.var_index) and isinstance(node.var, pm.placeholder) and node.shape == pm.DEFAULT_SHAPES[0]:
+                self.scalar_translations[node] = node.var
                 node.graph.nodes.pop(node.name)
+            else:
+                if isinstance(node, pm.write) and isinstance(node.dest, pm.output):
+                    node.dest._shape = node._shape
+
+                eval_ready = all([not isinstance(i, pm.Node) for i in _flatten_iterable(node.args)])
+                if eval_ready and isinstance(node, (pm.func_op, pm.index)):
+                    res = node._evaluate(*node.args, **node.kwargs)
+                    node.value = res
+                    self.evaluated[node] = res
+                    node.graph.nodes.pop(node.name)
         return node
 
     def finalize_pass(self, node, info):
@@ -197,7 +205,18 @@ class NormalizeGraph(Pass):
     def populate_var_index(self, node):
 
         if node.var.shape != pm.DEFAULT_SHAPES[0]:
-            indices = np.asarray([i.value if isinstance(i, pm.Node) else i for i in node.args[1]])
+            indices = []
+            for i in node.args[1]:
+                if isinstance(i, pm.Node):
+                    if not is_iterable(i.value):
+                        indices.append(np.asarray([i.value]))
+                    else:
+                        indices.append(i.value)
+                elif not is_iterable(i):
+                    indices.append(np.asarray([i]))
+                else:
+                    indices.append(i)
+            indices = np.asarray(indices)
             indices = np.array(list(product(*indices)))
             indices = list(map(lambda x: tuple(x), indices))
             out_shape = node.domain.shape_from_indices(node.args[1])
@@ -205,22 +224,30 @@ class NormalizeGraph(Pass):
             out_indices = np.array(list(product(*out_indices)))
             dom_pairs = node.domain.compute_pairs()
             dom_pairs = list(map(lambda x: x.tolist() if isinstance(x, np.ndarray) else x, dom_pairs))
+        elif isinstance(node.var, pm.placeholder):
+            indices = [(0,)]
+            out_shape = (1,)
+            out_indices = ['']
+            dom_pairs = [(0,)]
         else:
             indices = [pm.SCALAR_IDX]
             out_shape = (1,)
             out_indices = [pm.SCALAR_IDX]
             dom_pairs = [pm.SCALAR_IDX]
             idx_name = f"{node.var.name}{pm.SCALAR_IDX}"
+
             if idx_name not in node.var.nodes:
-                if isinstance(node.var, pm.placeholder):
-                    x = node.var.init_from_args(graph=node.var, name=idx_name, shape=(1,))
-                elif isinstance(node.var, pm.NonLinear):
+                if isinstance(node.var, pm.NonLinear):
                     # TODO: Add check or fix so that the input variable is checked to have nodes or not
                     x = node.var.init_from_args(node.var.args[0][pm.SCALAR_IDX], graph=node.var, name=idx_name, shape=(1,))
+                    self.stored_objects[id(x)] = x
+
                 elif isinstance(node.var, pm.GroupNode):
                     x = node.var[pm.SCALAR_IDX]
-                # TODO: Add initializers for other types of node
-                self.stored_objects[id(x)] = x
+                    self.stored_objects[id(x)] = x
+                else:
+                    raise RuntimeError
+                    # TODO: Add initializers for other types of node
 
         node._shape = out_shape
         node.domain.set_computed(out_shape, dom_pairs)
@@ -252,11 +279,13 @@ class NormalizeGraph(Pass):
                 self.stored_objects[id(x)] = x
 
     def populate_input(self, node):
+
         if node.shape != pm.DEFAULT_SHAPES[0]:
             indices = list(product(*tuple([np.arange(i) for i in node.shape])))
             for i in indices:
                 x = pm.input(graph=node, name=f"{node.name}{i}", root_name=node.name, shape=(1,))
                 self.stored_objects[id(x)] = x
+
 
     def populate_state(self, node):
         if node.shape != pm.DEFAULT_SHAPES[0]:
@@ -434,14 +463,16 @@ class Lower(Pass):
             self.top = node
         if node.op_name in self.supported_ops or (
                 isinstance(node, (func_op, pm.placeholder, pm.NonLinear, pm.write)) and len(node.nodes) == 0):
-
             assert node.name != self.top.name
-
             self.update_args(node)
             node.nodes = pm.Graph()
             scope_name = self.get_scope_name(node)
+
             if node.name in node.graph.nodes:
                 node.graph.nodes.pop(node.name)
+
+            if node.name != scope_name:
+                node.graph.nodes[node.name] = node
 
             if len(node.graph.nodes) == 0:
                 node.graph.graph.nodes.pop(node.graph.name)
@@ -456,6 +487,7 @@ class Lower(Pass):
 
     def finalize_pass(self, node, ctx):
         if len(node.nodes) > 0 and node.name != self.top.name:
+
             node.graph.nodes.pop(node.name)
 
     def get_scope_name(self, node):

@@ -1,9 +1,18 @@
 import logging
 import pickle
 import sys
-from polymath.mgdfg.base import *
-from polymath.mgdfg.index import index
-from .util import _noop_callback, deprecated, _flatten_iterable, _compute_domain_pairs, is_iterable
+from .base import Node
+# from .node_operations import slice_op, nodeop
+import operator
+import builtins
+import functools
+from numbers import Integral, Real
+import numpy as np
+from .index import index
+from .domain import Domain
+from .base import Node, nodeop, func_op, slice_op, var_index
+import uuid
+from .util import _noop_callback, deprecated, _flatten_iterable, is_iterable, _is_node_type_instance
 from polymath import DEFAULT_SHAPES, UNSET_SHAPE
 
 class placeholder(Node):  # pylint: disable=C0103,R0903
@@ -60,8 +69,11 @@ class placeholder(Node):  # pylint: disable=C0103,R0903
 
     def __getitem__(self, key):
         key = _flatten_iterable(key)
-
-        if self.is_shape_finalized() and len(self.nodes) > 0:
+        if isinstance(key, (tuple, list, np.ndarray)) and len(key) == 0:
+            return self
+        elif self.is_shape_finalized() and self.shape == DEFAULT_SHAPES[0]:
+            return self
+        elif self.is_shape_finalized() and len(self.nodes) > 0:
             idx = np.ravel_multi_index(key, dims=self.shape, order='C')
             ret = self.nodes.item_by_index(idx)
             return ret
@@ -287,8 +299,11 @@ class temp(placeholder):
 
     def __getitem__(self, key):
         key = _flatten_iterable(key)
-
-        if self.is_shape_finalized() and len(self.nodes) > 0:
+        if len(key) == 0:
+            return self
+        elif self.is_shape_finalized() and self.shape == DEFAULT_SHAPES[0]:
+            return self
+        elif self.is_shape_finalized() and len(self.nodes) > 0:
             idx = np.ravel_multi_index(key, dims=self.shape, order='C')
             ret = self.current_value().nodes.item_by_index(idx)
 
@@ -395,7 +410,9 @@ class write(Node):
 
     def __getitem__(self, key):
         key = _flatten_iterable(key)
-        if self.is_shape_finalized():
+        if len(key) == 0:
+            return self
+        elif self.is_shape_finalized():
             idx = np.ravel_multi_index(key, dims=self.shape, order='C')
             ret = self.nodes.item_by_index(idx)
             return ret
@@ -443,13 +460,6 @@ class parameter(placeholder):
 
     def __repr__(self):
         return "<parameter '%s'>" % self.name
-
-@nodeop
-def identity(value):
-    """
-    Node returning the input value.
-    """
-    return value
 
 class variable(Node):  # pylint: disable=C0103,R0903
     """
@@ -563,41 +573,6 @@ class try_(Node):  # pylint: disable=C0103,W0223
                 if finally_:
                     self.evaluate_node(finally_, context)
 
-
-def cache(node, get, put, key=None):
-    """
-    Cache the values of `node`.
-
-    Parameters
-    ----------
-    node : Node
-        Node to cache.
-    get : callable(object)
-        Callable to retrieve an item from the cache. Should throw `KeyError` or `FileNotFoundError`
-        if the item is not in the cache.
-    put : callable(object, object)
-        Callable that adds an item to the cache. The first argument is the key, the seconde the
-        value.
-    key : Node
-        Key for looking up an item in the cache. Defaults to a simple `hash` of the arguments of
-        `node`.
-
-    Returns
-    -------
-    cached_node : Node
-        Cached node.
-    """
-
-    if not key:
-        dependencies = node.args + tuple(node.kwargs.values())
-        key = hash_(dependencies)
-    return try_(
-        func_op(get, key), [
-            ((KeyError, FileNotFoundError),
-             identity(node, dependencies=[func_op(put, key, node)]))  # pylint: disable=unexpected-keyword-arg
-        ]
-    )
-
 def _pickle_load(filename):
     with open(filename, 'rb') as fp:  # pylint: disable=invalid-name
         return pickle.load(fp)
@@ -606,110 +581,6 @@ def _pickle_load(filename):
 def _pickle_dump(value, filename):
     with open(filename, 'wb') as fp:  # pylint: disable=invalid-name
         pickle.dump(value, fp)
-
-def cache_file(node, filename_template, load=None, dump=None, key=None):
-    """
-    Cache the values of `node` in a file.
-
-    Parameters
-    ----------
-    node : Node
-        Node to cache.
-    filename_template : str
-        Template for the filename taking a single `key` parameter.
-    load : callable(str)
-        Callable to retrieve an item from a given file. Should throw `FileNotFoundError` if the file
-        does not exist.
-    dump : callable(object, str)
-        Callable to save the item to a file. The order of arguments differs from the `put` argument
-        of `cache` to be compatible with `pickle.dump`, `numpy.save`, etc.
-    key : Node
-        Key for looking up an item in the cache. Defaults to a simple `hash` of the arguments of
-        `node`.
-
-    Returns
-    -------
-    cached_node : Node
-        Cached node.
-    """
-    load = load or _pickle_load
-    dump = dump or _pickle_dump
-    return cache(
-        node, lambda key_: load(filename_template % key_),
-        lambda key_, value: dump(value, filename_template % key_), key)
-
-
-
-@nodeop
-def assert_(condition, message=None, *args, val=None):  # pylint: disable=keyword-arg-before-vararg
-    """
-    Return `value` if the `condition` is satisfied and raise an `AssertionError` with the specified
-    `message` and `args` if not.
-    """
-    if message:
-        assert condition, message % args
-    else:
-        assert condition
-
-    return val
-
-
-@nodeop
-def str_format(format_string, *args, **kwargs):
-    """
-    Use python's advanced string formatting to convert the format string and arguments.
-
-    References
-    ----------
-    https://www.python.org/dev/peps/pep-3101/
-    """
-    return format_string.format(*args, **kwargs)
-
-
-@deprecated
-class Logger:  # pragma: no cover
-    """
-    Wrapper for a standard python logging channel with the specified `logger_name`.
-
-    Parameters
-    ----------
-    logger_name : str
-        Name of the underlying standard python logger.
-
-    Attributes
-    ----------
-    logger : logging.Logger
-        Underlying standard python logger.
-    """
-    def __init__(self, logger_name=None):
-        self.logger = logging.getLogger(logger_name)
-
-    @functools.wraps(logging.Logger.log)
-    def log(self, level, message, *args, **kwargs):  # pylint: disable=missing-docstring
-        if isinstance(level, str):
-            level = getattr(logging, level.upper())
-        return func_op(self.logger.log, level, message, *args, **kwargs)
-
-    @functools.wraps(logging.Logger.debug)
-    def debug(self, message, *args, **kwargs):  # pylint: disable=missing-docstring
-        return func_op(self.logger.debug, message, *args, **kwargs)
-
-    @functools.wraps(logging.Logger.info)
-    def info(self, message, *args, **kwargs):  # pylint: disable=missing-docstring
-        return func_op(self.logger.info, message, *args, **kwargs)
-
-    @functools.wraps(logging.Logger.warning)
-    def warning(self, message, *args, **kwargs):  # pylint: disable=missing-docstring
-        return func_op(self.logger.warning, message, *args, **kwargs)
-
-    @functools.wraps(logging.Logger.error)
-    def error(self, message, *args, **kwargs):  # pylint: disable=missing-docstring
-        return func_op(self.logger.error, message, *args, **kwargs)
-
-    @functools.wraps(logging.Logger.critical)
-    def critical(self, message, *args, **kwargs):  # pylint: disable=missing-docstring
-        return func_op(self.logger.critical, message, *args, **kwargs)
-
 
 class lazy_constant(Node):  # pylint: disable=invalid-name
     """
@@ -733,3 +604,35 @@ class lazy_constant(Node):  # pylint: disable=invalid-name
         if self.value is None:
             self.value = self.target()
         return self.value
+
+
+@nodeop
+def identity(value):
+    """
+    Node returning the input value.
+    """
+    return value
+
+@nodeop
+def assert_(condition, message=None, *args, val=None):  # pylint: disable=keyword-arg-before-vararg
+    """
+    Return `value` if the `condition` is satisfied and raise an `AssertionError` with the specified
+    `message` and `args` if not.
+    """
+    if message:
+        assert condition, message % args
+    else:
+        assert condition
+
+    return val
+
+@nodeop
+def str_format(format_string, *args, **kwargs):
+    """
+    Use python's advanced string formatting to convert the format string and arguments.
+
+    References
+    ----------
+    https://www.python.org/dev/peps/pep-3101/
+    """
+    return format_string.format(*args, **kwargs)

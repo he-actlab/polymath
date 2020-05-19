@@ -6,6 +6,10 @@ from .util import logistic, linear, reco, svm, compare_tabla_dfg, set_shape_and_
     unwound_fft, backprop, conv, lenet
 import pickle
 
+CWD = Path(f"{__file__}").parent
+BASE_PATH = f"{CWD}/pmlang_examples"
+OUTPATH = f"{BASE_PATH}/outputs"
+
 def test_linear_serialize():
 
     with pm.Node(name="linear_reg") as graph:
@@ -105,13 +109,11 @@ def test_conv_embedded_values(x_shape, w_shape, params):
     lower_pass = pm.Lower({})
     lowered = lower_pass(ngraph)
 
-    cwd = Path(f"{__file__}").parent
-    base_path = f"{cwd}/pmlang_examples"
-    full_path = f"{base_path}/outputs"
 
-    pb_path = f"{full_path}/{graph.name}.pb"
-    pm.pb_store(lowered, full_path)
+    pb_path = f"{OUTPATH}/{graph.name}.pb"
+    pm.pb_store(lowered, OUTPATH)
     node = pm.pb_load(pb_path)
     assert len(node.nodes) == len(lowered.nodes)
     assert list(node.nodes.keys()) == list(lowered.nodes.keys())
+
 

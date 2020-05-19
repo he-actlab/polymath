@@ -51,13 +51,17 @@ class Domain(object):
         return self.dom_set.index(o)
 
     @property
+    def is_scalar(self):
+        return len(self.dom_set) == 0 or self.doms == DEFAULT_SHAPES[0]
+
+    @property
     def dom_set(self):
         dset = []
         for a in self.doms:
             if _is_node_type_instance(a, "index"):
                 dset += [i for i in a.domain]
             elif _is_node_instance(a):
-                dset += a.domain.dom_set
+                dset += [i for i in a.domain.dom_set]
         return tuple(dset)
 
     def reduction_domain(self, r_dom):
@@ -335,7 +339,7 @@ class Domain(object):
     def computed_shape(self):
         return tuple(np.max(self.compute_pairs(), axis=0) + 1)
 
-    def shape_from_indices(self, indices):
-        return tuple(len(i.value) if _is_node_instance(i) else len(i) for i in indices)
+    def shape_from_indices(self, idx_vals):
+        return tuple(len(i.value) if _is_node_instance(i) else len(i) for i in idx_vals)
 
 

@@ -1,6 +1,6 @@
-from polymath.mgdfg.base import *
+from .base import Node
 import numpy as np
-from polymath.mgdfg.util import is_iterable
+from .util import is_iterable
 import builtins
 from itertools import product
 import operator
@@ -16,7 +16,7 @@ class index(Node):  # pylint: disable=C0103,W0223
         super(index, self).__init__(lbound, ubound, **kwargs)
 
     def as_shape(self):
-        return self.ubound - self.lbound
+        return self.ubound - self.lbound + 1
 
     @property
     def domain(self):
@@ -109,6 +109,9 @@ class index_op(index):
             domain = tuple(domain)
         super(index_op, self).__init__(*args, target=f"{target.__module__}.{target.__name__}", domain=domain, **kwargs)
         self.target = target
+
+    def as_shape(self):
+        return 0
 
     # #TODO: Fix domain and bounds
     @property

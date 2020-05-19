@@ -1,6 +1,7 @@
 from polymath.mgdfg.base import *
 import numpy as np
 from numbers import Integral
+import functools
 from polymath.mgdfg.nodes import parameter
 from .util import _flatten_iterable, _fnc_hash
 
@@ -24,7 +25,7 @@ class NonLinear(Node):
         if "domain" in kwargs:
             kwargs.pop("domain")
         domain = val.domain if isinstance(val, Node) else Domain((1,))
-        kwargs['shape'] = 1 if isinstance(val, Integral) else val.shape
+        kwargs['shape'] = (1,) if isinstance(val, Integral) else val.shape
         super(NonLinear, self).__init__(val, target=f"{target.__module__}.{target.__name__}", domain=domain, **kwargs)
         self.target = target
 
@@ -113,9 +114,9 @@ class sqrt(NonLinear):
     def __init__(self, input_node, **kwargs):
         super(sqrt, self).__init__(_sqrt, input_node, **kwargs)
 
-class cast(NonLinear):
-    def __init__(self, np_dtype, input_node, **kwargs):
-        super(cast, self).__init__(np.cast[np_dtype], input_node, **kwargs)
+# class cast(NonLinear):
+#     def __init__(self, np_dtype, input_node, **kwargs):
+#         super(cast, self).__init__(lambda x: _cast(x, np_dtype), input_node, **kwargs)
 
 def _log2(value):
     return np.log2(value)
@@ -132,6 +133,22 @@ def _abs(value):
 def _sqrt(value):
     return np.sqrt(value)
 
-def _cast(target, value):
-    return target(value)
+
+def _cast(value, npdtype):
+    if not isinstance(value, np.ndarray):
+        return np.asarray(value).astype(npdtype)
+    else:
+        return value.astype(npdtype)
+
+# def _cast_wrapper(npdtype):
+#     def _cast(value):
+#         nonlocal npdtype
+#         if not isinstance(value, np.ndarray):
+#             return np.asarray(value).astype(npdtype)
+#         else:
+#             return value.astype(npdtype)
+#     return _cast
+
+
+
 

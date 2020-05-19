@@ -7,12 +7,12 @@ SCALAR_IDX = (0,)
 from polymath.mgdfg.domain import Domain
 from polymath.mgdfg.base import Node, nodeop, func_op, contains,\
     import_, control_dependencies, pow_, EvaluationError, Graph, int_, \
-    mul, sub, add, call
+    mul, sub, add, call, var_index
 from polymath.mgdfg.nodes import variable, predicate, assert_, str_format, identity, lazy_constant, try_,\
-    cache, cache_file, var_index, placeholder, temp, parameter, slice_op, input, state, output, write
+    placeholder, temp, parameter, slice_op, input, state, output, write
 from polymath.mgdfg.index import index, index_op
 from polymath.mgdfg.group_nodes import GroupNode, sum, prod, max, min, argmin, argmax, bitreverse
-from polymath.mgdfg.nonlinear import NonLinear, sigmoid, log2, exp, abs, sqrt, cast
+from polymath.mgdfg.nonlinear import NonLinear, sigmoid, log2, exp, abs, sqrt
 from polymath.mgdfg.template import Template
 from polymath.mgdfg.util import Profiler, visualize, lower_graph, is_iterable
 from polymath.mgdfg.serialization.serialize import pb_store, pb_load

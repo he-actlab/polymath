@@ -135,7 +135,7 @@ def convert_node(onnx_node, mgdfg, node_info, state_vars):
 
     for i in onnx_node.input:
         if i not in mgdfg.nodes:
-            raise KeyError(f"Input node {i} not in graph nodes:\n"
+            raise KeyError(f"Input node {i} for {name} not in graph nodes:\n"
                            f"Nodes: {list(mgdfg.nodes.keys())}")
 
         args.append(mgdfg.nodes[i])
@@ -143,6 +143,7 @@ def convert_node(onnx_node, mgdfg, node_info, state_vars):
     assert len(onnx_node.output) == 1 and onnx_node.output[0] in node_info
     o_name = state_vars[onnx_node.output[0]] if onnx_node.output[0] in state_vars else onnx_node.output[0]
     if isinstance(node_info[o_name], dict):
+
         o_shape = node_info[o_name]["shape"]
         attributes = get_attributes(onnx_node)
         args = tuple(args)
@@ -150,13 +151,22 @@ def convert_node(onnx_node, mgdfg, node_info, state_vars):
         kwargs['shape'] = tuple(list(o_shape))
         with mgdfg:
             new_node = NODE_NAMES[onnx_node.op_type](*args, name=o_name, **kwargs)
-            new_node.shape = o_shape
+
+        if id(new_node.graph) != id(mgdfg):
+            new_node.graph = mgdfg
+            new_node.set_name(o_name)
+
+        if o_name not in mgdfg.nodes:
+            raise KeyError(f"Newly created node {new_node} with graph {new_node.graph} not added to the graph:\n"
+                           f"\t{list(mgdfg.nodes.keys())}")
+        if not new_node.is_shape_finalized():
+            new_node._shape = o_shape
+
 
     else:
 
         o_shape = node_info[o_name].shape
         attributes = get_attributes(onnx_node)
-        # args = tuple(args + list(attributes.values()) + list(o_shape))
         args = tuple(args)
         kwargs = attributes
         kwargs['shape'] = tuple(list(o_shape))
@@ -171,7 +181,7 @@ def _print_proto_fields(pb):
     print(f"{pb} fields : {[n.name for n in pb.DESCRIPTOR.fields]}")
 
 def get_value_info_shape(vi):
-    ret = tuple([dim.dim_value for dim in vi.type.tensor_type.shape.dim if dim.dim_value > 1])
+    ret = tuple([dim.dim_value for dim in vi.type.tensor_type.shape.dim if dim.dim_value > 0])
     return ret if len(ret) > 0 else (1,)
 
 def get_attributes(node):
