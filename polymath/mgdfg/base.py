@@ -37,6 +37,7 @@ class Node(object):
         Keyword arguments passed to the `_evaluate` method.
     """
     _graph_stack = deque([None])
+    _eval_stack = []
     stack_size = 5
     evaluated_nodes = 0
     def __init__(self, *args,
@@ -458,6 +459,7 @@ class Node(object):
         Node.evaluated_nodes += 1
         try:
             if isinstance(node, Node):
+                Node._eval_stack.append(node.name)
                 return node.evaluate(context, **kwargs)
             partial = functools.partial(cls.evaluate_node, context=context, **kwargs)
             if isinstance(node, tuple):
@@ -682,6 +684,11 @@ class Node(object):
         n = list(map(lambda k: (new_key, self.nodes[k]) if k == old_key else (k, self.nodes[k]), self.nodes.keys()))
         self.nodes = Graph(n)
 
+    def insert_node(self, node, idx):
+        node_list = list(self.nodes.items())
+        node_list.insert(idx, (node.name, node))
+        self.nodes = Graph(node_list)
+
     def __call__(self, *args, **kwargs):
         return self.run(*args, **kwargs)
 
@@ -808,7 +815,9 @@ class var_index(Node):  # pylint: disable=C0103,W0223
                 var = np.squeeze(var)
 
         if len(var.shape) != len(out_shape) and np.prod(var.shape) != np.prod(out_shape):
-            raise ValueError(f"Index list {self.domain} does not match {var.shape} dimensions for slice {self.args[0].name} with {out_shape}")
+            raise ValueError(f"Index list {self.domain} does not match {var.shape} "
+                             f"dimensions for slice {self.args[0].name} with {out_shape}.\n"
+                             f"Eval Stack: {Node._eval_stack}")
 
 
         if not single and not all([(idx_val - 1) >= indices[-1][idx] for idx, idx_val in enumerate(var.shape)]):
@@ -944,6 +953,7 @@ class slice_op(Node):
         super(slice_op, self).__init__(*args, target=target_name, domain=domain, op_name=f"slice_{target.__name__}", **kwargs)
         self.target = target
 
+
     @property
     def domain(self):
         return self.kwargs["domain"]
@@ -955,7 +965,11 @@ class slice_op(Node):
             if isinstance(key, (int, Node)):
                 key = tuple([key])
             assert len(key) == len(self.shape)
+
             name = f"{self.name}{key}"
+            if name not in self.nodes.keys():
+                raise KeyError(f"{name} not in {self.name} keys:\n"
+                               f"Node keys: {list(self.nodes.keys())}")
             ret = self.nodes[name]
             return ret
         else:

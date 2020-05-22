@@ -27,9 +27,9 @@ def generate_test_inputs(n):
 #
 @pytest.mark.parametrize('benchmark_name, feature_dict, data_func, input_keys, output_key',[
     ("linear", {'m': 54}, linear, {"y":"y:0", "x":"x:0", "w":"W:0"}, [("w", "W:0")]),
-    # ("logistic", {'m': 54}, logistic, {"y":"y:0", "x":"x:0", "w":"W:0"}, [("w", "W:0")]),
-    # ("svm", {'m': 54}, svm, {"y":"y:0", "x":"x:0", "w":"W:0"}, [("c", "mul_1:0")]),
-    # ("backprop", {'l1': 8, 'l2':16, 'l3':4}, backprop, {"y":"y:0", "x":"x:0", "w1":"W1:0","w2":"W2:0"}, [("w1", "W1_out:0"), ("w2", "W2_out:0")]),
+    ("logistic", {'m': 54}, logistic, {"y":"y:0", "x":"x:0", "w":"W:0"}, [("w", "W:0")]),
+    ("svm", {'m': 54}, svm, {"y":"y:0", "x":"x:0", "w":"W:0"}, [("c", "mul_1:0")]),
+    ("backprop", {'l1': 8, 'l2':16, 'l3':4}, backprop, {"y":"y:0", "x":"x:0", "w1":"W1:0","w2":"W2:0"}, [("w1", "W1:0"), ("w2", "W2:0")]),
     # ("recommender", {'m': 138, 'n':130 , 'k': 10}, reco, {"x1":"x2:0", "x2":"x1:0", "w2":"W1:0", "w1":"W2:0",
     #                                  "y2":"y1:0", "y1":"y1_1:0","r2":"r1:0", "r1":"r1_1:0"}, ("d1", "Sub_1:0")),
 ])
@@ -52,14 +52,33 @@ def test_convert_benchmarks(benchmark_name, feature_dict, data_func, input_keys,
         np_res = out_info[i[0]]
         onnx_res = graph(i[1], input_cpy)
         np.testing.assert_allclose(np.squeeze(np_res), np.squeeze(onnx_res))
+
+    print(f"Starting tabla compilation\n\n")
     tabla_ir, tabla_graph = pm.generate_tabla(graph,
                                               feature_dict,
                                               tabla_path,debug=False,
-                                              context_dict=translated_inputs, add_kwargs=True)
+                                              context_dict={}, add_kwargs=True)
     ref_tabla_ir, ref_tabla_graph = pm.generate_tabla(ref_graph,
                                               feature_dict,
                                               ref_tabla_path,debug=False,
-                                              context_dict=ref_in_info, add_kwargs=True)
+                                              context_dict={}, add_kwargs=True)
+
+    ref_ocount_pass = pm.CountOpTypes(skip=['temp', 'parameter', ref_tabla_graph.name])
+    _ = ref_ocount_pass(ref_tabla_graph)
+    ocount_pass = pm.CountOpTypes(skip=['temp', 'parameter', tabla_graph.name])
+    _ = ocount_pass(tabla_graph)
+
+    if set(ocount_pass.op_types.keys()) != set(ref_ocount_pass.op_types.keys()):
+        raise RuntimeError(f"Unequal amounts of operations for graphs:\n"
+              f"\tReference: {ref_ocount_pass.op_types.keys()}\n"
+              f"\tActual: {ocount_pass.op_types.keys()}")
+
+    for k,v in ocount_pass.op_types.items():
+        if v != ref_ocount_pass.op_types[k]:
+            raise RuntimeError(f"Unequal operations for key {k}:\n"
+                               f"\tRef: {ref_ocount_pass.op_types[k]}\n"
+                               f"\tActual: {v}\n")
+
     assert len(ref_tabla_ir) == len(tabla_ir)
 
 

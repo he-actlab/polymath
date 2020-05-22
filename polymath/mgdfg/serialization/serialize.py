@@ -42,7 +42,7 @@ def _serialize_domain(dom, pb_dom):
         elif isinstance(d, np.ndarray):
             new_dom.type = pb.Attribute.Type.NDARRAY
             new_dom.nda.CopyFrom(ndarray_to_proto(d))
-        elif isinstance(d, int):
+        elif isinstance(d, Integral):
             new_dom.type = pb.Attribute.Type.INT32
             new_dom.i32 = d
         elif isinstance(d, float):
@@ -65,7 +65,7 @@ def _serialize_domain(dom, pb_dom):
             elif all(isinstance(a, np.ndarray) for a in d):
                 new_dom.type = pb.Attribute.Type.NDARRAYS
                 new_dom.ndas.extend(ndarray_to_proto(a) for a in d)
-            elif all(isinstance(a, np.integer) for a in d):
+            elif all(isinstance(a, Integral) for a in d):
                 new_dom.type = pb.Attribute.Type.INT32S
                 new_dom.i32s.extend(d)
             elif all(isinstance(a, float) for a in d):
@@ -263,7 +263,7 @@ def _serialize_node(node_instance):
         elif isinstance(arg, np.ndarray):
             new_arg.type = pb.Attribute.Type.NDARRAY
             new_arg.nda.CopyFrom(ndarray_to_proto(arg))
-        elif isinstance(arg, int):
+        elif isinstance(arg, Integral):
             new_arg.type = pb.Attribute.Type.INT32
             new_arg.i32 = arg
         elif isinstance(arg, float):
@@ -286,7 +286,7 @@ def _serialize_node(node_instance):
             elif all(isinstance(a, np.ndarray) for a in arg):
                 new_arg.type = pb.Attribute.Type.NDARRAYS
                 new_arg.ndas.extend(ndarray_to_proto(a) for a in arg)
-            elif all(isinstance(a, np.integer) for a in arg):
+            elif all(isinstance(a, Integral) for a in arg):
                 new_arg.type = pb.Attribute.Type.INT32S
                 new_arg.i32s.extend(arg)
             elif all(isinstance(a, float) for a in arg):

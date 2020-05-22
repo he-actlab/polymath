@@ -97,6 +97,7 @@ def generate_nn_mdfg(onnx_graph):
             node_info[o.name] = pm.state(name=state_variables[o.name], shape=get_value_info_shape(o), graph=mgdfg)
             node_info[state_variables[o.name]] = node_info[o.name]
         else:
+            print(f"{o.name}")
             node_info[o.name] = pm.output(name=o.name, shape=get_value_info_shape(o), graph=mgdfg)
 
     for i in onnx_graph.input:
@@ -134,6 +135,7 @@ def convert_node(onnx_node, mgdfg, node_info, state_vars):
     args = []
 
     for i in onnx_node.input:
+
         if i not in mgdfg.nodes:
             raise KeyError(f"Input node {i} for {name} not in graph nodes:\n"
                            f"Nodes: {list(mgdfg.nodes.keys())}")
@@ -142,6 +144,7 @@ def convert_node(onnx_node, mgdfg, node_info, state_vars):
 
     assert len(onnx_node.output) == 1 and onnx_node.output[0] in node_info
     o_name = state_vars[onnx_node.output[0]] if onnx_node.output[0] in state_vars else onnx_node.output[0]
+
     if isinstance(node_info[o_name], dict):
 
         o_shape = node_info[o_name]["shape"]
@@ -151,7 +154,6 @@ def convert_node(onnx_node, mgdfg, node_info, state_vars):
         kwargs['shape'] = tuple(list(o_shape))
         with mgdfg:
             new_node = NODE_NAMES[onnx_node.op_type](*args, name=o_name, **kwargs)
-
         if id(new_node.graph) != id(mgdfg):
             new_node.graph = mgdfg
             new_node.set_name(o_name)

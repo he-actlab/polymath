@@ -1,4 +1,5 @@
 import polymath as pm
+from polymath.mgdfg.util import squeeze_shape
 import numpy as np
 import functools
 
@@ -207,21 +208,23 @@ def reduce_sum(data, axes=None, keepdims=None, shape=None, name=None, **kwargs):
 
 def elem_greater(a, b, shape=None, name=None, **kwargs):
     indices = tuple([pm.index(0, s - 1) for s in shape])
-    a_idx = tuple([i for idx, i in enumerate(indices) if len(a.shape) > idx and shape[idx] == a.shape[idx]])
-    b_idx = tuple([i for idx, i in enumerate(indices) if len(b.shape) > idx and shape[idx] == b.shape[idx]])
+    a_idx = _get_indices(a, indices, shape)
+    b_idx = _get_indices(b, indices, shape)
+
     return (a[a_idx] < b[b_idx]).set_name(name)
 
 def elem_sub(a, b, shape=None, name=None, **kwargs):
     indices = tuple([pm.index(0, s - 1) if s > 1 else 0 for s in shape])
-    a_idx = tuple([i for idx, i in enumerate(indices) if len(a.shape) > idx and shape[idx] == a.shape[idx]])
-    b_idx = tuple([i for idx, i in enumerate(indices) if len(b.shape) > idx and shape[idx] == b.shape[idx]])
-
+    a_idx = _get_indices(a, indices, shape)
+    b_idx = _get_indices(b, indices, shape)
     return (a[a_idx] - b[b_idx]).set_name(name)
 
 def elem_mul(a, b, shape=None, name=None, **kwargs):
+
     indices = tuple([pm.index(0, s - 1) if s > 1 else 0 for s in shape])
-    a_idx = tuple([i for idx, i in enumerate(indices) if len(a.shape) > idx and shape[idx] == a.shape[idx]])
-    b_idx = tuple([i for idx, i in enumerate(indices) if len(b.shape) > idx and shape[idx] == b.shape[idx]])
+    a_idx = _get_indices(a, indices, shape)
+    b_idx = _get_indices(b, indices, shape)
+
     return (a[a_idx] * b[b_idx]).set_name(name)
 
 def elem_sigmoid(x, shape=None, name=None, **kwargs):
@@ -261,6 +264,16 @@ def rvmatmul(a, b, shape=None, name=None, **kwargs):
     return pm.sum([j], a[i, j]*b[j], name=name)
 
 def get_matmul(a, b, **kwargs):
+
+    if len(a.shape) == len(b.shape):
+        return matmul(a,b,**kwargs)
+    elif len(a.shape) > len(b.shape):
+        return rvmatmul(a, b, **kwargs)
+    else:
+        return lvmatmul(a, b, **kwargs)
+
+def get_elem(a, b, **kwargs):
+
     if len(a.shape) == len(b.shape):
         return matmul(a,b,**kwargs)
     elif len(a.shape) > len(b.shape):
@@ -291,6 +304,23 @@ def transpose(data, shape=None, name=None, **kwargs):
 def identity(data, shape=None, name=None, **kwargs):
     data.set_name(name)
     return data
+
+def _get_indices(node, all_indices, tgt_shape):
+    indices = []
+
+    if node.shape == pm.DEFAULT_SHAPES[0]:
+        return tuple(indices)
+
+    for idx, i in enumerate(all_indices):
+        if len(node.shape) > idx and tgt_shape[idx] == node.shape[idx]:
+            indices.append(i)
+
+    if tgt_shape != node.shape:
+        for idx, i in enumerate(node.shape):
+            if i != tgt_shape[idx]:
+                indices.insert(idx, 0)
+    return tuple(indices)
+
 
 # TODO: Add reshape operator, constant operator, gemm
 NODE_NAMES = {"SVMClassifier": svm_classifier_train,

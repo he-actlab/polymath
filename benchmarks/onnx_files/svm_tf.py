@@ -1,16 +1,14 @@
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 import numpy as np
-import tf2onnx
 
 
-m = 54
+m = 1740
 
 x_batch = np.random.rand(m)
 y_batch = np.random.rand(1)
 
 weights = np.random.rand(m)
 biases = np.random.rand(m)
-
 
 with tf.Session() as sess:
 
@@ -29,7 +27,11 @@ with tf.Session() as sess:
     h = tf.reduce_sum(tf.multiply(w, x))
     c = tf.multiply(y, h)
     distances = tf.subtract(1., c)
-    maximum = tf.maximum(0., distances)
+    # maximum = tf.maximum(0., distances)
+    #maximum = tf.boolean_mask(distances, tf.greater(0., distances))
+
+    # Look here for gradient of SVM objective function: http://u.cs.biu.ac.il/~jkeshet/teaching/aml2016/sgd_optimization.pdf
+    maximum = tf.cast(tf.greater(distances, 0.), tf.float32)
 
     g = tf.multiply(maximum, x)
 

@@ -24,6 +24,7 @@ class TablaPass(pm.Pass):
         self.hsh_map = {}
         self.add_kwargs = add_kwargs
         self.test_values = test_values or {}
+        self.temp_map = {}
         self.norm_context = {}
 
         self.dfg["source"] = self.create_node("source")
@@ -34,7 +35,6 @@ class TablaPass(pm.Pass):
 
         if node.graph is None:
             return node
-
         n_key = self.node_key(node)
         if isinstance(node, pm.parameter):
             self.add_constants(node)
@@ -44,6 +44,9 @@ class TablaPass(pm.Pass):
         elif isinstance(node, pm.write):
             a0_key = self.node_key(node.args[0])
 
+            if isinstance(node.args[2], pm.temp):
+                self.temp_map[node.args[2].name] = node.args[0]
+
             if a0_key not in self.dfg:
                 assert not isinstance(node.args[0], pm.Node)
                 self.set_dfg_node(node.args[0], self.create_node(str(node.args[0]), dtype="constant", parents=[0]))
@@ -52,6 +55,8 @@ class TablaPass(pm.Pass):
             self.get_dfg_node(node.args[0])["children"].append(1)
             self.get_dfg_node("sink")["parents"].append(self.get_dfg_node(node.args[0])["id"])
             self.set_used_node(node.args[0], "sink")
+            return node
+        elif isinstance(node, pm.temp):
             return node
         elif isinstance(node, pm.placeholder):
             self.add_constants(node)
@@ -99,7 +104,6 @@ class TablaPass(pm.Pass):
         key = self.node_key(node)
 
         if key not in self.used and not isinstance(node, (pm.output, pm.state, pm.temp, pm.write)):
-
             if node.graph and node.name in node.graph.nodes:
                 for a in node.args:
                     a_key = self.node_key(a)
@@ -129,6 +133,7 @@ class TablaPass(pm.Pass):
         node_info = self.get_dfg_node(node)
         node.add_attribute("children", node_info["children"])
         node.add_attribute("parents", node_info["parents"])
+
         node.add_attribute("tabla_dtype", node_info["dataType"])
         node.add_attribute("tabla_op", node_info["operation"])
         node.add_attribute("tabla_id", node_info["id"])
@@ -173,6 +178,7 @@ class TablaPass(pm.Pass):
             self.set_used_node(a, node)
 
     def create_node(self, operation, dtype=None, parents=None):
+
         parents = parents if isinstance(parents, list) else []
         node = {"id": len(self.dfg), "parents": parents, "dataType": dtype, "children": []}
         if dtype == "constant":
@@ -182,7 +188,6 @@ class TablaPass(pm.Pass):
             node["operation"] = TABLA_OP_MAP[operation]
         else:
             node["operation"] = operation
-
         return node
 
     def add_node_child(self, parent_arg, child_node):
@@ -206,6 +211,7 @@ class TablaPass(pm.Pass):
 
     def set_dfg_node(self, node, value):
         key = self.node_key(node)
+
         self.dfg[key] = value
         self.hsh_map[node] = node
 
@@ -254,7 +260,9 @@ class TablaPass(pm.Pass):
             self.dfg.pop(key)
 
     def node_key(self, node):
-        if isinstance(node, pm.write):
+        if isinstance(node, pm.Node) and node.name in self.temp_map:
+            return self.node_key(self.temp_map[node.name])
+        elif isinstance(node, pm.write):
             return self.node_key(node.args[0])
         else:
             return node.name if isinstance(node, pm.Node) else node

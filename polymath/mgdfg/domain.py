@@ -6,6 +6,7 @@ import numpy as np
 from numbers import Integral
 from itertools import product, groupby
 from operator import itemgetter
+import time
 from collections import defaultdict
 from functools import reduce
 
@@ -62,6 +63,9 @@ class Domain(object):
                 dset += [i for i in a.domain]
             elif _is_node_instance(a):
                 dset += [i for i in a.domain.dom_set]
+            else:
+                assert isinstance(a, Integral)
+                dset.append(a)
         return tuple(dset)
 
     def reduction_domain(self, r_dom):
@@ -140,6 +144,8 @@ class Domain(object):
                             raise ValueError(f"Could not use subscript for domain pair: {i.name} - {i.op_name}")
                     elif isinstance(i, np.ndarray):
                         dom_pairs.append(i.tolist())
+                    elif isinstance(i, Integral):
+                        dom_pairs.append([i])
                     else:
                         assert isinstance(i, list)
                         dom_pairs.append(i)
@@ -191,7 +197,7 @@ class Domain(object):
         dom_pairs = [tuple(i) for i in dom_pairs]
         return dom_pairs
 
-    def compute_pairs(self, tuples=True):
+    def compute_pairs(self, tuples=True, squeeze=False):
         if self.computed_pairs is not None:
             pairs = self.computed_pairs
         else:
@@ -214,13 +220,16 @@ class Domain(object):
                     elif isinstance(i, np.ndarray):
                         pairs.append(i.tolist())
                     elif isinstance(i, Integral):
-                        continue
+                        pairs.append([i])
                     else:
                         assert isinstance(i, list)
                         pairs.append(i)
             pairs = tuple(pairs)
             pairs = np.array(list(product(*pairs)))
             self.computed_pairs = pairs
+
+        if squeeze:
+            pairs = pairs[:, ~np.all(pairs == 0, axis=0)]
 
         if tuples:
             pairs = list(map(lambda x: tuple(x), pairs))
@@ -340,6 +349,13 @@ class Domain(object):
         return tuple(np.max(self.compute_pairs(), axis=0) + 1)
 
     def shape_from_indices(self, idx_vals):
-        return tuple(len(i.value) if _is_node_instance(i) else len(i) for i in idx_vals)
-
+        shape = []
+        for i in idx_vals:
+            if _is_node_instance(i):
+                shape.append(len(i.value))
+            elif is_iterable(i):
+                shape.append(len(i))
+            else:
+                shape.append(1)
+        return tuple(shape)
 

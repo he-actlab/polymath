@@ -330,6 +330,69 @@ def _update_args(args, hashes):
     return tuple(new_args)
 
 
+def squeeze_shape(shape):
+    assert isinstance(shape, tuple)
+    if len(shape) > 1:
+        return tuple(s for s in shape if s >1)
+    else:
+        return shape
+
+def squeeze_indices(idx_vals, shape):
+    indices = []
+    for i in idx_vals:
+        if _is_node_instance(i):
+            val = i.value
+        else:
+            val = i
+
+        if not is_iterable(val):
+            indices.append(np.asarray([val]))
+        else:
+            indices.append(val)
+
+        if len(shape) != len(idx_vals) and len(indices[-1]) == 1 and indices[-1][0] == 0:
+            indices.pop()
+
+    return indices
+
+def extend_indices(idx_vals, shape):
+    indices = []
+    shape_idx = 0
+    slice_idx = 0
+    while shape_idx < len(shape):
+        if shape[shape_idx] == 1 and len(shape) > len(idx_vals):
+            indices.append(np.array([0]))
+            shape_idx += 1
+        else:
+            if _is_node_instance(idx_vals[slice_idx]):
+                val = idx_vals[slice_idx].value
+            else:
+                val = idx_vals[slice_idx]
+
+            if not is_iterable(val):
+                indices.append(np.asarray([val]))
+            else:
+                indices.append(val)
+            shape_idx += 1
+            slice_idx += 1
+
+    return indices
+
+def get_indices(idx_vals):
+    indices = []
+    for i in idx_vals:
+        if _is_node_instance(i):
+            val = i.value
+        else:
+            val = i
+
+        if not is_iterable(val):
+            indices.append(np.asarray([val]))
+        else:
+            indices.append(val)
+
+    return np.asarray(indices)
+
 def lower_graph(graph, supported_ops):
     var_hashes = {}
     graph_copy = pickle.loads(pickle.dumps(graph))

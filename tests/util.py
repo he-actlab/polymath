@@ -51,7 +51,7 @@ def svm(m=3, coarse=False):
         h = pm.sum([i], (x[i] * w[i]), name="h")
         c = (y*h).set_name("c")
         ny = (0 - y).set_name("ny")
-        p = ((c > 1)*ny).set_name("p")
+        p = ((y < c)*ny).set_name("p")
         g = (p * x[i]).set_name("g")
         w[i] = w[i] - mu * g[i]
 
@@ -300,7 +300,7 @@ def backprop(l1=9, l2=10, l3=1, coarse=False, debug=False, pbar=False):
         a1 = pm.sigmoid(pm.sum([i1], x[i1]*(w1[i1, i2]).set_name("w1*x"),name="sum(w1*x)"),name="a1")
         a2 = pm.sigmoid(pm.sum([i2], (w2[i2, i3] * a1[i2]).set_name("w2*a1"), name="sum(w2*a1)"), name="a2")
         d3 = (a2[i3] - y[i3]).set_name("d3")
-        d2 = pm.sum([i3], (w2[i2, i3]*d3[i3]) * ( a1[i2]*(mu - a1[i2])), name="d2")
+        d2 = pm.sum([i3], (w2[i2, i3]*d3[i3]), name="d2") * (a1[i2]*(mu - a1[i2]))
         g1 = (x[i1]*d2[i2]).set_name("g1")
         g2 = (a1[i2]*d3[i3]).set_name("g2")
         w1[i1, i2] = w1[i1, i2] - mu*g1[i1, i2]
