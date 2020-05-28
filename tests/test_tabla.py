@@ -107,15 +107,13 @@ def test_conv_embedded_values(x_shape, w_shape, params):
                   "nf": w_shape[0], "kh": w_shape[2], "kw": w_shape[3],
                   "stride": params["stride"], "pad": params["pad"]}
     graph, input_info0, out_info, keys = conv(x_shape, w_shape, params, coarse=True, debug_matrix=True)
-
     ngraph, input_info1, out_info, keys = conv(x_shape, w_shape, params, coarse=False, debug_matrix=True)
 
     lower_pass = pm.Lower({})
     lowered = lower_pass(ngraph)
+
     res0 = np.asarray(lowered(keys, input_info1)).reshape(out_info["out"].shape)
-
     np.testing.assert_allclose(res0, out_info["out"])
-
     tabla_path = f"{OUTPATH}/{graph.name}_tabla.json"
     tabla_ir, tabla_graph = pm.generate_tabla(graph,
                                               shape_dict,
@@ -180,11 +178,10 @@ def test_reco_state_write(m_, n_, k_):
     tabla_ir, tabla_graph = pm.generate_tabla(graph, shape_dict, tabla_path)
 
 @pytest.mark.parametrize('m', [
-    (32),
+    (8)
 ])
 def test_fft(m):
     x = np.random.randint(-5,5, m).astype(np.complex)
-
     pm_output, np_output = unwound_fft(x)
     np.testing.assert_allclose(pm_output, np_output)
 

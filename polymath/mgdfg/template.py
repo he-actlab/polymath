@@ -27,7 +27,8 @@ class Template(pm.Node):
     def initialize_args(self):
         for a in self.args:
             if isinstance(a, pm.Node) and a.name not in self.nodes:
-                assert isinstance(a, (pm.placeholder, pm.parameter))
+                if not isinstance(a, (pm.placeholder, pm.parameter, pm.slice_op)):
+                    raise TypeError(f"Argument {a} for node {self.name} is invalid.")
                 self.graph_map[a] = a.graph
                 if isinstance(a, (pm.state, pm.output)):
                     self.graph_map[a.current_value()] = a.current_value().graph

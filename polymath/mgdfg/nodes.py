@@ -2,7 +2,6 @@ import logging
 import pickle
 import sys
 from .base import Node
-# from .node_operations import slice_op, nodeop
 import operator
 import builtins
 import functools
@@ -389,15 +388,10 @@ class write(Node):
         else:
             dst_indices = self.shape_domain.compute_shape_domain(indices=dst_key)
             key_indices = self.domain.compute_pairs()
-            if isinstance(self.args[0], index):
-                src_dom = Domain(self.args[0].domain)
-                indices = [i.value for i in src_dom.dom_set]
-                out_shape = src_dom.shape_from_indices(indices)
-                src = src.reshape(out_shape)
-            else:
-                src_dom = self.args[0].domain
+            src_dom = self.args[0].domain
             src_indices = self.domain.map_sub_domain(src_dom)
             value = np.zeros(shape=dst.shape, dtype=src.dtype)
+
             for i in dst_indices:
                 if i in key_indices:
                     idx = key_indices.index(i)

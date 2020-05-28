@@ -1,6 +1,7 @@
 import polymath as pm
 from tests.util import linear, op_counts, logistic, svm, reco,\
-    dense, conv, two_layer_dense, pooling, backprop
+    dense, conv, two_layer_dense, pooling, backprop, batchnorm, \
+    global_avg_pool, lrn
 from pathlib import Path
 import pickle
 import pytest
@@ -13,32 +14,21 @@ BASE_PATH = f"{CWD}/pmlang_examples"
 OUTPATH = f"{BASE_PATH}/outputs"
 ONNX_FILE_DIR = Path(f"{Path(__file__).parent}/onnx_examples")
 
-def generate_test_inputs(n):
-    n = int(n)
-    x = np.random.randint(-3,3, n)
-    w = np.random.randint(-3,3, n)
-    y = np.random.randint(-3,3, 1)
-    return x, w, y
 
-# def test_load_files():
-#     for f in ONNX_FILE_DIR.iterdir():
-#         _ = pm.from_onnx(str(f))
-
-#
 @pytest.mark.parametrize('benchmark_name, feature_dict, data_func, input_keys, output_key',[
     ("linear", {'m': 54}, linear, {"y":"y:0", "x":"x:0", "w":"W:0"}, [("w", "W:0")]),
     ("logistic", {'m': 54}, logistic, {"y":"y:0", "x":"x:0", "w":"W:0"}, [("w", "W:0")]),
     ("svm", {'m': 54}, svm, {"y":"y:0", "x":"x:0", "w":"W:0"}, [("c", "mul_1:0")]),
     ("backprop", {'l1': 8, 'l2':16, 'l3':4}, backprop, {"y":"y:0", "x":"x:0", "w1":"W1:0","w2":"W2:0"}, [("w1", "W1:0"), ("w2", "W2:0")]),
-    # ("recommender", {'m': 138, 'n':130 , 'k': 10}, reco, {"x1":"x2:0", "x2":"x1:0", "w2":"W1:0", "w1":"W2:0",
-    #                                  "y2":"y1:0", "y1":"y1_1:0","r2":"r1:0", "r1":"r1_1:0"}, ("d1", "Sub_1:0")),
+    ("recommender", {'m': 30, 'n':28 , 'k': 3}, reco, {"x1":"x1:0", "x2":"x2:0", "w1":"w1:0", "w2":"w2:0",
+                                     "y1":"y1:0", "y2":"y2:0","r2":"r2:0", "r1":"r1:0"}, [("w1", "w1:0"),("w2", "w2:0")]),
 ])
 def test_convert_benchmarks(benchmark_name, feature_dict, data_func, input_keys, output_key):
     feature_size = [str(v) for k,v in feature_dict.items()]
     tabla_path = f"{OUTPATH}/{benchmark_name}_{'_'.join(feature_size)}_onnx_tabla.json"
     ref_tabla_path = f"{OUTPATH}/{benchmark_name}_{'_'.join(feature_size)}_tabla.json"
     filename = f"{benchmark_name}{'_'.join(feature_size)}.onnx"
-    filepath = f"{BENCH_DIR}/{benchmark_name}/{filename}"
+    filepath = f"{BENCH_DIR}/ml_algorithms/{filename}"
     assert Path(filepath).exists()
     graph = pm.from_onnx(filepath)
     int_feat_dict = {k: int(v) for k,v  in feature_dict.items()}
@@ -140,7 +130,6 @@ def test_load_nested_linear_regressor(m_):
     keys = [f"tw/tw({i},)" for i in range(m_)]
 
     flattened_g = flatten_pass(new_graph)
-    pprint.pprint(list(flattened_g.nodes.keys()))
     all_vals = flattened_g(keys, input_info)
 
 @pytest.mark.parametrize('m',[
@@ -163,29 +152,6 @@ def test_translate_linear_regressor(m):
     tabla_ir = pm.generate_tabla(graph,
                                   shape_dict,
                                   tabla_path)
-
-
-@pytest.mark.parametrize('m',[
-    54
-])
-def test_translate_logistic_regression(m):
-    fpath = f"{ONNX_FILE_DIR}/logreg_{m}.onnx"
-    shape_dict = {"m": m}
-    graph = pm.from_onnx(fpath, infer_shapes=False)
-    test_graph, input_info, out_info, keys = logistic(m=m, coarse=True)
-    tinput_info = copy.deepcopy(input_info)
-    tkeys = copy.deepcopy(keys)
-    test_res = test_graph(tkeys, tinput_info)
-    np.testing.assert_allclose(test_res, (out_info["w"]))
-    onx_input_info = copy.deepcopy(input_info)
-    onnx_res = graph(keys, onx_input_info)
-    np.testing.assert_allclose(onnx_res, (out_info["w"]))
-
-    tabla_path = f"{OUTPATH}/{graph.name}{m}_tabla.json"
-    tabla_ir, tabla_graph = pm.generate_tabla(graph,
-                                              shape_dict,
-                                              tabla_path)
-
 
 @pytest.mark.parametrize('m',[
     54
@@ -302,14 +268,14 @@ def test_translate_conv(x_shape, w_shape, params):
     stride = pm.parameter(name="stride")
     pad = pm.parameter(name="pad")
     out = pm.output(name="out")
-    graph = pm.conv(x, w, b, out, stride, pad)
+    graph = pm.conv_bias(x, w, b, out, stride, pad)
     tinput_info = copy.deepcopy(input_info)
     res0 = graph("out", tinput_info)
 
     np.testing.assert_allclose(res0, out_info["out"])
 
 @pytest.mark.parametrize('x_shape', [
-    (5, 5, 8, 8),
+    (3, 3, 4, 4),
 ])
 def test_translate_flatten(x_shape):
     x = np.random.randint(0, 5, x_shape)
@@ -319,6 +285,8 @@ def test_translate_flatten(x_shape):
     g = pm.batch_flatten(data, out)
 
     res = g("out", {"x": x})
+    print(res)
+    print(x.reshape(-1))
     np.testing.assert_allclose(res, x.reshape(-1))
 
 @pytest.mark.parametrize('x_shape', [
@@ -383,4 +351,42 @@ def test_translate_softmax(x_shape):
     res = g("out", {"x": x})
     np_res = softmax(x)
     np.testing.assert_allclose(np_res, res)
+
+
+# @pytest.mark.parametrize('layer_name, param_dict, data_func, input_keys, output_key',[
+#     ("conv", {'m': 54}, conv, {"y":"y:0", "x":"x:0", "w":"W:0"}, [("w", "W:0")]),
+# ])
+# def test_translate_layers(layer_name, param_dict, data_func, input_keys, output_key):
+#     filename = f"full_dnns/bvlcalexnet-9.onnx"
+#     filepath = f"{BENCH_DIR}/{filename}"
+#     assert Path(filepath).exists()
+#     graph = pm.from_onnx(filepath)
+
+
+@pytest.mark.parametrize('x_shape',[
+    ((3,2, 4,3)),
+])
+def test_batchnorm(x_shape):
+    graph, inp_info, out_info, keys = batchnorm(x_shape, coarse=True)
+
+    test_out = graph(keys[0], inp_info)
+    np.testing.assert_allclose(out_info[keys[0]], test_out)
+
+
+@pytest.mark.parametrize('x_shape',[
+    ((2,2, 3,3)),
+])
+def test_global_avg_pool(x_shape):
+    graph, inp_info, out_info, keys = global_avg_pool(x_shape, coarse=True)
+    test_out = graph(keys[0], inp_info)
+    np.testing.assert_allclose(out_info[keys[0]], test_out)
+
+@pytest.mark.parametrize('x_shape, alpha, beta, bias, nsize',[
+    ((3,2,3,3), 0.0002, 0.5, 2.0, 2),
+])
+def test_lrn(x_shape, alpha, beta, bias, nsize):
+    graph, inp_info, out_info, keys = lrn(x_shape, alpha, beta, bias, nsize, coarse=True)
+    test_out = graph(keys[0], inp_info)
+    np.testing.assert_allclose(out_info[keys[0]], test_out)
+
 

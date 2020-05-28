@@ -1,7 +1,7 @@
 from .base import Node
 import numpy as np
 from .util import is_iterable
-import builtins
+from polymath.mgdfg.domain import Domain
 from itertools import product
 import operator
 
@@ -14,13 +14,17 @@ class index(Node):  # pylint: disable=C0103,W0223
     def __init__(self, lbound, ubound, **kwargs):  # pylint: disable=W0235
         kwargs["op_name"] = kwargs["op_name"] if "op_name" in kwargs else "index"
         super(index, self).__init__(lbound, ubound, **kwargs)
+        if not "domain" in kwargs or len(kwargs['domain'].doms) == 0:
+            domain = Domain(tuple([self]), dom_set=tuple([self]))
+            self.kwargs['domain'] = domain
+
 
     def as_shape(self):
         return self.ubound - self.lbound + 1
 
     @property
     def domain(self):
-        return tuple([self])
+        return self.kwargs["domain"]
 
     @property
     def dom_names(self):
@@ -91,6 +95,18 @@ class index(Node):  # pylint: disable=C0103,W0223
     def __rfloordiv__(self, other):
         return index_op(operator.floordiv, other, self, graph=self.graph)
 
+    def __le__(self, other):
+        return index_op(operator.le, self, other, graph=self.graph)
+
+    def __ge__(self, other):
+        return index_op(operator.ge, self, other, graph=self.graph)
+
+    def __lt__(self, other):
+        return index_op(operator.lt, self, other, graph=self.graph)
+
+    def __gt__(self, other):
+        return index_op(operator.gt, self, other, graph=self.graph)
+
     def __repr__(self):
         return "<index '%s'>" % (self.name)
 
@@ -99,24 +115,23 @@ class index_op(index):
     def __init__(self, target, *args, **kwargs):  # pylint: disable=W0235
         kwargs["op_name"] = kwargs["op_name"] if "op_name" in kwargs \
             else f"index_{target.__name__}"
+
+        super(index_op, self).__init__(*args, target=f"{target.__module__}.{target.__name__}", **kwargs)
         if "domain" in kwargs:
-            domain = tuple(kwargs.pop("domain")) if isinstance(kwargs["domain"], list) else kwargs.pop("domain")
+            domain = Domain(tuple(self.kwargs.pop("domain"))) if isinstance(self.kwargs["domain"], list) else self.kwargs.pop("domain")
+            self.kwargs['domain'] = domain
         else:
-            domain = []
+            dset = []
             for a in args:
                 if isinstance(a, index):
-                    domain += [i for i in a.domain]
-            domain = tuple(domain)
-        super(index_op, self).__init__(*args, target=f"{target.__module__}.{target.__name__}", domain=domain, **kwargs)
+                    dset += [i for i in a.domain.dom_set if i not in dset]
+            self.kwargs['domain'] = Domain(tuple([self]), dom_set=tuple(dset))
+        self.op1_dom = self.args[0].domain if isinstance(self.args[0], Node) else Domain(self.args[0])
+        self.op2_dom = self.args[1].domain if isinstance(self.args[1], Node) else Domain(self.args[1])
         self.target = target
 
     def as_shape(self):
         return 0
-
-    # #TODO: Fix domain and bounds
-    @property
-    def domain(self):
-        return self.kwargs["domain"]
 
     @property
     def dom_names(self):
@@ -135,15 +150,20 @@ class index_op(index):
         return self.args
 
     def _evaluate(self, op1, op2, **kwargs):
-        if is_iterable(op1) and is_iterable(op2):
+
+        if is_iterable(op1) and is_iterable(op2) and all([i.shape != (1,) for i in [op1,op2]]):
+            if self.op1_dom.names != self.op2_dom.names:
+                pairs = list(product(*(op1, op2)))
+            else:
+                pairs = list(zip(*(op1, op2)))
+            _ = self.domain.compute_index_pairs()
             assert isinstance(self.args[0], index) or np.allclose(self.args[0], op1)
             assert isinstance(self.args[1], index) or np.allclose(self.args[1], op2)
-            combined_indices = list(product(*(op1, op2)))
-            value = np.array(list(map(lambda x: self.target(x[0], x[1]), combined_indices)), dtype=np.int)
+            value = np.array(list(map(lambda x: self.target(x[0], x[1]), pairs)), dtype=np.int)
         else:
             value = self.target(op1, op2)
 
         return value
 
     def __repr__(self):
-        return "<index_op '%s'>" % (self.name)
+        return "<index_%s '%s'>" % (self.target.__name__, self.name)

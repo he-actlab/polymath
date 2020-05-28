@@ -1,6 +1,6 @@
 from polymath.mgdfg.base import *
 import numpy as np
-from numbers import Integral
+from numbers import Integral, Real
 import functools
 from polymath.mgdfg.nodes import parameter
 from .util import _flatten_iterable, _fnc_hash
@@ -25,7 +25,7 @@ class NonLinear(Node):
         if "domain" in kwargs:
             kwargs.pop("domain")
         domain = val.domain if isinstance(val, Node) else Domain((1,))
-        kwargs['shape'] = (1,) if isinstance(val, Integral) else val.shape
+        kwargs['shape'] = (1,) if isinstance(val, Real) else val.shape
         super(NonLinear, self).__init__(val, target=f"{target.__module__}.{target.__name__}", domain=domain, **kwargs)
         self.target = target
 
@@ -72,7 +72,7 @@ class NonLinear(Node):
         if "domain" in kwargs:
             kwargs.pop("domain")
         val = self.target(val)
-        if len(val.shape) == 0:
+        if isinstance(val, Real) or len(val.shape) == 0:
             val = np.asarray([val])
 
         if not self.is_shape_finalized():
@@ -109,6 +109,13 @@ class abs(NonLinear):
     def __init__(self, input_node, **kwargs):
         super(abs, self).__init__(_abs, input_node, **kwargs)
 
+class floor(NonLinear):
+    def __init__(self, input_node, **kwargs):
+        super(floor, self).__init__(_floor, input_node, **kwargs)
+
+class ceil(NonLinear):
+    def __init__(self, input_node, **kwargs):
+        super(ceil, self).__init__(_ceil, input_node, **kwargs)
 
 class sqrt(NonLinear):
     def __init__(self, input_node, **kwargs):
@@ -133,6 +140,11 @@ def _abs(value):
 def _sqrt(value):
     return np.sqrt(value)
 
+def _floor(value):
+    return int(np.floor(value))
+
+def _ceil(value):
+    return int(np.ceil(value))
 
 def _cast(value, npdtype):
     if not isinstance(value, np.ndarray):
@@ -140,14 +152,6 @@ def _cast(value, npdtype):
     else:
         return value.astype(npdtype)
 
-# def _cast_wrapper(npdtype):
-#     def _cast(value):
-#         nonlocal npdtype
-#         if not isinstance(value, np.ndarray):
-#             return np.asarray(value).astype(npdtype)
-#         else:
-#             return value.astype(npdtype)
-#     return _cast
 
 
 

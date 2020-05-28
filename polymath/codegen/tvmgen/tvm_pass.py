@@ -78,6 +78,25 @@ def tvm_conv2d(node, ctx):
     c = relay.nn.conv2d(data, weights, strides=stride, padding=pad)
     return node.args[3].name, c
 
+
+def tvm_conv2d_bias(node, ctx):
+
+    data = ctx[node.args[0].name]
+    weights = ctx[node.args[1].name]
+    bias = ctx[node.args[2].name]
+    if not isinstance(node.args[4], pm.Node):
+        stride = (node.args[4], node.args[4])
+    else:
+        stride = (ctx[node.args[4].name], ctx[node.args[4].name])
+
+    if not isinstance(node.args[5], pm.Node):
+        pad = (node.args[5], node.args[5])
+    else:
+        pad = (ctx[node.args[5].name], ctx[node.args[5].name])
+    c = relay.nn.conv2d(data, weights, strides=stride, padding=pad)
+    cb = relay.nn.bias_add(c, bias)
+    return node.args[4].name, cb
+
 def tvm_var(node, ctx):
     var = relay.var(node.name, shape=node.shape, dtype="float32")
     return node.name, var
@@ -105,7 +124,7 @@ def tvm_batch_flatten(node, ctx):
 
 TVM_OPS = {"avg_pool2d": tvm_avg_pool,
            "max_pool2d": tvm_max_pool,
-           "conv": tvm_conv2d,
+           "conv_bias": tvm_conv2d,
            "input": tvm_var,
            "state": tvm_var,
            "relu": tvm_relu,

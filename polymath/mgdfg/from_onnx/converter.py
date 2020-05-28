@@ -60,7 +60,6 @@ def get_initializers(initializers):
     for i in initializers:
         val = numpy_helper.to_array(i)
         if len(val.shape) == 0:
-            # val = np.asarray([np.int(val)])
             val = np.int(val)
         init_dict[i.name] = val
     return init_dict
@@ -86,38 +85,37 @@ def generate_nn_mdfg(onnx_graph):
     # TODO: This is a hotfix for identifying gradient updates, but weights should have initializers
     state_variables = get_states_by_gradient(onnx_graph)
     node_info = {}
-
+    # TODO: If a value has an initializer, set the initializer value as the value for the node
     for o in onnx_graph.output:
 
         assert o.name not in node_info
-        if o.name in initializers:
-            node_info[o.name] = pm.variable(initializers[o.name], name=o.name, shape=get_value_info_shape(o),
-                                            graph=mgdfg)
-        elif o.name in state_variables:
+
+        if o.name in state_variables:
             node_info[o.name] = pm.state(name=state_variables[o.name], shape=get_value_info_shape(o), graph=mgdfg)
             node_info[state_variables[o.name]] = node_info[o.name]
         else:
-            print(f"{o.name}")
             node_info[o.name] = pm.output(name=o.name, shape=get_value_info_shape(o), graph=mgdfg)
+
 
     for i in onnx_graph.input:
         if i.name in state_variables.values():
             assert i.name in node_info
             continue
         assert i.name not in node_info
-
-        if i.name in initializers:
-            if itercheck(initializers[i.name]):
-                node_info[i.name] = pm.variable(initializers[i.name], name=i.name, shape=get_value_info_shape(i), graph=mgdfg)
-            else:
-                node_info[i.name] = pm.parameter(name=i.name, default=initializers[i.name], graph=mgdfg)
+        if i.name in state_variables:
+            node_info[i.name] = pm.state(name=state_variables[i.name], shape=get_value_info_shape(i), graph=mgdfg)
+            node_info[state_variables[i.name]] = node_info[i.name]
+        elif i.name in initializers and not itercheck(initializers[i.name]):
+            node_info[i.name] = pm.parameter(name=i.name, default=initializers[i.name], graph=mgdfg)
         else:
             node_info[i.name] = pm.input(name=i.name, shape=get_value_info_shape(i), graph=mgdfg)
 
 
 
+
     for v in onnx_graph.value_info:
         assert v.name not in node_info
+
         if v.name in initializers:
             node_info[v.name] = pm.variable(initializers[v.name], name=v.name, shape=get_value_info_shape(v), graph=mgdfg)
         else:

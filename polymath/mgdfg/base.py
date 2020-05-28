@@ -819,7 +819,6 @@ class var_index(Node):  # pylint: disable=C0103,W0223
                              f"dimensions for slice {self.args[0].name} with {out_shape}.\n"
                              f"Eval Stack: {Node._eval_stack}")
 
-
         if not single and not all([(idx_val - 1) >= indices[-1][idx] for idx, idx_val in enumerate(var.shape)]):
             raise ValueError(f"var_index {self.name} has indices which are greater than the variable shape:\n"
                              f"\tArgs: {self.args}\n"
@@ -827,8 +826,8 @@ class var_index(Node):  # pylint: disable=C0103,W0223
                              f"\tNode shape: {self.var.shape}\n"
                              f"\tIndex Upper bounds: {indices[-1]}")
 
-
         indices = list(map(lambda x: x.tolist() if isinstance(x, np.ndarray) else x, indices))
+
         res = var[indices] if single else np.asarray([var[idx] for idx in indices]).reshape(out_shape)
 
         self.domain.set_computed(out_shape, indices)
@@ -1022,8 +1021,10 @@ class slice_op(Node):
         if self.is_scalar(op1) or self.is_scalar(op2):
             value = self.target(op1, op2)
         else:
-            op1_idx = self.domain.map_sub_domain(self.args[0].domain) if isinstance(self.args[0], Node) else tuple([])
-            op2_idx = self.domain.map_sub_domain(self.args[1].domain) if isinstance(self.args[1], Node) else tuple([])
+            arg0_dom = self.args[0].domain
+            arg1_dom = self.args[1].domain
+            op1_idx = self.domain.map_sub_domain(arg0_dom) if isinstance(self.args[0], Node) else tuple([])
+            op2_idx = self.domain.map_sub_domain(arg1_dom) if isinstance(self.args[1], Node) else tuple([])
             op1 = np.asarray(list(map(lambda x: op1[x], op1_idx))).reshape(self.domain.computed_shape)
             op2 = np.asarray(list(map(lambda x: op2[x], op2_idx))).reshape(self.domain.computed_shape)
             value = self.target(op1, op2)
@@ -1036,10 +1037,14 @@ class slice_op(Node):
 
         if isinstance(slice1_var, (slice_op, var_index)) or _is_node_type_instance(slice1_var, "GroupNode"):
             slice1_idx = slice1_var.domain
+        elif _is_node_type_instance(slice1_var, "index"):
+            slice1_idx = slice1_var.domain
         else:
             slice1_idx = Domain(tuple([]))
 
         if isinstance(slice2_var, (slice_op, var_index)) or _is_node_type_instance(slice2_var, "GroupNode"):
+            slice2_idx = slice2_var.domain
+        elif _is_node_type_instance(slice2_var, "index"):
             slice2_idx = slice2_var.domain
         else:
             slice2_idx = Domain(tuple([]))

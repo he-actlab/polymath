@@ -15,6 +15,7 @@ dom_fields = ("doms", "names")
 @dataclass(unsafe_hash=True)
 class Domain(object):
     doms: Tuple[Any] = field(hash=False)
+    dom_set: Tuple[Any] = field(default=None, hash=False)
     names: Tuple[str] = field(init=False)
     computed: dict = field(default=None, hash=False)
     computed_pairs: Sequence = field(default=None, hash=False)
@@ -31,6 +32,20 @@ class Domain(object):
                 names.append(d.name)
             else:
                 names.append(d)
+        if not self.dom_set:
+            dset = []
+
+            for a in self.doms:
+                if _is_node_type_instance(a, "index_op"):
+                    dset += [i for i in a.domain.dom_set]
+                elif _is_node_type_instance(a, "index"):
+                    dset += [i for i in a.domain.dom_set]
+                elif _is_node_instance(a):
+                    dset += [i for i in a.domain.dom_set]
+                else:
+                    assert isinstance(a, Integral)
+                    dset.append(a)
+            self.dom_set = tuple(dset)
         self.names = tuple(names)
 
     def set_computed(self, in_shape, indices):
@@ -55,12 +70,13 @@ class Domain(object):
     def is_scalar(self):
         return len(self.dom_set) == 0 or self.doms == DEFAULT_SHAPES[0]
 
-    @property
-    def dom_set(self):
+    def compute_dom_set(self):
         dset = []
         for a in self.doms:
-            if _is_node_type_instance(a, "index"):
-                dset += [i for i in a.domain]
+            if _is_node_type_instance(a, "index_op"):
+                dset += [i for i in a.domain.dom_set]
+            elif _is_node_type_instance(a, "index"):
+                dset.append(a)
             elif _is_node_instance(a):
                 dset += [i for i in a.domain.dom_set]
             else:
@@ -235,38 +251,49 @@ class Domain(object):
             pairs = list(map(lambda x: tuple(x), pairs))
         return pairs
 
-    def compute_index_pairs(self, indices, tuples=True):
-        pairs = []
-        for i in indices:
-
-            if _is_node_instance(i):
-                if i.value is not None and is_iterable(i.value):
-                    pairs.append(i.value)
-                elif _is_node_type_instance(i, "index"):
-                    assert isinstance(i.lbound, Integral) and isinstance(i.ubound, Integral)
-                    pairs.append([x for x in range(i.lbound, i.ubound + 1)])
-                elif i.shape in DEFAULT_SHAPES:
-                    continue
-                else:
-                    raise ValueError(f"Could not use subscript for domain pair: {i.name} - {i.op_name}")
-            elif isinstance(i, np.ndarray):
-                pairs.append(i.tolist())
-            elif isinstance(i, Integral):
-                continue
+    def map_index_op_domains(self, indices, tuples=True):
+        if self.computed_pairs is not None:
+            pairs = self.computed_pairs
+        else:
+            pairs = []
+            if self.doms == DEFAULT_SHAPES[0]:
+                pairs.append([0])
             else:
-                assert isinstance(i, list)
-                pairs.append(i)
-        pairs = tuple(pairs)
-        pairs = np.array(list(product(*pairs)))
+                for i in self.doms:
+                    if _is_node_instance(i):
+
+                        if i.value is not None and is_iterable(i.value):
+                            pairs.append(i.value)
+                        elif _is_node_type_instance(i, "index"):
+                            assert isinstance(i.lbound, Integral) and isinstance(i.ubound, Integral)
+                            pairs.append([x for x in range(i.lbound, i.ubound + 1)])
+                        elif i.shape in DEFAULT_SHAPES:
+                            continue
+                        else:
+                            raise ValueError(f"Could not use subscript for domain pair: {i.name} - {i.op_name}")
+                    elif isinstance(i, np.ndarray):
+                        pairs.append(i.tolist())
+                    elif isinstance(i, Integral):
+                        pairs.append([i])
+                    else:
+                        assert isinstance(i, list)
+                        pairs.append(i)
+            pairs = tuple(pairs)
+            pairs = np.array(list(product(*pairs)))
+            self.computed_pairs = pairs
 
         if tuples:
-            pairs = [tuple(i) for i in pairs]
+            pairs = list(map(lambda x: tuple(x), pairs))
         return pairs
 
-    def get_filtered_indices(self, superset, target_axes, axes):
-        pass
+    def compute_index_pairs(self, tuples=True):
+        pairs = []
+        dom_set_pairs = self.compute_set_pairs(tuples=False)
+        unraveled_set_pairs = np.ravel_multi_index(dom_set_pairs.T, self.computed_set_shape)
+        self.computed_pairs = unraveled_set_pairs.reshape(np.prod(self.computed_set_shape), 1)
+        return self.computed_pairs
 
-    def map_sub_domain(self, dom):
+    def map_sub_domain(self, dom, is_index_dom=False):
 
         dom_set_pairs = self.compute_set_pairs(tuples=False)
         target_set_pairs = dom.compute_set_pairs(tuples=False)
@@ -277,6 +304,7 @@ class Domain(object):
         pair_mappings = np.apply_along_axis(lambda x: x[idx_map], 1, dom_set_pairs)
         dims = target_set_pairs.max(0) + 1
         X1D = np.ravel_multi_index(target_set_pairs.T, dims)
+
         searched_valuesID = np.ravel_multi_index(pair_mappings.T, dims)
         sidx = X1D.argsort()
         out = sidx[np.searchsorted(X1D, searched_valuesID, sorter=sidx)]

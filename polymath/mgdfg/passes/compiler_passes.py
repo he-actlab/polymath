@@ -336,11 +336,12 @@ class NormalizeGraph(Pass):
 
             if isinstance(src, pm.Node):
                 if isinstance(node.args[0], pm.index):
-                    src_dom = pm.Domain(node.args[0].domain)
-                    indices = [i.value for i in src_dom.dom_set]
-                    out_shape = src_dom.shape_from_indices(indices)
+                    src_dom = node.args[0].domain
+                    # indices = [i.value for i in src_dom.dom_set]
+                    # out_shape = src_dom.shape_from_indices(indices)
                 else:
                     src_dom = node.args[0].domain
+
                 src_indices = node.domain.map_sub_domain(src_dom)
 
                 for i in dst_indices:

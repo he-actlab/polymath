@@ -84,13 +84,14 @@ def _serialize_domain(dom, pb_dom):
         else:
             raise TypeError(f"Cannot find serializable method for domain {d} with type {type(d)}")
 
-def _deserialize_domain(pb_dom, graph):
+def _deserialize_domain(pb_dom, graph, node_name):
     doms = []
     for d in pb_dom.dom.domains:
         if d.type == pb.Attribute.Type.NODE:
-            assert d.s.decode("utf-8") in graph.nodes
-            arg_node = graph.nodes[d.s.decode("utf-8")]
-            doms.append(arg_node)
+            if d.s.decode("utf-8") != node_name:
+                assert d.s.decode("utf-8") in graph.nodes
+                arg_node = graph.nodes[d.s.decode("utf-8")]
+                doms.append(arg_node)
         elif d.type == pb.Attribute.Type.NDARRAY:
             doms.append(proto_to_ndarray(d.nda))
         elif d.type == pb.Attribute.Type.INT32:
@@ -169,7 +170,7 @@ def _deserialize_node(pb_node, graph=None):
     for name in pb_node.kwargs:
         arg = pb_node.kwargs[name]
         if arg.type == pb.Attribute.Type.DOM:
-            kwargs[name] = _deserialize_domain(arg, graph)
+            kwargs[name] = _deserialize_domain(arg, graph, pb_node.name)
         elif arg.type == pb.Attribute.Type.NODE:
             assert arg.s.decode("utf-8") in graph.nodes
             arg_node = graph.nodes[arg.s.decode("utf-8")]

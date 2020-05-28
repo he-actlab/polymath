@@ -890,7 +890,7 @@ def conv(x_shape, w_shape, params, coarse=False, debug_matrix=False):
         stride = pm.parameter(name="stride")
         pad = pm.parameter(name="pad")
         out = pm.output(name="out")
-        pm.conv(x, w, b, out, stride, pad, name="conv_op")
+        pm.conv_bias(x, w, b, out, stride, pad, name="conv_op")
 
     if coarse:
         in_info, keys, out_info = conv_data_gen(x_shape, w_shape, params, debug_matrix=debug_matrix)
@@ -904,6 +904,184 @@ def conv(x_shape, w_shape, params, coarse=False, debug_matrix=False):
         new_graph = shape_val_pass(graph)
         in_info, keys, out_info = conv_data_gen(x_shape, w_shape, params, lowered=True, debug_matrix=debug_matrix)
         return new_graph, in_info, out_info, keys
+
+def batchnorm(x_shape, coarse=False, debug_matrix=False):
+    with pm.Node(name="conv") as graph:
+        n = pm.parameter(name="n")
+        c = pm.parameter(name="ic")
+        ih = pm.parameter(name="ih")
+        iw = pm.parameter(name="iw")
+        x = pm.input(name="x", shape=(n, c, ih, iw))
+        s = pm.input(name="s", shape=(c,))
+        mean = pm.input(name="mean", shape=(c,))
+        var = pm.input(name="var", shape=(c,))
+        bias = pm.input(name="bias", shape=(c,))
+        y = pm.output(name="y", shape=(n, c, ih, iw))
+        pm.batch_norm(x, s, bias, mean, var, y, shape=x_shape)
+
+
+    if coarse:
+        in_info, keys, out_info = batchnorm_datagen(x_shape)
+        return graph, in_info, out_info, keys
+    else:
+
+        shape_dict = {"n": x_shape[0], "ic": x_shape[1], "ih": x_shape[2], "iw": x_shape[3]}
+        shape_val_pass = pm.NormalizeGraph(shape_dict)
+        new_graph = shape_val_pass(graph)
+        in_info, keys, out_info = batchnorm_datagen(x_shape, lowered=True)
+        return new_graph, in_info, out_info, keys
+
+def batchnorm_datagen(x_shape, lowered=False):
+    input_info = {}
+    input_info['x'] = np.random.randint(-3,3, x_shape)
+    input_info['s'] = np.random.randint(-3,3, x_shape[1])
+    input_info['mean'] = np.random.randint(-3,3, x_shape[1])
+    input_info['var'] = np.random.randint(-3,3, x_shape[1])
+    input_info['bias'] = np.random.randint(-3,3, x_shape[1])
+    out_info = {}
+    out_info['y'] = np_batchnorm(**input_info)
+    return input_info, ['y'], out_info
+
+def np_batchnorm(x=None, s=None, bias=None, mean=None, var=None, epsilon=1e-5):
+    dims_x = len(x.shape)
+    dim_ones = (1,) * (dims_x - 2)
+    s = s.reshape(-1, *dim_ones)
+
+    bias = bias.reshape(-1, *dim_ones)
+    mean = mean.reshape(-1, *dim_ones)
+    var = var.reshape(-1, *dim_ones)
+    return s * (x - mean) / np.sqrt(var + epsilon) + bias
+
+def global_avg_pool(x_shape, coarse=False, debug_matrix=False):
+    with pm.Node(name="conv") as graph:
+        n = pm.parameter(name="n")
+        c = pm.parameter(name="ic")
+        ih = pm.parameter(name="ih")
+        iw = pm.parameter(name="iw")
+        x = pm.input(name="x", shape=(n, c, ih, iw))
+        y = pm.output(name="y", shape=(n, c, 1, 1))
+        pm.global_avg_pool(x, y, shape=(x_shape[0], x_shape[1], 1,1))
+
+
+    if coarse:
+        in_info, keys, out_info = global_avg_pool_datagen(x_shape)
+        return graph, in_info, out_info, keys
+    else:
+
+        shape_dict = {"n": x_shape[0], "ic": x_shape[1], "ih": x_shape[2], "iw": x_shape[3]}
+        shape_val_pass = pm.NormalizeGraph(shape_dict)
+        new_graph = shape_val_pass(graph)
+        in_info, keys, out_info = global_avg_pool_datagen(x_shape, lowered=True)
+        return new_graph, in_info, out_info, keys
+
+def global_avg_pool_datagen(x_shape, lowered=False):
+    input_info = {}
+    input_info['x'] = np.random.randint(-3,3, x_shape)
+
+    out_info = {}
+    out_info['y'] = np_global_avg_pool(**input_info)
+    return input_info, ['y'], out_info
+
+def np_global_avg_pool(x=None, epsilon=1e-5):
+    spatial_shape = np.ndim(x) - 2
+    y = np.average(x, axis=tuple(range(spatial_shape, spatial_shape + 2)))
+    for _ in range(spatial_shape):
+        y = np.expand_dims(y, -1)
+    return y
+
+
+def lrn(x_shape, alpha, beta, bias, nsize, coarse=False, debug_matrix=False):
+
+    with pm.Node(name="lrn") as graph:
+        n = pm.parameter(name="n")
+        c = pm.parameter(name="ic")
+        ih = pm.parameter(name="ih")
+        iw = pm.parameter(name="iw")
+        x = pm.input(name="x", shape=(n, c, ih, iw))
+        y = pm.output(name="y", shape=(n, c, ih, iw))
+        pm.lrn(x, y, alpha, beta, bias, nsize, shape=x_shape)
+
+    if coarse:
+        in_info, keys, out_info = lrn_datagen(x_shape, alpha, beta, bias, nsize)
+        return graph, in_info, out_info, keys
+    else:
+
+        shape_dict = {"n": x_shape[0], "ic": x_shape[1], "ih": x_shape[2], "iw": x_shape[3]}
+        shape_val_pass = pm.NormalizeGraph(shape_dict)
+        new_graph = shape_val_pass(graph)
+        in_info, keys, out_info = lrn_datagen(x_shape, alpha, beta, bias, nsize, lowered=True)
+        return new_graph, in_info, out_info, keys
+
+def lrn_datagen(x_shape, alpha, beta, bias, nsize, lowered=False):
+    input_info = {}
+    input_info['x'] = np.random.randn(*x_shape).astype(np.int32)
+    input_info['alpha'] = alpha
+    input_info['beta'] = beta
+    input_info['bias'] = bias
+    input_info['nsize'] = nsize
+    out_info = {}
+    out_info['y'] = np_lrn(**input_info)
+    input_info.pop('alpha')
+    input_info.pop('beta')
+    input_info.pop('bias')
+    input_info.pop('nsize')
+    return input_info, ['y'], out_info
+
+def np_lrn(x=None, alpha=None, beta=None, bias=None, nsize=None):
+    square_sum = np.zeros(x.shape)
+    lradius = (nsize//2)
+    uradius = (nsize//2)
+    if len(x.shape) > 3:
+        for n, c, h, w in np.ndindex(x.shape):
+            square_sum[n, c, h, w] = np.sum(x[n,
+                                         max(0, c - lradius):min(5, c + uradius + 1),
+                                         h,
+                                         w] ** 2)
+    else:
+        for c, h, w in np.ndindex(x.shape):
+            square_sum[c, h, w] = np.sum(x[max(0, c - int(np.floor((nsize - 1) / 2))):min(5, c + int(
+                                             np.ceil((nsize - 1) / 2)) + 1),
+                                         h,
+                                         w] ** 2)
+    y = x / ((bias + (alpha / nsize) * square_sum) ** beta)
+    return y
+
+def max_pool(x_shape, coarse=False, debug_matrix=False):
+    with pm.Node(name="conv") as graph:
+        n = pm.parameter(name="n")
+        c = pm.parameter(name="ic")
+        ih = pm.parameter(name="ih")
+        iw = pm.parameter(name="iw")
+        x = pm.input(name="x", shape=(n, c, ih, iw))
+        y = pm.output(name="y", shape=(n, c, 1, 1))
+        pm.max_pool(x, y, shape=(x_shape[0], x_shape[1], 1,1))
+
+
+    if coarse:
+        in_info, keys, out_info = global_avg_pool_datagen(x_shape)
+        return graph, in_info, out_info, keys
+    else:
+
+        shape_dict = {"n": x_shape[0], "ic": x_shape[1], "ih": x_shape[2], "iw": x_shape[3]}
+        shape_val_pass = pm.NormalizeGraph(shape_dict)
+        new_graph = shape_val_pass(graph)
+        in_info, keys, out_info = global_avg_pool_datagen(x_shape, lowered=True)
+        return new_graph, in_info, out_info, keys
+
+def max_pool_datagen(x_shape, lowered=False):
+    input_info = {}
+    input_info['x'] = np.random.randint(-3,3, x_shape)
+
+    out_info = {}
+    out_info['y'] = np_global_avg_pool(**input_info)
+    return input_info, ['y'], out_info
+
+def np_max_pool(x=None, epsilon=1e-5):
+    spatial_shape = np.ndim(x) - 2
+    y = np.average(x, axis=tuple(range(spatial_shape, spatial_shape + 2)))
+    for _ in range(spatial_shape):
+        y = np.expand_dims(y, -1)
+    return y
 
 def np_dense(x, w):
     return sigmoid(w.dot(x))
@@ -1154,7 +1332,7 @@ def lenet(lenet_type="lenet5", coarse=True, debug=False):
         a1 = pm.output(name="a1")
         l1 = pm.output(name="l1")
 
-        pm.conv(data, w1, b1, c1, s1, p1)
+        pm.conv_bias(data, w1, b1, c1, s1, p1)
         pm.relu(c1, a1)
         pm.avg_pool2d(a1, l1, 2, 2, 2, 0)
 
@@ -1169,7 +1347,7 @@ def lenet(lenet_type="lenet5", coarse=True, debug=False):
         a2 = pm.output(name="a2")
         l2 = pm.output(name="l2")
 
-        pm.conv(l1, w2, b2, c2, s2, p2)
+        pm.conv_bias(l1, w2, b2, c2, s2, p2)
         pm.relu(c2, a2)
         pm.avg_pool2d(a2, l2, 2, 2, 2, 0)
 
@@ -1269,14 +1447,14 @@ def bit_reversal_indices(x):
 def fft_parallelized():
     with pm.Node("fft") as graph:
         N = pm.parameter("N")
-        x = pm.input("x", shape=(N))
+        x = pm.input("x", shape=(N,))
         n1 = pm.index(0, N-1, name="n1")
         n2 = pm.index(0, N-1, name="n2")
 
-        X = pm.output("X", shape=(N))
+        X = pm.output("X", shape=(N,))
 
-        M = pm.temp("M", shape=(N,N))
-        M[n1, n2] = (n1 * n2)
+        M = pm.output("M", shape=(N,N))
+        M[n1, n2] = (n1 * n2).set_name("test")
         M[n1, n2] = pm.exp(-2j * np.pi * M[n1,n2]/N)
         X[n1] = pm.sum([n2], M[n1, n2]* x[n2])
     return graph
@@ -1309,14 +1487,19 @@ def test_fft2(x):
 
     return X.ravel()
 
+def manual_fft(x):
+    m = np.zeros((x.shape[0],x.shape[0]))
+    for i, j in np.ndindex(m.shape):
+        m[i][j] = i*j
+
+    return m
 
 def unwound_fft(x_):
 
     np_res = np.abs(np.fft.fft(x_))
-    test_res = fft_parallelized()
-    fft_test_res = np.abs(test_res("X", {"x": x_}))
-
-    return np_res, fft_test_res
+    graph = fft_parallelized()
+    pm_res = np.abs(graph("X", {"x": x_}))
+    return pm_res, np_res
 
 def GP_Model_BO(X, Y):
     import gpflow
