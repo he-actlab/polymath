@@ -218,6 +218,7 @@ class Pass(object):
     def __call__(self, node, ctx=None, debug=False):
         self.pbar = tqdm.tqdm(desc=f"Applying {self.__class__.__name__} to nodes", file=sys.stdout, dynamic_ncols=True,
                               disable=not self.debug)
+
         visitor = NodePass(debug=self.debug, pbar=self.pbar, cls_name=self.__class__.__name__)
         self.ctx = self.ctx if self.ctx else ctx
 
@@ -226,6 +227,7 @@ class Pass(object):
         initialized_node = self.initialize_pass(gcpy, self.ctx)
         if self.debug:
             ncount = self.total_nodes(initialized_node, 0)
+
             self.pbar.reset(total=ncount)
 
         transformed_node = visitor.visit(initialized_node, self.ctx, pass_fn=self.apply_pass)

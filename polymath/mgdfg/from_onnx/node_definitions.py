@@ -238,6 +238,40 @@ class batch_norm(pm.Template):
 
         out[indices] = scale[i]*(x[indices] - mean[i])/pm.sqrt(var[i] + eps) + b[i]
 
+class matmul(pm.Template):
+    def define_graph(self, a, b, out, shape=None, name=None, **kwargs):
+        i = pm.index(0, a.shape[0] - 1)
+        j = pm.index(0, b.shape[0] - 1)
+        k = pm.index(0, b.shape[1] - 1)
+        out[i, k] = pm.sum([j], a[i, j]*b[j, k])
+
+class elem_sigmoid(pm.Template):
+    def define_graph(self, x, out, shape=None, name=None):
+        indices = tuple([pm.index(0, s - 1) for s in shape])
+        out[indices] = pm.sigmoid(x[indices])
+
+class transpose(pm.Template):
+    def define_graph(self, data, out, shape=None, name=None, **kwargs):
+        indices = tuple([pm.index(0, s - 1) for s in shape])
+        out[indices] = data[tuple(reversed(indices))]
+
+def get_transpose(data, shape=None, name=None, **kwargs):
+    out = pm.output(name=name, shape=shape)
+    return transpose(data, out, shape=shape)
+
+# def transpose(data, shape=None, name=None, **kwargs):
+#     indices = tuple([pm.index(0, s - 1) for s in shape])
+#     out = pm.temp(name=name, shape=shape)
+#     out[indices] = data[tuple(reversed(indices))]
+    # return out
+def get_elem_sigmoid(x, shape=None, name=None):
+    out = pm.output(name=name, shape=shape)
+    return elem_sigmoid(x, out, shape=shape)
+
+# def elem_sigmoid(x, shape=None, name=None, **kwargs):
+#     indices = tuple([pm.index(0, s - 1) for s in shape])
+#     ret = pm.sigmoid(x[indices]).set_name(name)
+#     return ret
 def reduce_sum(data, axes=None, keepdims=None, shape=None, name=None, **kwargs):
     i = pm.index(0, data.shape[axes] - 1)
     return pm.sum([i], data[i], name=name)
@@ -269,10 +303,7 @@ def elem_mul(a, b, shape=None, name=None, **kwargs):
 
     return (a[a_idx] * b[b_idx]).set_name(name)
 
-def elem_sigmoid(x, shape=None, name=None, **kwargs):
-    indices = tuple([pm.index(0, s - 1) for s in shape])
-    ret = pm.sigmoid(x[indices]).set_name(name)
-    return ret
+
 
 def cast(data, to=None, shape=None, name=None, **kwargs):
     indices = tuple([pm.index(0, s - 1) for s in shape])
@@ -289,11 +320,14 @@ def squeeze(x, axis, *args, shape=None, name=None, **kwargs):
     x.graph.nodes[name] = x
     return x
 
-def matmul(a, b, shape=None, name=None, **kwargs):
-    i = pm.index(0, a.shape[0] - 1)
-    j = pm.index(0, b.shape[0] - 1)
-    k = pm.index(0, b.shape[1] - 1)
-    return pm.sum([j], a[i, j]*b[j, k], name=name)
+
+
+
+# def matmul(a, b, shape=None, name=None, **kwargs):
+    # i = pm.index(0, a.shape[0] - 1)
+    # j = pm.index(0, b.shape[0] - 1)
+    # k = pm.index(0, b.shape[1] - 1)
+    # return pm.sum([j], a[i, j]*b[j, k], name=name)
 
 def lvmatmul(a, b, shape=None, name=None, **kwargs):
     i = pm.index(0, a.shape[0] - 1)
@@ -308,7 +342,8 @@ def rvmatmul(a, b, shape=None, name=None, **kwargs):
 def get_matmul(a, b, **kwargs):
 
     if len(a.shape) == len(b.shape):
-        return matmul(a,b,**kwargs)
+        out = pm.output(shape=kwargs['shape'], name=kwargs['name'])
+        return matmul(a, b, out)
     elif len(a.shape) > len(b.shape):
         return rvmatmul(a, b, **kwargs)
     else:
@@ -349,12 +384,6 @@ def reshape(data, *args, shape=None, name=None, **kwargs):
     data.graph.nodes[name] = data
     return data
 
-def transpose(data, shape=None, name=None, **kwargs):
-    indices = tuple([pm.index(0, s - 1) for s in shape])
-    out = pm.temp(name=name, shape=shape)
-    out[indices] = data[tuple(reversed(indices))]
-
-    return out
 
 def identity(data, shape=None, name=None, **kwargs):
     data.set_name(name)
@@ -404,21 +433,21 @@ class conv(pm.Template):
         # im2col
         if len(data.shape) > 3:
             b = pm.index(0, data.shape[0]-1, name="b")
-            o_indices = (b,c)
-            p_indices = (b, k,)
+            o_indices = [b,c]
+            p_indices = [b, k,]
             p_shape = (data.shape[0], data.shape[1], ihp, iwp)
             out.set_shape((data.shape[0], w.shape[0], oh, ow))
 
         else:
-            o_indices = (c,)
-            p_indices = (k,)
+            o_indices = [c]
+            p_indices = [k]
             p_shape = (data.shape[0], ihp, iwp)
             out.set_shape((w.shape[0], oh, ow))
 
         padded = pm.temp(name="padded", shape=p_shape)
-        padded[p_indices, ihp_, iwp_] = 0
-        padded[p_indices, iy + pad, ix + pad] = data[p_indices, iy, ix]
-        out[o_indices, y, x] = pm.sum([dy, dx, k], (padded[p_indices, dy + stride*y, dx + stride*x] * w[c, k, dy, dx]))
+        padded[tuple(p_indices + [ihp_, iwp_])] = 0
+        padded[tuple(p_indices + [iy + pad, ix + pad])] = data[tuple(p_indices + [ iy, ix])]
+        out[tuple(o_indices + [y, x])] = pm.sum([dy, dx, k], (padded[tuple(p_indices + [dy + stride*y, dx + stride*x])] * w[c, k, dy, dx]))
 
 class gemm(pm.Template):
     def define_graph(self, a, b, c, y,  shape=None, name=None, alpha=None, beta=None, transA=None, transB=None, **kwargs):
@@ -641,12 +670,14 @@ NODE_NAMES = {"SVMClassifier": svm_classifier_train,
               "Gemm": get_gemm,
               "Identity": identity,
               "Dropout": get_dropout,
-              "Sigmoid": elem_sigmoid,
               "Mul": elem_mul,
               "ReduceSum": reduce_sum,
               "Unsqueeze": unsqueeze,
               "Squeeze": squeeze,
               "Sub": elem_sub,
               "Add": elem_add,
-              "Transpose": transpose,
+              # "Transpose": transpose,
+              "Transpose": get_transpose,
+              # "Sigmoid": elem_sigmoid,
+              "Sigmoid": get_elem_sigmoid,
               "Greater": elem_greater}

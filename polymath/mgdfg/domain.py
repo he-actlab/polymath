@@ -42,6 +42,8 @@ class Domain(object):
                     dset += [i for i in a.domain.dom_set]
                 elif _is_node_instance(a):
                     dset += [i for i in a.domain.dom_set]
+                elif isinstance(a, Domain):
+                    dset += a.doms
                 else:
                     assert isinstance(a, Integral)
                     dset.append(a)

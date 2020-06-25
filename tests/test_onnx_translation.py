@@ -16,12 +16,12 @@ ONNX_FILE_DIR = Path(f"{Path(__file__).parent}/onnx_examples")
 
 
 @pytest.mark.parametrize('benchmark_name, feature_dict, data_func, input_keys, output_key',[
-    ("linear", {'m': 54}, linear, {"y":"y:0", "x":"x:0", "w":"W:0"}, [("w", "W:0")]),
-    ("logistic", {'m': 54}, logistic, {"y":"y:0", "x":"x:0", "w":"W:0"}, [("w", "W:0")]),
-    ("svm", {'m': 54}, svm, {"y":"y:0", "x":"x:0", "w":"W:0"}, [("c", "mul_1:0")]),
+    # ("linear", {'m': 54}, linear, {"y":"y:0", "x":"x:0", "w":"W:0"}, [("w", "W:0")]),
+    # ("logistic", {'m': 54}, logistic, {"y":"y:0", "x":"x:0", "w":"W:0"}, [("w", "W:0")]),
+    # ("svm", {'m': 54}, svm, {"y":"y:0", "x":"x:0", "w":"W:0"}, [("c", "mul_1:0")]),
     ("backprop", {'l1': 8, 'l2':16, 'l3':4}, backprop, {"y":"y:0", "x":"x:0", "w1":"W1:0","w2":"W2:0"}, [("w1", "W1:0"), ("w2", "W2:0")]),
-    ("recommender", {'m': 30, 'n':28 , 'k': 3}, reco, {"x1":"x1:0", "x2":"x2:0", "w1":"w1:0", "w2":"w2:0",
-                                     "y1":"y1:0", "y2":"y2:0","r2":"r2:0", "r1":"r1:0"}, [("w1", "w1:0"),("w2", "w2:0")]),
+    # ("recommender", {'m': 30, 'n':28 , 'k': 3}, reco, {"x1":"x1:0", "x2":"x2:0", "w1":"w1:0", "w2":"w2:0",
+    #                                  "y1":"y1:0", "y2":"y2:0","r2":"r2:0", "r1":"r1:0"}, [("w1", "w1:0"),("w2", "w2:0")]),
 ])
 def test_convert_benchmarks(benchmark_name, feature_dict, data_func, input_keys, output_key):
     feature_size = [str(v) for k,v in feature_dict.items()]
@@ -55,9 +55,10 @@ def test_convert_benchmarks(benchmark_name, feature_dict, data_func, input_keys,
 
     ref_ocount_pass = pm.CountOpTypes(skip=['temp', 'parameter', ref_tabla_graph.name])
     _ = ref_ocount_pass(ref_tabla_graph)
-    ocount_pass = pm.CountOpTypes(skip=['temp', 'parameter', tabla_graph.name])
+    ocount_pass = pm.CountOpTypes(skip=['temp', 'parameter', 'output','write', tabla_graph.name])
     _ = ocount_pass(tabla_graph)
-
+    pprint.pprint(ref_ocount_pass.op_types)
+    pprint.pprint(ocount_pass.op_types)
     if set(ocount_pass.op_types.keys()) != set(ref_ocount_pass.op_types.keys()):
         raise RuntimeError(f"Unequal amounts of operations for graphs:\n"
               f"\tReference: {ref_ocount_pass.op_types.keys()}\n"
@@ -68,6 +69,7 @@ def test_convert_benchmarks(benchmark_name, feature_dict, data_func, input_keys,
             raise RuntimeError(f"Unequal operations for key {k}:\n"
                                f"\tRef: {ref_ocount_pass.op_types[k]}\n"
                                f"\tActual: {v}\n")
+    #
 
     assert len(ref_tabla_ir) == len(tabla_ir)
 
@@ -353,18 +355,18 @@ def test_translate_softmax(x_shape):
     np.testing.assert_allclose(np_res, res)
 
 
-# @pytest.mark.parametrize('layer_name, param_dict, data_func, input_keys, output_key',[
-#     ("conv", {'m': 54}, conv, {"y":"y:0", "x":"x:0", "w":"W:0"}, [("w", "W:0")]),
-# ])
-# def test_translate_layers(layer_name, param_dict, data_func, input_keys, output_key):
-#     filename = f"full_dnns/bvlcalexnet-9.onnx"
-#     filepath = f"{BENCH_DIR}/{filename}"
-#     assert Path(filepath).exists()
-#     graph = pm.from_onnx(filepath)
+@pytest.mark.parametrize('layer_name, param_dict, data_func, input_keys, output_key',[
+    ("conv", {'m': 54}, conv, {"y":"y:0", "x":"x:0", "w":"W:0"}, [("w", "W:0")]),
+])
+def test_translate_layers(layer_name, param_dict, data_func, input_keys, output_key):
+    filename = f"full_dnns/tiny_yolo.onnx"
+    filepath = f"{BENCH_DIR}/{filename}"
+    assert Path(filepath).exists()
+    graph = pm.from_onnx(filepath)
 
 
 @pytest.mark.parametrize('x_shape',[
-    ((3,2, 4,3)),
+    ((3,2,4,3)),
 ])
 def test_batchnorm(x_shape):
     graph, inp_info, out_info, keys = batchnorm(x_shape, coarse=True)

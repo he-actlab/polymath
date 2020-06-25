@@ -44,7 +44,7 @@ class TablaPass(pm.Pass):
         elif isinstance(node, pm.write):
             a0_key = self.node_key(node.args[0])
 
-            if isinstance(node.args[2], pm.temp):
+            if isinstance(node.args[2], (pm.temp, pm.output)):
                 self.temp_map[node.args[2].name] = node.args[0]
 
             if a0_key not in self.dfg:
@@ -56,7 +56,7 @@ class TablaPass(pm.Pass):
             self.get_dfg_node("sink")["parents"].append(self.get_dfg_node(node.args[0])["id"])
             self.set_used_node(node.args[0], "sink")
             return node
-        elif isinstance(node, pm.temp):
+        elif isinstance(node, (pm.output, pm.temp)):
             return node
         elif isinstance(node, pm.placeholder):
             self.add_constants(node)

@@ -48,6 +48,10 @@ class NormalizeGraph(Pass):
             self.populate = stored_shapes["populate"]
         else:
             self.populate = True
+        if len(stored_shapes) <= 1:
+            self.check_values = True
+        else:
+            self.check_values = False
         self.evaluated = {}
         self.scalar_translations = {}
         self.stored_objects = {}

@@ -1519,3 +1519,204 @@ def matern32(X, Y):
     return m
 
 
+from dnnweaver2.graph import Graph, get_default_graph
+from dnnweaver2.tensor_ops.cnn import conv2D, maxPool, batch_norm, leakyReLU
+import logging
+from dnnweaver2.scalar.dtypes import FQDtype, FixedPoint
+
+from dnnweaver2 import get_tensor
+
+def yolo_convolution(tensor_in, filters=32, kernel_size=3,
+        batch_normalize=True, act='leakyReLU',
+        c_dtype=None, w_dtype=None,
+        s_dtype=None, bn_dtype=None):
+
+    input_channels = tensor_in.shape[-1]
+
+    weights = get_tensor(shape=(filters, kernel_size, kernel_size, input_channels),
+                         name='weights',
+                         dtype=w_dtype)
+    biases = get_tensor(shape=(filters),
+                         name='biases',
+                         dtype=FixedPoint(32,w_dtype.frac_bits + tensor_in.dtype.frac_bits))
+    conv = conv2D(tensor_in, weights, biases, pad='SAME', dtype=c_dtype)
+
+    if batch_normalize:
+        with get_default_graph().name_scope('batch_norm'):
+            mean = get_tensor(shape=(filters), name='mean', dtype=FixedPoint(16,c_dtype.frac_bits))
+            scale = get_tensor(shape=(filters), name='scale', dtype=s_dtype)
+            bn = batch_norm(conv, mean=mean, scale=scale, dtype=bn_dtype)
+    else:
+        bn = conv
+
+    if act == 'leakyReLU':
+        with get_default_graph().name_scope(act):
+            act = leakyReLU(bn, dtype=bn.dtype)
+    elif act == 'linear':
+        with get_default_graph().name_scope(act):
+            act = bn
+    else:
+        raise ValueError('Unknown activation type {}'.format(act))
+
+    return act
+
+
+def tiny_yolo(train=False, debug=False):
+    g = Graph('YOLOv2-Test: 16-bit', dataset='imagenet', log_level=logging.INFO)
+    batch_size = 1
+    with g.as_default():
+
+        with g.name_scope('inputs'):
+            i = get_tensor(shape=(batch_size,416,416,3), name='data', dtype=FQDtype.FXP16, trainable=False)
+
+        with g.name_scope('conv0'):
+            conv0 = yolo_convolution(i, filters=16, kernel_size=3,
+                    batch_normalize=True, act='leakyReLU',
+                    w_dtype=FixedPoint(16,14), c_dtype=FixedPoint(16,12),
+                    s_dtype=FixedPoint(16,9), bn_dtype=FixedPoint(16,8))
+        with g.name_scope('pool0'):
+            pool0 = maxPool(conv0, pooling_kernel=(1,2,2,1), stride=(1,2,2,1), pad='VALID')
+
+        with g.name_scope('conv1'):
+            conv1 = yolo_convolution(pool0, filters=32, kernel_size=3,
+                    batch_normalize=True, act='leakyReLU',
+                    w_dtype=FixedPoint(16,14), c_dtype=FixedPoint(16,8),
+                    s_dtype=FixedPoint(16,14), bn_dtype=FixedPoint(16,8))
+        with g.name_scope('pool1'):
+            pool1 = maxPool(conv1, pooling_kernel=(1,2,2,1), stride=(1,2,2,1), pad='VALID')
+
+        with g.name_scope('conv2'):
+            conv2 = yolo_convolution(pool1, filters=64, kernel_size=3,
+                    batch_normalize=True, act='leakyReLU',
+                    # batch_normalize=False, act='linear',
+                    w_dtype=FixedPoint(16,14), c_dtype=FixedPoint(16,10),
+                    s_dtype=FixedPoint(16,13), bn_dtype=FixedPoint(16,9))
+        with g.name_scope('pool2'):
+            pool2 = maxPool(conv2, pooling_kernel=(1,2,2,1), stride=(1,2,2,1), pad='VALID')
+
+        with g.name_scope('conv3'):
+            conv3 = yolo_convolution(pool2, filters=128, kernel_size=3,
+                    batch_normalize=True, act='leakyReLU',
+                    w_dtype=FixedPoint(16,14), c_dtype=FixedPoint(16,10),
+                    s_dtype=FixedPoint(16,13), bn_dtype=FixedPoint(16,10))
+        with g.name_scope('pool3'):
+            pool3 = maxPool(conv3, pooling_kernel=(1,2,2,1), stride=(1,2,2,1), pad='VALID')
+
+        with g.name_scope('conv4'):
+            conv4 = yolo_convolution(pool3, filters=256, kernel_size=3,
+                    batch_normalize=True, act='leakyReLU',
+                    w_dtype=FixedPoint(16,14), c_dtype=FixedPoint(16,11),
+                    s_dtype=FixedPoint(16,13), bn_dtype=FixedPoint(16,10))
+        with g.name_scope('pool4'):
+            pool4 = maxPool(conv4, pooling_kernel=(1,2,2,1), stride=(1,2,2,1), pad='VALID')
+
+        with g.name_scope('conv5'):
+            conv5 = yolo_convolution(pool4, filters=512, kernel_size=3,
+                    batch_normalize=True, act='leakyReLU',
+                    w_dtype=FixedPoint(16,14), c_dtype=FixedPoint(16,12),
+                    s_dtype=FixedPoint(16,13), bn_dtype=FixedPoint(16,11))
+        with g.name_scope('pool5'):
+            pool5 = maxPool(conv5, pooling_kernel=(1,2,2,1), stride=(1,1,1,1), pad=((0,0),(0,1),(0,1),(0,0)))
+
+        with g.name_scope('conv6'):
+            conv6 = yolo_convolution(pool5, filters=1024, kernel_size=3,
+                    batch_normalize=True, act='leakyReLU',
+                    w_dtype=FixedPoint(16,14), c_dtype=FixedPoint(16,12),
+                    s_dtype=FixedPoint(16,11), bn_dtype=FixedPoint(16,9))
+
+        with g.name_scope('conv7'):
+            conv7 = yolo_convolution(conv6, filters=1024, kernel_size=3,
+                    batch_normalize=True, act='leakyReLU',
+                    w_dtype=FixedPoint(16,14), c_dtype=FixedPoint(16,11),
+                    s_dtype=FixedPoint(16,14), bn_dtype=FixedPoint(16,12))
+
+        with g.name_scope('conv8'):
+            conv8 = yolo_convolution(conv7, filters=125, kernel_size=1,
+                    batch_normalize=False, act='linear',
+                    w_dtype=FixedPoint(16,14), c_dtype=FixedPoint(16,11))
+
+    return g
+
+
+
+def pm_tiny_yolo(coarse=False):
+    with pm.Node(name="tiny-yolo") as graph:
+        n = pm.parameter(name="n")
+        c = pm.parameter(name="ic")
+        ih = pm.parameter(name="ih")
+        iw = pm.parameter(name="iw")
+        nf1 = pm.parameter(name="nf1")
+        kh1 = pm.parameter(name="kh1")
+        kw1 = pm.parameter(name="kw1")
+        data = pm.input(name="data", shape=(n, c, ih, iw))
+        w1 = pm.state(name="w1", shape=(nf1, c, kh1, kw1))
+        b1 = pm.state(name="b1", shape=(nf1))
+
+        s1 = pm.parameter(name="s1")
+        p1 = pm.parameter(name="p1")
+        c1 = pm.output(name="c1")
+        a1 = pm.output(name="a1")
+        l1 = pm.output(name="l1")
+
+        pm.conv_bias(data, w1, b1, c1, s1, p1)
+        pm.leaky_relu(c1, a1)
+        pm.batch_norm(a1, l1, 2, 2, 2, 0)
+
+        nf2 = pm.parameter(name="nf2")
+        kh2 = pm.parameter(name="kh2")
+        kw2 = pm.parameter(name="kw2")
+        w2 = pm.state(name="w2", shape=(nf2, nf1, kh2, kw2))
+        b2 = pm.state(name="b2", shape=(nf2))
+        s2 = pm.parameter(name="s2")
+        p2 = pm.parameter(name="p2")
+        c2 = pm.output(name="c2")
+        a2 = pm.output(name="a2")
+        l2 = pm.output(name="l2")
+
+        pm.conv_bias(l1, w2, b2, c2, s2, p2)
+        pm.relu(c2, a2)
+        pm.avg_pool2d(a2, l2, 2, 2, 2, 0)
+
+        f5 = pm.output(name="f5")
+        pm.batch_flatten(l2, f5)
+
+        f6 = pm.output(name="f6")
+        m6 = pm.parameter(name="m6")
+        n6 = pm.parameter(name="n6")
+        w6 = pm.state(name="w6", shape=(n6, m6))
+        a6 = pm.output(name="a6")
+        pm.dense(f5, w6, f6)
+        pm.relu1d(f6, a6)
+
+        f7 = pm.output(name="f7")
+        m7 = pm.parameter(name="m7")
+        n7 = pm.parameter(name="n7")
+        w7 = pm.state(name="w7", shape=(n7, m7))
+        a7 = pm.output(name="a7")
+        pm.dense(a6, w7, f7)
+        pm.relu1d(f7, a7)
+
+        f8 = pm.output(name="f8")
+        m8 = pm.parameter(name="m8")
+        n8 = pm.parameter(name="n8")
+        w8 = pm.state(name="w8", shape=(n8, m8))
+        a8 = pm.output(name="a8")
+        pm.dense(a7, w8, f8)
+        pm.relu1d(f8, a8)
+
+        out = pm.output(name="sm")
+        pm.softmax(a8, out)
+    if coarse:
+        in_info, keys, out_info = np_lenet()
+        return graph, in_info, out_info, keys
+    else:
+
+        shape_dict = {"n": 1, "ic": 1, "ih": 32, "iw": 32,
+                      "nf1": 6, "kh1": 5, "kw1": 5, "s1": 1, "p1": 0,
+                      "nf2": 16, "kh2": 5, "kw2": 5, "s2": 1, "p2": 0,
+                      "m6": 400, "n6": 120, "m7": 120, "n7": 84, "m8": 84, "n8": 10
+                      }
+        shape_val_pass = pm.NormalizeGraph(shape_dict, debug=debug)
+        new_graph = shape_val_pass(graph)
+        in_info, keys, out_info = np_lenet(lowered=True)
+        return new_graph, in_info, out_info, keys
