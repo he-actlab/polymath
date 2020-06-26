@@ -16,12 +16,12 @@ ONNX_FILE_DIR = Path(f"{Path(__file__).parent}/onnx_examples")
 
 
 @pytest.mark.parametrize('benchmark_name, feature_dict, data_func, input_keys, output_key',[
-    # ("linear", {'m': 54}, linear, {"y":"y:0", "x":"x:0", "w":"W:0"}, [("w", "W:0")]),
-    # ("logistic", {'m': 54}, logistic, {"y":"y:0", "x":"x:0", "w":"W:0"}, [("w", "W:0")]),
-    # ("svm", {'m': 54}, svm, {"y":"y:0", "x":"x:0", "w":"W:0"}, [("c", "mul_1:0")]),
+    ("linear", {'m': 54}, linear, {"y":"y:0", "x":"x:0", "w":"W:0"}, [("w", "W:0")]),
+    ("logistic", {'m': 54}, logistic, {"y":"y:0", "x":"x:0", "w":"W:0"}, [("w", "W:0")]),
+    ("svm", {'m': 54}, svm, {"y":"y:0", "x":"x:0", "w":"W:0"}, [("c", "mul_1:0")]),
     ("backprop", {'l1': 8, 'l2':16, 'l3':4}, backprop, {"y":"y:0", "x":"x:0", "w1":"W1:0","w2":"W2:0"}, [("w1", "W1:0"), ("w2", "W2:0")]),
-    # ("recommender", {'m': 30, 'n':28 , 'k': 3}, reco, {"x1":"x1:0", "x2":"x2:0", "w1":"w1:0", "w2":"w2:0",
-    #                                  "y1":"y1:0", "y2":"y2:0","r2":"r2:0", "r1":"r1:0"}, [("w1", "w1:0"),("w2", "w2:0")]),
+    ("recommender", {'m': 30, 'n':28 , 'k': 3}, reco, {"x1":"x1:0", "x2":"x2:0", "w1":"w1:0", "w2":"w2:0",
+                                     "y1":"y1:0", "y2":"y2:0","r2":"r2:0", "r1":"r1:0"}, [("w1", "w1:0"),("w2", "w2:0")]),
 ])
 def test_convert_benchmarks(benchmark_name, feature_dict, data_func, input_keys, output_key):
     feature_size = [str(v) for k,v in feature_dict.items()]
@@ -30,7 +30,10 @@ def test_convert_benchmarks(benchmark_name, feature_dict, data_func, input_keys,
     filename = f"{benchmark_name}{'_'.join(feature_size)}.onnx"
     filepath = f"{BENCH_DIR}/ml_algorithms/{filename}"
     assert Path(filepath).exists()
-    graph = pm.from_onnx(filepath)
+
+
+    # Apply transformations and/or generate verilog using 'transformed_graph'
+
     int_feat_dict = {k: int(v) for k,v  in feature_dict.items()}
     _, ref_in_info, ref_out_info, ref_keys = data_func(**int_feat_dict)
 
@@ -69,7 +72,7 @@ def test_convert_benchmarks(benchmark_name, feature_dict, data_func, input_keys,
             raise RuntimeError(f"Unequal operations for key {k}:\n"
                                f"\tRef: {ref_ocount_pass.op_types[k]}\n"
                                f"\tActual: {v}\n")
-    #
+
 
     assert len(ref_tabla_ir) == len(tabla_ir)
 

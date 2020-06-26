@@ -25,8 +25,15 @@ from polymath.mgdfg.from_onnx.node_definitions import linear_regressor_train,\
 from polymath.mgdfg.passes import register_pass, Pass
 from polymath.mgdfg.passes.compiler_passes import NormalizeGraph, Lower, CountNodes, CountOpTypes
 from polymath.codegen.tabla.tabla_translate import generate_tabla
-from polymath.codegen.dnnweavergen.dnnweaver_translate import generate_dnnweaver
+
+try:
+    from polymath.codegen.dnnweavergen.dnnweaver_translate import generate_dnnweaver
+except ImportError:
+    print(f"WARNING: DNNWeaver translation could not be imported because DNNWeaver is not currently installed.")
+    generate_dnnweaver = None
+
 try:
     from polymath.codegen.tvmgen.tvm_translate import generate_tvm
 except ImportError:
+    print(f"WARNING: TVM translation could not be imported because TVM is not currently installed.")
     generate_tvm = None
