@@ -1519,18 +1519,18 @@ def matern32(X, Y):
     return m
 
 
-from dnnweaver2.graph import Graph, get_default_graph
-from dnnweaver2.tensor_ops.cnn import conv2D, maxPool, batch_norm, leakyReLU
-import logging
-from dnnweaver2.scalar.dtypes import FQDtype, FixedPoint
 
-from dnnweaver2 import get_tensor
 
 def yolo_convolution(tensor_in, filters=32, kernel_size=3,
         batch_normalize=True, act='leakyReLU',
         c_dtype=None, w_dtype=None,
         s_dtype=None, bn_dtype=None):
+    from dnnweaver2.graph import Graph, get_default_graph
+    from dnnweaver2.tensor_ops.cnn import conv2D, maxPool, batch_norm, leakyReLU
+    import logging
+    from dnnweaver2.scalar.dtypes import FQDtype, FixedPoint
 
+    from dnnweaver2 import get_tensor
     input_channels = tensor_in.shape[-1]
 
     weights = get_tensor(shape=(filters, kernel_size, kernel_size, input_channels),
@@ -1562,6 +1562,12 @@ def yolo_convolution(tensor_in, filters=32, kernel_size=3,
 
 
 def tiny_yolo(train=False, debug=False):
+    from dnnweaver2.graph import Graph, get_default_graph
+    from dnnweaver2.tensor_ops.cnn import conv2D, maxPool, batch_norm, leakyReLU
+    import logging
+    from dnnweaver2.scalar.dtypes import FQDtype, FixedPoint
+
+    from dnnweaver2 import get_tensor
     g = Graph('YOLOv2-Test: 16-bit', dataset='imagenet', log_level=logging.INFO)
     batch_size = 1
     with g.as_default():
