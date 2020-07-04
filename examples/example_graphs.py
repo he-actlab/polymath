@@ -1,4 +1,12 @@
 import polymath as pm
+from pathlib import Path
+BENCH_DIR = Path(f"{Path(__file__).parent}/../benchmarks/onnx_files")
+CWD = Path(f"{__file__}").parent
+BASE_PATH = f"{CWD}/pmlang_examples"
+OUTPATH = f"{BASE_PATH}/outputs"
+ONNX_FILE_DIR = Path(f"{Path(__file__).parent}/onnx_examples")
+
+
 def reco(m_=3, n_=3, k_=2):
     with pm.Node(name="recommender") as graph:
         mu = pm.placeholder("mu")
@@ -47,3 +55,13 @@ def linear_reg():
         d = (h-y).set_name("h-y")
         g = (d*x).set_name("d*x")
         w_ = (w - (mu*g).set_name("mu*g")).set_name("w-mu*g")
+
+def lenet_from_onnx():
+    filename = f"mnist-lenet.onnx"
+    filepath = f"{BENCH_DIR}/full_dnns/{filename}"
+    assert Path(filepath).exists()
+    graph = pm.from_onnx(filepath)
+    print_skip_nodes = ['write', 'output', 'var_index', 'input', 'index']
+    for k,v in graph.nodes.items():
+        if v.op_name not in print_skip_nodes:
+            print(f"{k} - {v.op_name}")

@@ -30,7 +30,7 @@ def test_convert_benchmarks(benchmark_name, feature_dict, data_func, input_keys,
     filename = f"{benchmark_name}{'_'.join(feature_size)}.onnx"
     filepath = f"{BENCH_DIR}/ml_algorithms/{filename}"
     assert Path(filepath).exists()
-
+    graph = pm.from_onnx(filepath)
 
     # Apply transformations and/or generate verilog using 'transformed_graph'
 
@@ -393,5 +393,15 @@ def test_lrn(x_shape, alpha, beta, bias, nsize):
     graph, inp_info, out_info, keys = lrn(x_shape, alpha, beta, bias, nsize, coarse=True)
     test_out = graph(keys[0], inp_info)
     np.testing.assert_allclose(out_info[keys[0]], test_out)
+
+def test_lenet():
+    filename = f"mnist-lenet.onnx"
+    filepath = f"{BENCH_DIR}/full_dnns/{filename}"
+    assert Path(filepath).exists()
+    graph = pm.from_onnx(filepath)
+    print_skip_nodes = ['write', 'output', 'var_index', 'input', 'index']
+    for k,v in graph.nodes.items():
+        if v.op_name not in print_skip_nodes:
+            print(f"{k} - {v.op_name}")
 
 
