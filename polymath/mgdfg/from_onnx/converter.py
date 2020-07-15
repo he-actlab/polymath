@@ -16,16 +16,14 @@ def from_onnx(filepath, infer_shapes=True):
         if n.op_type not in NODE_NAMES and n.name not in NODE_NAMES:
             raise RuntimeError(f"Support for {n.op_type} or {n.name} is not currently included in PolyMath")
 
-    domain = "nn"
-    for a in attr["opset_import"]:
-        if a.domain == "ai.onnx.ml":
-            domain = "ml"
-            break
+    # domain = "nn"
+    # for a in attr["opset_import"]:
+    #     if a.domain == "ai.onnx.ml":
+    #         domain = "ml"
+    #         break
 
-    if domain == "ml":
-        graph = generate_ml_mdfg(onnx_graph)
-    else:
-        graph = generate_nn_mdfg(onnx_graph)
+
+    graph = generate_nn_mdfg(onnx_graph)
 
     return graph
 

@@ -123,7 +123,6 @@ class conv_bias(pm.Template):
         iwp = data.shape[-1] + pad * 2
         ihp_ = pm.index(0, ihp - 1, name="ihp")
         iwp_ = pm.index(0, iwp - 1, name="iwp")
-        # im2col
         if len(data.shape) > 3:
             b = pm.index(0, data.shape[0] - 1, name="b")
             o_indices = (b, c)
