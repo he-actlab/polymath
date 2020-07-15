@@ -1,11 +1,12 @@
 import tensorflow.compat.v1 as tf
 tf.disable_v2_behavior()
 import argparse
-import numpy as np
 import tf2onnx
 from onnx import optimizer
+import numpy as np
 from tf2onnx.tfonnx import process_tf_graph, tf_optimize
 from tensorflow.compat.v1.graph_util import convert_variables_to_constants as freeze_graph
+
 
 def create_backprop(l1, l2, l3):
     batch_size = 1

@@ -16,14 +16,7 @@ def from_onnx(filepath, infer_shapes=True):
         if n.op_type not in NODE_NAMES and n.name not in NODE_NAMES:
             raise RuntimeError(f"Support for {n.op_type} or {n.name} is not currently included in PolyMath")
 
-    # domain = "nn"
-    # for a in attr["opset_import"]:
-    #     if a.domain == "ai.onnx.ml":
-    #         domain = "ml"
-    #         break
-
-
-    graph = generate_nn_mdfg(onnx_graph)
+    graph = generate_mgdfg(onnx_graph)
 
     return graph
 
@@ -75,7 +68,7 @@ def get_states_by_gradient(onnx_graph):
 
     return state_vars
 
-def generate_nn_mdfg(onnx_graph):
+def generate_mdfg(onnx_graph):
     names = [des.name for des in onnx_graph.DESCRIPTOR.fields]
     graph_name = getattr(onnx_graph, "name")
     initializers = get_initializers(onnx_graph.initializer)
