@@ -123,7 +123,9 @@ def tvm_batch_flatten(node, ctx):
     return node.args[1].name, bf
 
 TVM_OPS = {"avg_pool2d": tvm_avg_pool,
+           "avg_pool": tvm_avg_pool,
            "max_pool2d": tvm_max_pool,
+           "max_pool": tvm_max_pool,
            "conv_bias": tvm_conv2d,
            "conv": tvm_conv2d,
            "input": tvm_var,
@@ -132,7 +134,8 @@ TVM_OPS = {"avg_pool2d": tvm_avg_pool,
            "relu1d": tvm_relu,
            "softmax": tvm_softmax,
            "batch_flatten": tvm_batch_flatten,
-           "dense": tvm_dense}
+           "dense": tvm_dense,
+           "matmul": tvm_dense}
 
 def _normalize_name(name):
     return name.rsplit("/", 1)[-1]
