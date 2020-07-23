@@ -29,7 +29,7 @@ def get_model_attributes(model):
     kwargs = {des.name: getattr(model, des.name) for des in model.DESCRIPTOR.fields if des.name != "graph"}
     return kwargs
 
-def generate_mgdfg(onnx_graph):
+def generate_ml_mgdfg(onnx_graph):
     names = [des.name for des in onnx_graph.DESCRIPTOR.fields]
     graph_name = getattr(onnx_graph, "name")
     assert len(onnx_graph.input) == 1
@@ -68,7 +68,7 @@ def get_states_by_gradient(onnx_graph):
 
     return state_vars
 
-def generate_mdfg(onnx_graph):
+def generate_mgdfg(onnx_graph):
     names = [des.name for des in onnx_graph.DESCRIPTOR.fields]
     graph_name = getattr(onnx_graph, "name")
     initializers = get_initializers(onnx_graph.initializer)
