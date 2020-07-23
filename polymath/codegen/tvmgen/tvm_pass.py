@@ -124,7 +124,8 @@ def tvm_batch_flatten(node, ctx):
 
 TVM_OPS = {"avg_pool2d": tvm_avg_pool,
            "max_pool2d": tvm_max_pool,
-           "conv_bias": tvm_conv2d,
+           "conv_bias": tvm_conv2d_bias,
+           "conv": tvm_conv2d,
            "input": tvm_var,
            "state": tvm_var,
            "relu": tvm_relu,
