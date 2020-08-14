@@ -76,6 +76,35 @@ def test_convert_benchmarks(benchmark_name, feature_dict, data_func, input_keys,
 
     assert len(ref_tabla_ir) == len(tabla_ir)
 
+@pytest.mark.parametrize('m',[
+    100
+])
+def test_load_logistic(m):
+    benchmark_name = "logistic"
+    feature_dict = {'m': m}
+    input_keys = {"y":"y:0", "x":"x:0", "w":"W:0"}
+    output_key = [("w", "W:0")]
+    feature_size = [str(v) for k, v in feature_dict.items()]
+    filename = f"{benchmark_name}{'_'.join(feature_size)}.onnx"
+    filepath = f"{BENCH_DIR}/ml_algorithms/{filename}"
+    assert Path(filepath).exists()
+    graph = pm.from_onnx(filepath)
+    int_feat_dict = {k: int(v) for k, v in feature_dict.items()}
+    _, ref_in_info, ref_out_info, ref_keys = logistic(**int_feat_dict)
+    int_feat_dict['coarse'] = True
+    ref_graph, in_info, out_info, ref_keys = logistic(**int_feat_dict)
+    translated_inputs = {input_keys[k]: v for k,v in in_info.items() if k in input_keys}
+    for i in output_key:
+        input_cpy = pickle.loads(pickle.dumps(translated_inputs))
+        np_res = out_info[i[0]]
+        onnx_res = graph(i[1], input_cpy)
+        np.testing.assert_allclose(np.squeeze(np_res), np.squeeze(onnx_res))
+
+@pytest.mark.parametrize('filepath',[
+    f"{BENCH_DIR}/ml_algorithms/logistic_"
+])
+def test_load_onnx_files(filepath):
+    pass
 
 @pytest.mark.parametrize('m_',[
     3
@@ -138,9 +167,11 @@ def test_load_nested_linear_regressor(m_):
     all_vals = flattened_g(keys, input_info)
 
 @pytest.mark.parametrize('m',[
-    55
+  55
 ])
 def test_translate_linear_regressor(m):
+    out_key_map = {"y": "y:0", "x": "x:0", "w": "W:0"}
+    in_key_map = [("w", "W:0")]
     fpath = f"{ONNX_FILE_DIR}/linear_{m}.onnx"
     shape_dict = {"m": m}
     graph = pm.from_onnx(fpath)
@@ -149,8 +180,11 @@ def test_translate_linear_regressor(m):
     tkeys = copy.deepcopy(keys)
     test_res = test_graph(tkeys, tinput_info)
     np.testing.assert_allclose(test_res, (out_info["w"]))
+
     onx_input_info = copy.deepcopy(input_info)
-    onnx_res = graph(keys, onx_input_info)
+    translated_inputs = {out_key_map[k]: v for k,v in input_info.items() if k in out_key_map}
+    onnx_res = graph(in_key_map[0][1], translated_inputs)
+
     np.testing.assert_allclose(onnx_res, (out_info["w"]))
 
     tabla_path = f"{OUTPATH}/{graph.name}{m}_tabla.json"
@@ -158,22 +192,30 @@ def test_translate_linear_regressor(m):
                                   shape_dict,
                                   tabla_path)
 
+
+
 @pytest.mark.parametrize('m',[
     54
 ])
 def test_translate_svm(m):
+    out_key_map = {"y": "y:0", "x": "x:0", "w": "W:0"}
+    in_key_map = [("w", "W:0")]
+
     fpath = f"{ONNX_FILE_DIR}/svm_{m}.onnx"
     shape_dict = {"m": m}
     graph = pm.from_onnx(fpath)
     test_graph, input_info, out_info, keys = svm(m=m, coarse=True)
     tinput_info = copy.deepcopy(input_info)
+
     tkeys = copy.deepcopy(keys)
     test_res = test_graph(tkeys, tinput_info)
     np.testing.assert_allclose(test_res, (out_info["w"]))
-    onx_input_info = copy.deepcopy(input_info)
-    onnx_keys = copy.deepcopy(keys)
 
-    onnx_res = graph(onnx_keys, onx_input_info)
+    onx_input_info = copy.deepcopy(input_info)
+    translated_inputs = {out_key_map[k]: v for k,v in input_info.items() if k in out_key_map}
+
+    onnx_res = graph(in_key_map[0][1], translated_inputs)
+
     np.testing.assert_allclose(onnx_res, (out_info["w"]))
     tabla_path = f"{OUTPATH}/{graph.name}{m}_tabla.json"
     tabla_ir, tabla_graph = pm.generate_tabla(graph,
