@@ -52,6 +52,8 @@ class Node(object):
         self.value = value
         self.dependencies = []
         self._args = []
+        self._predeecessors = []
+        self._succesors = []
         self.args = args
         if "name" in kwargs:
             kwargs.pop("name")
@@ -75,12 +77,38 @@ class Node(object):
         # Get the stack context so we can report where the node was defined
         self._stack = traceback.extract_stack(limit=1)
 
+
     @property
     def graph(self):
         """
         polymath.mgdfg.graph.Graph : Parent graph of this node. If graph is `None`, this is the top-level graph.
         """
         return self._graph
+
+
+    def preds(self):
+        return self._preds
+
+    def succs(self):
+        return self._preds
+
+    def add_predecessor(self, pred):
+        if isinstance(pred, Node):
+            self._predecessors.append(pred.gname)
+        else:
+            self._predecessors.append(pred)
+
+    def add_successor(self, succ):
+        if isinstance(succ, Node):
+            self._succesors.append(succ.gname)
+        else:
+            self._succesors.append(succ)
+
+    def set_edges(self):
+        for e in self.args:
+            self.add_predecessor(e)
+            if isinstance(e, Node):
+                e.add_successor(self)
 
     @property
     def domain(self):
@@ -152,6 +180,15 @@ class Node(object):
     @graph.setter
     def graph(self, graph):
         self._graph = Node.get_active_graph(graph)
+
+    @property
+    def gname(self):
+        scope_names = [self.name]
+        cgraph = self.graph
+        while cgraph:
+            scope_names.append(cgraph.name)
+            cgraph = cgraph.graph
+        return "/".join(list(reversed(scope_names)))
 
     def __enter__(self):
         Node._graph_stack.append(self)
@@ -346,7 +383,9 @@ class Node(object):
             if c in fetches and c.op_name in ["output", "state", "temp"]:
                 write_name = "/".join([f"{i}{c.write_count-1}" for i in c.name.split("/")]) if c.write_count > 0 else c.name
                 fetches[fetches.index(c)] = c.graph.nodes[write_name]
+
         values = [fetch.evaluate_node(fetch, context, callback=callback) for fetch in fetches]
+
         return values[0] if single else tuple(values)
 
     def __getstate__(self):

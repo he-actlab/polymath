@@ -82,6 +82,7 @@ def generate_mgdfg(onnx_graph):
         assert o.name not in node_info
 
         if o.name in state_variables:
+
             node_info[o.name] = pm.state(name=state_variables[o.name], shape=get_value_info_shape(o), graph=mgdfg)
             node_info[state_variables[o.name]] = node_info[o.name]
         else:

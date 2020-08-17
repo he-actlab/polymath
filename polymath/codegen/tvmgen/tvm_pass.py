@@ -4,8 +4,6 @@ import numpy as np
 import tvm
 from tvm import relay
 
-
-
 @pm.register_pass
 class TVMPass(pm.Pass):
 

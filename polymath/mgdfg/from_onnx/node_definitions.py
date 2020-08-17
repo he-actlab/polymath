@@ -280,7 +280,7 @@ def elem_greater(a, b, shape=None, name=None, **kwargs):
     a_idx = _get_indices(a, indices, shape)
     b_idx = _get_indices(b, indices, shape)
 
-    return (a[a_idx] < b[b_idx]).set_name(name)
+    return (a[a_idx] > b[b_idx]).set_name(name)
 
 def elem_sub(a, b, shape=None, name=None, **kwargs):
     indices = tuple([pm.index(0, s - 1) if s > 1 else 0 for s in shape])
@@ -318,9 +318,6 @@ def unsqueeze(x, axis, *args, name=None, **kwargs):
 def squeeze(x, axis, *args, shape=None, name=None, **kwargs):
     x.graph.nodes[name] = x
     return x
-
-
-
 
 # def matmul(a, b, shape=None, name=None, **kwargs):
     # i = pm.index(0, a.shape[0] - 1)

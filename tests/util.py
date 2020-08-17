@@ -51,7 +51,7 @@ def svm(m=3, coarse=False):
         h = pm.sum([i], (x[i] * w[i]), name="h")
         c = (y*h).set_name("c")
         ny = (0 - y).set_name("ny")
-        p = ((y < c)*ny).set_name("p")
+        p = ((c > y)*ny).set_name("p")
         g = (p * x[i]).set_name("g")
         w[i] = w[i] - mu * g[i]
 

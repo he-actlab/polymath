@@ -134,8 +134,9 @@ class output(placeholder):
 
     def __getitem__(self, key):
         key = _flatten_iterable(key)
-
-        if self.is_shape_finalized() and all([not isinstance(i, Node) for i in key]):
+        if isinstance(key, (tuple, list, np.ndarray)) and len(key) == 0:
+            return self
+        elif self.is_shape_finalized() and all([not isinstance(i, Node) for i in key]):
             idx = np.ravel_multi_index(key, dims=self.shape, order='C')
             ret = self.current_value().nodes.item_by_index(idx)
             return ret
@@ -253,7 +254,6 @@ class state(placeholder):
 
         with callback(self, context):
             value = self.get_context_value(context)
-
             if isinstance(value, (list, tuple, np.ndarray)) and not self.is_shape_finalized():
                 value = value if isinstance(value, np.ndarray) else np.asarray(value)
                 assert len(value.shape) == len(self.shape)
@@ -263,6 +263,7 @@ class state(placeholder):
                     if isinstance(self.shape[idx], Node):
                         context[self.shape[idx]] = dim
                         _ = self.shape[idx].evaluate(context)
+
         return value
 
     def __repr__(self):
