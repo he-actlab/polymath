@@ -302,13 +302,9 @@ def elem_mul(a, b, shape=None, name=None, **kwargs):
 
     return (a[a_idx] * b[b_idx]).set_name(name)
 
-
-
 def cast(data, to=None, shape=None, name=None, **kwargs):
     indices = tuple([pm.index(0, s - 1) for s in shape])
-    out = pm.temp(name=name, shape=shape, dtype=to)
-    out[indices] = data[indices]
-    return out
+    return pm.cast(to, data[indices], name=name, shape=shape)
 
 def unsqueeze(x, axis, *args, name=None, **kwargs):
     x.graph.nodes[name] = x
@@ -353,7 +349,6 @@ def get_elem(a, b, **kwargs):
         return rvmatmul(a, b, **kwargs)
     else:
         return lvmatmul(a, b, **kwargs)
-
 
 class flatten(pm.Template):
     def define_graph(self, data, out, shape=None, **kwargs):

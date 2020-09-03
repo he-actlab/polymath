@@ -4,7 +4,11 @@ import polymath as pm
 from itertools import product
 from collections import defaultdict
 import pprint
+import onnx
+from onnx import helper, numpy_helper, mapping
+from onnx import AttributeProto, TensorProto, GraphProto
 import json
+
 
 def pooling(data, kh, kw, pad=0,  stride=2):
     N, C, H, W = data.shape
@@ -51,7 +55,8 @@ def svm(m=3, coarse=False):
         h = pm.sum([i], (x[i] * w[i]), name="h")
         c = (y*h).set_name("c")
         ny = (0 - y).set_name("ny")
-        p = ((c > y)*ny).set_name("p")
+        p_ = pm.cast(np.float32, (c > y))
+        p = (p_*ny).set_name("p")
         g = (p * x[i]).set_name("g")
         w[i] = w[i] - mu * g[i]
 
@@ -154,6 +159,207 @@ def get_tabla_item_by_parents(graph, parents, node):
     raise KeyError(f"Could not find {op_name} with parents {parents} for node:\n\t{node}")
 
 
+
+def run_onnx_graph(model, input_vals, outputs):
+    import onnxruntime
+    sess = onnxruntime.InferenceSession(model)
+    inputs = {sess.get_inputs()[i].name: input_vals[i] for i in range(len(sess.get_inputs()))}
+    result = sess.run(outputs, inputs)
+    return result
+
+def create_onnx_node_test(node, inputs, outputs, name):
+    input_value_info = []
+    output_value_info = []
+    for name, value in inputs.items():
+        ival = helper.make_tensor_value_info(name, mapping.NP_TYPE_TO_TENSOR_TYPE[value.dtype], value.shape)
+        input_value_info.append(ival)
+
+    for name, value in outputs.items():
+        if isinstance(value, dict):
+            oval = helper.make_tensor_value_info(name, mapping.NP_TYPE_TO_TENSOR_TYPE[value['dtype']], value['shape'])
+        else:
+            oval = helper.make_tensor_value_info(name, mapping.NP_TYPE_TO_TENSOR_TYPE[value.dtype], value.shape)
+        output_value_info.append(oval)
+
+    graph_def = helper.make_graph(
+        [node],
+        name,
+        input_value_info,
+        output_value_info,
+    )
+    model_def = helper.make_model(graph_def, producer_name='onnx-example')
+    return model_def
+
+def onnx_nms(boxes, scores, max_output_per_class=0, iou_threshold=0, score_threshold=0, center_point_box=0):
+    input_names = ['boxes', 'scores', 'max_output_boxes_per_class', 'iou_threshold', 'score_threshold']
+    output_names = ['selected_indices']
+
+    node = onnx.helper.make_node(
+        'NonMaxSuppression',
+        inputs=input_names,
+        outputs=output_names,
+        center_point_box=center_point_box
+    )
+    max_output_boxes_per_class = np.array([max_output_per_class]).astype(np.int64)
+    iou_threshold = np.array([iou_threshold]).astype(np.float32)
+    score_threshold = np.array([score_threshold]).astype(np.float32)
+    selected_indices = np.array([[0, 0, 3], [0, 0, 0], [0, 0, 5]]).astype(np.int64)
+    inputs = [boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold]
+    outputs = [selected_indices]
+    input_dict = {name: inputs[idx] for idx, name in enumerate(input_names)}
+    output_dict = {name: {'dtype': outputs[idx].dtype, 'shape': ['w', 'h']} for idx, name in enumerate(output_names)}
+    node_graph = create_onnx_node_test(node, input_dict, output_dict, "onnx_nms")
+    onnx_path = 'nms_test.onnx'
+    onnx.save_model(node_graph, onnx_path)
+    onnx_res = run_onnx_graph(onnx_path, inputs, output_names)
+    return onnx_res, outputs[0]
+
+def np_nms(boxes, scores, max_output_per_class=0, iou_threshold=0, score_threshold=0, center_point_box=0):
+    max_output_boxes_per_class = np.array([max_output_per_class]).astype(np.int64)
+    iou_threshold = np.array([iou_threshold]).astype(np.float32)
+    score_threshold = np.array([score_threshold]).astype(np.float32)
+    boxes = boxes.squeeze(0)
+    scores = scores.squeeze(0).squeeze(0)
+    x1_t = boxes[:, 0]
+    y1_t = boxes[:, 1]
+    x2_t = boxes[:, 2]
+    y2_t = boxes[:, 3]
+
+    areas = (x2_t - x1_t) * (y2_t - y1_t)
+
+    ndets = boxes.shape[0]
+    # order = np.argsort(scores, axis=0)
+    order = scores.argsort()[::-1]
+
+    num_to_keep = 0
+    supressed = np.zeros(ndets,  dtype=order.dtype)
+    keep = np.zeros(ndets, dtype=order.dtype)
+
+    for i_ in range(ndets):
+        i = order[i_]
+        if supressed[i] == 1:
+            continue
+
+        keep[num_to_keep] = i
+        num_to_keep += 1
+        ix1 = x1_t[i]
+        iy1 = y1_t[i]
+        ix2 = x2_t[i]
+        iy2 = y2_t[i]
+        iarea = areas[i]
+
+        for j_ in range(i_+1, ndets):
+            j = order[j_]
+            if supressed[j] == 1:
+                continue
+
+            xx1 = max(ix1, x1_t[j])
+            yy1 = max(iy1, y1_t[j])
+            xx2 = min(ix2, x2_t[j])
+            yy2 = min(iy2, y2_t[j])
+            w = max(0, xx2 - xx1)
+            h = max(0, yy2 - yy1)
+
+            inter = w * h
+            ovr = inter / (iarea + areas[j] - inter)
+            if ovr > iou_threshold:
+                supressed[j] = 1
+    print(num_to_keep)
+    return keep[:num_to_keep]
+
+def np_nms_preprocess(boxes, scores, max_output_per_class, iou_threshold, score_threshold, center_point_box):
+    pass
+
+def _torch_preprocess(boxes, scores):
+    boxes = boxes.squeeze(0)
+    scores = scores.squeeze(0).squeeze(0)
+
+    return boxes, scores
+
+def test_torch_nms(boxes, scores, overlap_threshold=0.5, min_mode=False):
+    import torch
+    x1 = boxes[:, 0]
+    y1 = boxes[:, 1]
+    x2 = boxes[:, 2]
+    y2 = boxes[:, 3]
+    _keep = scores.new(scores.size(0)).zero_().long()
+
+    areas = (x2 - x1 + 1) * (y2 - y1 + 1)
+    _, order = scores.sort(dim=0, descending=True)
+    cnt = 0
+
+    while order.size()[0] > 1 and cnt < _keep.shape[0]:
+        _keep[cnt] = order[0]
+        cnt += 1
+        xx1 = torch.max(x1[order[0]], x1[order[1:]])
+        yy1 = torch.max(y1[order[0]], y1[order[1:]])
+        xx2 = torch.min(x2[order[0]], x2[order[1:]])
+        yy2 = torch.min(y2[order[0]], y2[order[1:]])
+
+        w = torch.clamp(xx2-xx1, min=0)
+        h = torch.clamp(yy2-yy1, min=0)
+        inter = w * h
+        if min_mode:
+            ovr = inter / torch.min(areas[order[0]], areas[order[1:]])
+        else:
+            ovr = inter / (areas[order[0]] + areas[order[1:]] - inter)
+
+        inds = torch.nonzero(ovr <= overlap_threshold).squeeze()
+        if inds.dim():
+            order = order[inds + 1]
+        else:
+            break
+
+    return _keep[:cnt]
+
+def nms_cpu(boxes, scores, overlap_threshold=0.5, min_mode=False):
+    boxes = boxes.cpu().numpy()
+    x1 = boxes[:, 0]
+    y1 = boxes[:, 1]
+    x2 = boxes[:, 2]
+    y2 = boxes[:, 3]
+    scores = scores.cpu().numpy()
+
+    areas = (x2 - x1 + 1) * (y2 - y1 + 1)
+    order = scores.argsort()[::-1]
+
+    keep = []
+    while order.size > 0:
+        keep.append(order[0])
+        xx1 = np.maximum(x1[order[0]], x1[order[1:]])
+        yy1 = np.maximum(y1[order[0]], y1[order[1:]])
+        xx2 = np.minimum(x2[order[0]], x2[order[1:]])
+        yy2 = np.minimum(y2[order[0]], y2[order[1:]])
+
+        w = np.maximum(0.0, xx2 - xx1 + 1)
+        h = np.maximum(0.0, yy2 - yy1 + 1)
+        inter = w * h
+
+        if min_mode:
+            ovr = inter / np.minimum(areas[order[0]], areas[order[1:]])
+        else:
+            ovr = inter / (areas[order[0]] + areas[order[1:]] - inter)
+
+        inds = np.where(ovr <= overlap_threshold)[0]
+        order = order[inds + 1]
+    return keep
+
+def torch_nms(boxes, scores, max_output_per_class=0, iou_threshold=0, score_threshold=0, center_point_box=0):
+    from torchvision.ops import nms
+    import torch
+    boxes = torch.from_numpy(boxes)
+    scores = torch.from_numpy(scores)
+    boxes, scores = _torch_preprocess(boxes, scores)
+    # np_boxes = boxes.numpy()
+    # np_scores = scores.numpy()
+    np_res = nms_cpu(boxes, scores)
+    tres = test_torch_nms(boxes, scores)
+    print(tres)
+    print(np_res)
+    # print(np_res)
+    # print(tres)
+    # res = nms(boxes, scores, iou_threshold)
+    # print(res.unsqueeze(1).unsqueeze(1))
 
 def op_counts(graph):
     counts = defaultdict(int)

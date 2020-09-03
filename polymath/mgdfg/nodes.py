@@ -173,6 +173,7 @@ class output(placeholder):
     # TODO: Need to freeze the graph after exiting scope
     def current_value(self):
         return self if self.write_count == 0 or len(Node._graph_stack) == 1 else self.graph.nodes[f"{self.name}{self.write_count - 1}"]
+        # return self if self.write_count == 0 else self.graph.nodes[f"{self.name}{self.write_count - 1}"]
 
     def evaluate(self, context, callback=None):
         callback = callback or _noop_callback
@@ -319,6 +320,7 @@ class temp(placeholder):
 
     def current_value(self):
         return self if self.write_count == 0 or len(Node._graph_stack) == 1 else self.graph.nodes[f"{self.name}{self.write_count - 1}"]
+        # return self if self.write_count == 0 else self.graph.nodes[f"{self.name}{self.write_count - 1}"]
 
     def evaluate(self, context, callback=None):
         callback = callback or _noop_callback

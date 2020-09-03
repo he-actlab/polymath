@@ -121,9 +121,27 @@ class sqrt(NonLinear):
     def __init__(self, input_node, **kwargs):
         super(sqrt, self).__init__(_sqrt, input_node, **kwargs)
 
-# class cast(NonLinear):
-#     def __init__(self, np_dtype, input_node, **kwargs):
-#         super(cast, self).__init__(lambda x: _cast(x, np_dtype), input_node, **kwargs)
+class cast(NonLinear):
+    def __init__(self, np_dtype, input_node, **kwargs):
+        kwargs['np_dtype'] = np_dtype
+
+        super(cast, self).__init__(_cast, input_node, **kwargs)
+
+    @property
+    def np_dtype(self):
+        return self.kwargs['np_dtype']
+
+    def _evaluate(self, val, **kwargs):
+        if "target" in kwargs:
+            kwargs.pop("target")
+        if "domain" in kwargs:
+            kwargs.pop("domain")
+
+        val = self.target(val, self.np_dtype)
+
+        if not self.is_shape_finalized():
+            self.shape = val.shape
+        return val
 
 def _log2(value):
     return np.log2(value)
@@ -147,10 +165,12 @@ def _ceil(value):
     return int(np.ceil(value))
 
 def _cast(value, npdtype):
+
     if not isinstance(value, np.ndarray):
-        return np.asarray(value).astype(npdtype)
+        res = np.asarray(value).astype(npdtype)
     else:
-        return value.astype(npdtype)
+        res = value.astype(npdtype)
+    return res
 
 
 
