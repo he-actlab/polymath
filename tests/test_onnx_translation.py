@@ -204,6 +204,7 @@ def test_translate_svm(m):
     fpath = f"{ONNX_FILE_DIR}/svm_{m}.onnx"
     shape_dict = {"m": m}
     graph = pm.from_onnx(fpath)
+
     test_graph, input_info, out_info, keys = svm(m=m, coarse=True)
     tinput_info = copy.deepcopy(input_info)
 
@@ -437,13 +438,11 @@ def test_lrn(x_shape, alpha, beta, bias, nsize):
     np.testing.assert_allclose(out_info[keys[0]], test_out)
 
 def test_lenet():
-    filename = f"mnist-lenet.onnx"
+    filename = f"lenet.onnx"
     filepath = f"{BENCH_DIR}/full_dnns/{filename}"
     assert Path(filepath).exists()
     graph = pm.from_onnx(filepath)
-    print_skip_nodes = ['write', 'output', 'var_index', 'input', 'index']
-    for k,v in graph.nodes.items():
-        if v.op_name not in print_skip_nodes:
-            print(f"{k} - {v.op_name}")
+
+
 
 

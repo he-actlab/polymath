@@ -90,11 +90,14 @@ class NonLinear(Node):
         return "<nonlinear '%s' target=%s>"% \
                (self.name, self.op_name)
 
-
 class sigmoid(NonLinear):
     def __init__(self, input_node, **kwargs):
         super(sigmoid, self).__init__(_sigmoid, input_node, **kwargs)
 
+
+class tanh(NonLinear):
+    def __init__(self, input_node, **kwargs):
+        super(tanh, self).__init__(_tanh, input_node, **kwargs)
 
 class log2(NonLinear):
     def __init__(self, input_node, **kwargs):
@@ -148,6 +151,9 @@ def _log2(value):
 
 def _sigmoid(value):
     return 1 / (1 + np.exp(-value))
+
+def _tanh(value):
+    return np.tanh(value)
 
 def _exp(value):
     return np.exp(value)

@@ -12,7 +12,7 @@ from polymath.mgdfg.nodes import variable, predicate, assert_, str_format, ident
     placeholder, temp, parameter, slice_op, input, state, output, write
 from polymath.mgdfg.index import index, index_op
 from polymath.mgdfg.group_nodes import GroupNode, sum, prod, max, min, argmin, argmax, bitreverse
-from polymath.mgdfg.nonlinear import NonLinear, sigmoid, log2, exp, abs, sqrt, ceil, floor, cast
+from polymath.mgdfg.nonlinear import NonLinear, sigmoid, log2, exp, abs, sqrt, ceil, floor, cast, tanh
 from polymath.mgdfg.template import Template
 from polymath.mgdfg.util import Profiler, visualize, lower_graph, is_iterable
 from polymath.mgdfg.serialization.serialize import pb_store, pb_load

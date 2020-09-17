@@ -205,14 +205,6 @@ class linear_regressor_train(pm.Template):
         g = (d * x[i]).set_name("d*x")
         w[i] = w[i] - mu * g[i]
 
-class softmax(pm.Template):
-    def define_graph(self, data, out, **kwargs):
-        out.set_shape(data.shape)
-        i = pm.index(0, data.shape[0]-1)
-        j = pm.index(0, data.shape[0]-1)
-        mval = pm.max([i], data[i], name="max_test")
-        e_x = pm.exp((data[i] - mval))
-        out[i] = e_x[i] / pm.sum([j], e_x[j], name="num")
 
 class batch_flatten(pm.Template):
     def define_graph(self, data, out, **kwargs):
@@ -249,6 +241,21 @@ class elem_sigmoid(pm.Template):
         indices = tuple([pm.index(0, s - 1) for s in shape])
         out[indices] = pm.sigmoid(x[indices])
 
+class softmax(pm.Template):
+    def define_graph(self, data, out, axis=1, shape=None, name=None, **kwargs):
+        out.set_shape(data.shape)
+        i = pm.index(0, data.shape[0]-1)
+        j = pm.index(0, data.shape[0]-1)
+        mval = pm.max([i], data[i], name="max_test")
+        e_x = pm.exp((data[i] - mval))
+        out[i] = e_x[i] / pm.sum([j], e_x[j], name="num")
+
+class elem_tanh(pm.Template):
+    def define_graph(self, x, out, shape=None, name=None):
+        indices = tuple([pm.index(0, s - 1) for s in shape])
+        out[indices] = pm.tanh(x[indices])
+
+
 class transpose(pm.Template):
     def define_graph(self, data, out, shape=None, name=None, **kwargs):
         indices = tuple([pm.index(0, s - 1) for s in shape])
@@ -258,19 +265,18 @@ def get_transpose(data, shape=None, name=None, **kwargs):
     out = pm.output(name=name, shape=shape)
     return transpose(data, out, shape=shape)
 
-# def transpose(data, shape=None, name=None, **kwargs):
-#     indices = tuple([pm.index(0, s - 1) for s in shape])
-#     out = pm.temp(name=name, shape=shape)
-#     out[indices] = data[tuple(reversed(indices))]
-    # return out
 def get_elem_sigmoid(x, shape=None, name=None):
     out = pm.output(name=name, shape=shape)
     return elem_sigmoid(x, out, shape=shape)
 
-# def elem_sigmoid(x, shape=None, name=None, **kwargs):
-#     indices = tuple([pm.index(0, s - 1) for s in shape])
-#     ret = pm.sigmoid(x[indices]).set_name(name)
-#     return ret
+def get_softmax(x, axis=1, shape=None, name=None):
+    out = pm.output(name=name, shape=shape)
+    return softmax(x, out, axis=axis, shape=shape)
+
+def get_elem_tanh(x, shape=None, name=None):
+    out = pm.output(name=name, shape=shape)
+    return elem_tanh(x, out, shape=shape)
+
 def reduce_sum(data, axes=None, keepdims=None, shape=None, name=None, **kwargs):
     i = pm.index(0, data.shape[axes] - 1)
     return pm.sum([i], data[i], name=name)
@@ -315,12 +321,6 @@ def squeeze(x, axis, *args, shape=None, name=None, **kwargs):
     x.graph.nodes[name] = x
     return x
 
-# def matmul(a, b, shape=None, name=None, **kwargs):
-    # i = pm.index(0, a.shape[0] - 1)
-    # j = pm.index(0, b.shape[0] - 1)
-    # k = pm.index(0, b.shape[1] - 1)
-    # return pm.sum([j], a[i, j]*b[j, k], name=name)
-
 def lvmatmul(a, b, shape=None, name=None, **kwargs):
     i = pm.index(0, a.shape[0] - 1)
     j = pm.index(0, b.shape[1] - 1)
@@ -351,7 +351,7 @@ def get_elem(a, b, **kwargs):
         return lvmatmul(a, b, **kwargs)
 
 class flatten(pm.Template):
-    def define_graph(self, data, out, shape=None, **kwargs):
+    def define_graph(self, data, out, axis=1, shape=None, **kwargs):
         d0 = data.shape[0]
         d1 = data.shape[1]
         d2 = data.shape[2]
@@ -375,6 +375,11 @@ def reshape(data, *args, shape=None, name=None, **kwargs):
     data.graph.nodes[name] = data
     return data
 
+def resize(data, *args, shape=None, name=None, **kwargs):
+
+    data._shape = shape
+    data.graph.nodes[name] = data
+    return data
 
 def identity(data, shape=None, name=None, **kwargs):
     data.set_name(name)
@@ -564,11 +569,15 @@ def get_global_avg_pool(x, shape=None, name=None):
     pm.global_avg_pool(x, y, shape=shape)
     return y
 
-def get_avg_pool(x, auto_pad=None, kernel_shape=None, pads=None, strides=None, shape=None, name=None):
+def get_avg_pool(x, auto_pad=None, ceil_mode=0, kernel_shape=None, pads=None, strides=None, shape=None, name=None):
     y = pm.output(shape=shape, name=name)
     if auto_pad:
-        h_out = np.ceil(x.shape[-2] / strides[0])
-        w_out = np.ceil(x.shape[-1] / strides[1])
+        if ceil_mode == 0:
+            h_out = np.floor(x.shape[-2] / strides[0])
+            w_out = np.floor(x.shape[-1] / strides[1])
+        else:
+            h_out = np.ceil(x.shape[-2] / strides[0])
+            w_out = np.ceil(x.shape[-1] / strides[1])
         ph = max(0, (h_out - 1) * strides[0] + kernel_shape[0] - x.shape[-2])
         pw = max(0, (w_out - 1) * strides[1] + kernel_shape[1] - x.shape[-1])
         pads = [0, 0, 0, 0]
@@ -618,7 +627,7 @@ def get_dropout(x, ratio=None, training_mode=False, shape=None, name=None):
     return y
 
 
-def get_flatten(x, name=None, shape=None):
+def get_flatten(x, axis=None, name=None, shape=None):
     y = pm.output(shape=shape, name=name)
     if shape == x.shape:
         indices = tuple([pm.index(0, s - 1) if s > 1 else 0 for s in shape])
@@ -638,7 +647,6 @@ def get_gemm(a, b , c=None, shape=None, name=None, alpha=None, beta=None, transA
         t_c[i, j] = 0
         pm.gemm(a, b, t_c, y, shape=shape, alpha=alpha, beta=beta, transA=transA, transB=transB)
     return y
-
 
 
 # TODO: Add reshape operator, constant operator, gemm
@@ -667,8 +675,9 @@ NODE_NAMES = {"SVMClassifier": svm_classifier_train,
               "Squeeze": squeeze,
               "Sub": elem_sub,
               "Add": elem_add,
-              # "Transpose": transpose,
+              "Softmax": get_softmax,
               "Transpose": get_transpose,
-              # "Sigmoid": elem_sigmoid,
+              "Resize" : resize,
               "Sigmoid": get_elem_sigmoid,
+              "Tanh": get_elem_tanh,
               "Greater": elem_greater}
