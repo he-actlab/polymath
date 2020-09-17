@@ -1,6 +1,12 @@
 
 import argparse
+from onnxsim import simplify
+import onnx
 import tf2onnx
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
 
 from onnx import optimizer
 import tensorflow as tf
@@ -53,58 +59,68 @@ def init_bias(shape):
 
 
 def create_lenet(features):
-    with tf.Session() as sess:
+    RANDOM_SEED = 42
+    LEARNING_RATE = 0.001
+    BATCH_SIZE = 32
+    N_EPOCHS = 15
 
-        x = tf.placeholder(tf.float32, (None, 32, 32, 1))
-        # y = tf.placeholder(tf.int32, (None), name='y')
-        # one_hot_y = tf.one_hot(y, 10)
-        # name:      conv5-6
-        # structure: Input = 32x32x1. Output = 28x28x6.
-        # weights:   (5*5*1+1)*6
-        # connections: (28*28*5*5+28*28)*6
-        conv1_W = init_weight((5, 5, 1, 6))
-        conv1_b = init_bias(6)
-        conv1 = tf.nn.conv2d(x, conv1_W, strides=[1, 1, 1, 1], padding='VALID') + conv1_b
-        conv1 = tf.nn.relu(conv1)
-        # Input = 28x28x6. Output = 14x14x6.
-        conv1 = tf.nn.max_pool(conv1, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='VALID')
+    IMG_SIZE = 32
+    N_CLASSES = features
 
-        # conv5-16
-        # input 14x14x6 Output = 10x10x16.
-        # weights: (5*5*6+1)*16 ---real Lenet-5 is (5*5*3+1)*6+(5*5*4+1)*9+(5*5*6+1)*1
-        conv2_W = init_weight((5, 5, 6, 16))
-        conv2_b = init_bias(16)
-        conv2 = tf.nn.conv2d(conv1, conv2_W, strides=[1, 1, 1, 1], padding='VALID') + conv2_b
-        conv2 = tf.nn.relu(conv2)
-        # Input = 10x10x16. Output = 5x5x16.
-        conv2 = tf.nn.max_pool(conv2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='VALID')
-        # Input = 5x5x16. Output = 400.
-        fc0 = tf.layers.flatten(conv2)
+    class LeNet5(nn.Module):
 
-        # Input = 400. Output = 120.
-        fc1_W = init_weight((400, 120))
-        fc1_b = init_bias(120)
-        fc1 = tf.matmul(fc0, fc1_W) + fc1_b
-        fc1 = tf.nn.relu(fc1)
+        def __init__(self, n_classes, training=False):
+            super(LeNet5, self).__init__()
+            self.training = training
+            self.conv1 = nn.Conv2d(in_channels=1, out_channels=6,
+                                   kernel_size=5, stride=1, padding=0)
+            self.conv2 = nn.Conv2d(in_channels=6, out_channels=16,
+                                   kernel_size=5, stride=1, padding=0)
+            self.conv3 = nn.Conv2d(in_channels=16, out_channels=120,
+                                   kernel_size=5, stride=1, padding=0)
+            self.linear1 = nn.Linear(120, 84)
+            self.linear2 = nn.Linear(84, n_classes)
+            self.tanh = nn.Tanh()
+            self.avgpool = nn.AvgPool2d(kernel_size=2, stride=2)
 
-        # Input = 120. Output = 84.
-        fc2_W = init_weight((120, 84))
-        fc2_b = init_bias(84)
-        fc2 = tf.matmul(fc1, fc2_W) + fc2_b
-        fc2 = tf.nn.relu(fc2)
+        def forward(self, x):
+            x = self.conv1(x)
+            x = self.tanh(x)
+            x = self.avgpool(x)
 
-        # Input = 84. Output = 10.
-        fc3_W = init_weight((84, 10))
-        fc3_b = init_bias(10)
-        logits = tf.matmul(fc2, fc3_W) + fc3_b
-        cross_entropy = tf.nn.softmax(logits=logits, name="out")
-        sess.run(tf.compat.v1.global_variables_initializer())
-        onnx_graph = tf2onnx.tfonnx.process_tf_graph(sess.graph, input_names=['data'], output_names='out')
-        model_proto = onnx_graph.make_model('lenet')
-        model_proto = optimizer.optimize(model_proto, ['eliminate_identity'])
-        with open(f"./lenet.onnx", "wb") as f:
-            f.write(model_proto.SerializeToString())
-    return logits
+            x = self.conv2(x)
+            x = self.tanh(x)
+            x = self.avgpool(x)
+
+            x = self.conv3(x)
+            x = self.tanh(x)
+
+            x = torch.flatten(x, 1)
+            x = self.linear1(x)
+            x = self.tanh(x)
+            logits = self.linear2(x)
+
+            probs = F.softmax(logits, dim=1)
+            if self.training:
+                return logits, probs
+            else:
+                return probs
+    fname = "lenet.onnx"
+    torch.manual_seed(RANDOM_SEED)
+    x = torch.randn(1, 1, 32, 32)
+    model = LeNet5(N_CLASSES).to('cpu')
+    model.eval()
+    torch.onnx.export(model,  # model being run
+                      x,  # model input (or a tuple for multiple inputs)
+                      fname,  # where to save the model (can be a file or file-like object)
+                      #                   export_params=True,        # store the trained parameter weights inside the model file
+                      opset_version=11,  # the ONNX version to export the model to
+                      do_constant_folding=False,  # whether to execute constant folding for optimization
+                      input_names=['input'],  # the model's input names
+                      output_names=['output'])
+    onnx_model = onnx.load(fname)
+    model, check = simplify(onnx_model)
+    onnx.save(model, fname)
 
 def create_linear(m):
     batch_size = 1
@@ -238,7 +254,6 @@ def create_reco(m, n, k):
             f.write(model_proto.SerializeToString())
 
 if __name__ == "__main__":
-
     argparser = argparse.ArgumentParser(description='ONNX Benchmark Generator')
     argparser.add_argument('-b', '--benchmark', required=True,
                            help='Name of the benchmark to create. One of "logistic", "linear", "reco",'
