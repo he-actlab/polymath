@@ -47,7 +47,6 @@ def create_backprop(l1, l2, l3):
         with open(f"./{model_name}.onnx", "wb") as f:
             f.write(model_proto.SerializeToString())
 
-
 def init_weight(shape):
     w = tf.truncated_normal(shape=shape, mean=0, stddev=0.1)
     return tf.Variable(w)
