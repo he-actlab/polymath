@@ -854,8 +854,9 @@ class var_index(Node):  # pylint: disable=C0103,W0223
                 var = np.squeeze(var)
 
         if len(var.shape) != len(out_shape) and np.prod(var.shape) != np.prod(out_shape):
-            raise ValueError(f"Index list {self.domain} does not match {var.shape} "
+            raise ValueError(f"Index list does not match {var.shape} in {self.var.name} - {self.var.op_name}"
                              f"dimensions for slice {self.args[0].name} with {out_shape}.\n"
+                             f"Domain: {self.domain}\n"
                              f"Eval Stack: {Node._eval_stack}")
 
         if not single and not all([(idx_val - 1) >= indices[-1][idx] for idx, idx_val in enumerate(var.shape)]):

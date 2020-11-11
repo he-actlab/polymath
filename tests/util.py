@@ -276,7 +276,7 @@ def _torch_preprocess(boxes, scores):
 
     return boxes, scores
 
-def test_torch_nms(boxes, scores, overlap_threshold=0.5, min_mode=False):
+def t_torch_nms(boxes, scores, overlap_threshold=0.5, min_mode=False):
     import torch
     x1 = boxes[:, 0]
     y1 = boxes[:, 1]
@@ -353,7 +353,7 @@ def torch_nms(boxes, scores, max_output_per_class=0, iou_threshold=0, score_thre
     # np_boxes = boxes.numpy()
     # np_scores = scores.numpy()
     np_res = nms_cpu(boxes, scores)
-    tres = test_torch_nms(boxes, scores)
+    tres = t_torch_nms(boxes, scores)
     print(tres)
     print(np_res)
     # print(np_res)
@@ -1449,10 +1449,86 @@ def tvm_lenet(num_classes=10, data_shape=(1, 1, 32, 32),
 def np_relu(x):
     return x * (x > 0)
 
-def np_softmax(x):
+def np_softmax(x, axis=0):
     """Compute softmax values for each sets of scores in x."""
-    e_x = np.exp(x - np.max(x))
-    return e_x / e_x.sum()
+    e_x = np.exp(x - np.max(x, axis=axis))
+    return e_x / e_x.sum(axis=axis)
+
+
+def np_lenetv2(lowered=False):
+
+    # input_info = {}
+    input_info = {"n": 1, "ic": 1, "ih": 32, "iw": 32,
+                      "nf1": 6, "kh1": 5, "kw1": 5, "s1": 1, "p1": 0,
+                      "nf2": 16, "kh2": 5, "kw2": 5, "s2": 1, "p2": 0,
+                      "nf3": 120, "kh3": 5, "kw3": 5, "s3": 1, "p3": 0,
+                      "m5": 120, "n5": 84, "m7": 84, "n7": 10
+                      }
+    input_info["data"] = np.random.randint(0, 5, (1, 1, 32, 32))
+    input_info["w1"] = np.random.randint(0, 5, (6, 1, 5, 5))
+    input_info["b1"] = np.random.randint(0, 5, 6)
+    input_info["s1"] = 1
+    input_info["p1"] = 0
+
+    input_info["w2"] = np.random.randint(0, 5, (16, 6, 5, 5))
+    input_info["b2"] = np.random.randint(0, 5, 16)
+    input_info["s2"] = 1
+    input_info["p2"] = 0
+
+    input_info["w3"] = np.random.randint(0, 5, (120, 16, 5, 5))
+    input_info["b3"] = np.random.randint(0, 5, 120)
+    input_info["s3"] = 1
+    input_info["p3"] = 0
+
+    input_info["w5"] = np.random.randint(0, 5, (84, 120)).T
+    input_info["b5"] = np.random.randint(0, 5, (84,))
+
+    input_info["w7"] = np.random.randint(0, 5, (10, 84)).T
+    input_info["b7"] = np.random.randint(0, 5, (10,))
+
+    out_info = {}
+    c1_params = {"stride": input_info["s1"], "pad": input_info["p1"]}
+    out_info["c1"] = conv3d(input_info["data"], input_info["w1"], input_info["b1"], c1_params)[0]
+    out_info["a1"] = np.tanh(out_info["c1"])
+    out_info["l1"] = pooling(out_info["a1"], 2, 2, 0, 2)
+
+    c2_params = {"stride": input_info["s2"], "pad": input_info["p2"]}
+    out_info["c2"] = conv3d(out_info["l1"], input_info["w2"], input_info["b2"], c2_params)[0]
+    out_info["a2"] = np.tanh(out_info["c2"])
+    out_info["l2"] = pooling(out_info["a2"], 2, 2, 0, 2)
+
+    c3_params = {"stride": input_info["s3"], "pad": input_info["p3"]}
+    out_info["c3"] = conv3d(out_info["l2"], input_info["w3"], input_info["b3"], c3_params)[0]
+    out_info["a3"] = np.tanh(out_info["c3"])
+
+    out_info["f4"] = np.expand_dims(batch_flatten(out_info["a3"]), 0)
+    out_info["f5"] = np.dot(out_info["f4"], input_info["w5"]) + input_info["b5"]
+    out_info["a6"] = np.tanh(out_info["f5"])
+    out_info["f7"] = np.dot(out_info["a6"], input_info["w7"]) + input_info["b7"]
+    out_info["sm"] = np_softmax(out_info["f7"].astype(np.float), axis=1)
+
+    if lowered:
+        for k in list(input_info.keys()):
+            if hasattr(input_info[k], "shape"):
+                pairs = list(product(*tuple([np.arange(i) for i in input_info[k].shape])))
+                for p in pairs:
+                    input_info[f"{k}/{k}{p}"] = input_info[k][p]
+                input_info.pop(k)
+        key = []
+        for k in list(out_info.keys()):
+            if hasattr(out_info[k], "shape"):
+                pairs = list(product(*tuple([np.arange(i) for i in out_info[k].shape])))
+
+                for p in pairs:
+                    if k == "sm":
+                        key.append(f"{k}/{k}{p}")
+                    out_info[f"{k}/{k}{p}"] = out_info[k][p]
+
+                if k != "sm":
+                    out_info.pop(k)
+    else:
+        key = "sm"
+    return input_info, key, out_info
 
 
 def np_lenet(lowered=False):

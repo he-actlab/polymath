@@ -1,7 +1,8 @@
 import polymath as pm
 from collections import OrderedDict
 import numpy as np
-import tvm
+from tvm.relay.frontend.common import infer_channels, infer_shape
+
 from tvm import relay
 
 @pm.register_pass
@@ -18,11 +19,9 @@ class TVMPass(pm.Pass):
             name, tvm_op = TVM_OPS[node.op_name](node, self.tvm_ir)
             self.tvm_ir[name] = tvm_op
             self.last = name
-
         return node
 
     def finalize_pass(self, node, ctx):
-
         return node
 
     def package_pass(self, node, ctx):
@@ -53,6 +52,13 @@ def tvm_avg_pool(node, ctx):
         pad = (node.args[5], node.args[5])
     else:
         pad = (ctx[node.args[5].name], ctx[node.args[5].name])
+
+    if isinstance(pad, tuple) and isinstance(pad[0], tuple):
+        pad = (pad[0][0], pad[1][0])
+
+    if isinstance(stride, tuple) and isinstance(stride[0], tuple):
+        stride = (stride[0][0], stride[1][0])
+
     p = relay.nn.avg_pool2d(data, pool_size=pool_size, strides=stride, padding=pad)
 
     return node.args[1].name, p
@@ -110,15 +116,49 @@ def tvm_dense(node, ctx):
     d = relay.nn.dense(inp, weights, units=units)
     return node.args[2].name, d
 
+def tvm_gemm(node, ctx):
+    inputs = [ctx[node.args[0].name], ctx[node.args[1].name], ctx[node.args[2].name]]
+    alpha = node.kwargs['alpha']
+    beta = node.kwargs['beta']
+    transA = node.kwargs['transA']
+    transB = node.kwargs['transB']
+
+    channels = infer_channels(inputs[1], not transB)
+    if transA:
+        inputs[0] = relay.transpose(inputs[0], axes=(1, 0))
+    if not transB:
+        inputs[1] = relay.transpose(inputs[1], axes=(1, 0))
+    inputs[0] = relay.nn.batch_flatten(inputs[0])
+
+    if alpha != 1.0:
+        inputs[0] *= relay.expr.const(alpha)
+    out = relay.nn.dense(inputs[0], inputs[1], units=channels)
+
+    # skip (beta * C) if zero
+    if (beta == 0.0):
+        return node.args[3].name, out
+    g = relay.nn.bias_add(out, relay.expr.const(beta) * inputs[2])
+    return node.args[3].name, g
+
 def tvm_softmax(node, ctx):
     inp = ctx[node.args[0].name]
     sm = relay.nn.softmax(inp)
     return node.args[1].name, sm
 
+def tvm_elem_tanh(node, ctx):
+    inp = ctx[node.args[0].name]
+    th = relay.tanh(inp)
+    return node.args[1].name, th
+
 def tvm_batch_flatten(node, ctx):
     inp = ctx[node.args[0].name]
     bf = relay.nn.batch_flatten(inp)
     return node.args[1].name, bf
+
+def tvm_flatten(node, ctx):
+    inp = ctx[node.args[0].name]
+    flt = relay.reshape(inp, node.args[1].shape)
+    return node.args[1].name, flt
 
 TVM_OPS = {"avg_pool2d": tvm_avg_pool,
            "avg_pool": tvm_avg_pool,
@@ -133,7 +173,10 @@ TVM_OPS = {"avg_pool2d": tvm_avg_pool,
            "softmax": tvm_softmax,
            "batch_flatten": tvm_batch_flatten,
            "dense": tvm_dense,
-           "matmul": tvm_dense}
+           "matmul": tvm_dense,
+           "gemm": tvm_gemm,
+           "elem_tanh": tvm_elem_tanh,
+           "coarse_flatten": tvm_flatten}
 
 def _normalize_name(name):
     return name.rsplit("/", 1)[-1]

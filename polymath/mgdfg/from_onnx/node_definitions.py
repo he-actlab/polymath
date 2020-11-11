@@ -4,7 +4,7 @@ import numpy as np
 import functools
 class avg_pool(pm.Template):
     def define_graph(self, data, out, kh, kw, stride, pad, **kwargs):
-
+        sx, sy = stride
         oh = ((data.shape[-2] + 2 * pad[0] - kh) // stride[0] + 1)
         ow = ((data.shape[-1] + 2 * pad[1] - kw) // stride[1] + 1)
 
@@ -23,20 +23,20 @@ class avg_pool(pm.Template):
             b = pm.index(0, data.shape[0] - 1, name="b")
             c = pm.index(0, data.shape[1] - 1, name="c")
 
-            o_indices = (b, c)
+            o_indices = [b, c]
             p_shape = (data.shape[0], data.shape[1], ihp, iwp)
             out.set_shape((data.shape[0], data.shape[1], oh, ow))
 
         else:
             c = pm.index(0, data.shape[0] - 1, name="c")
-            o_indices = (c,)
+            o_indices = [c]
             p_shape = (data.shape[0], ihp, iwp)
             out.set_shape((data.shape[0], oh, ow))
-
+        o_indices = tuple(o_indices)
         padded = pm.temp(name="padded", shape=p_shape)
-        padded[o_indices, ihp_, iwp_] = 0
-        padded[o_indices, iy + pad[0], ix + pad[1]] = data[o_indices, iy, ix]
-        out[o_indices, y, x] =  pm.sum([m, n], padded[o_indices, stride*y + m, stride*x + n]) * (1/(kh*kw))
+        padded[o_indices + (ihp_, iwp_)] = 0
+        padded[o_indices + (iy + pad[0], ix + pad[1])] = data[o_indices + (iy, ix)]
+        out[o_indices + (y, x)] = pm.sum([m, n], padded[o_indices + (sx*y + m, sy*x + n)]) * (1/(kh*kw))
 
 class dense(pm.Template):
     def define_graph(self, x, w, y, **kwargs):
@@ -136,13 +136,13 @@ class conv_bias(pm.Template):
             p_shape = (data.shape[0], ihp, iwp)
             out.set_shape((w.shape[0], oh, ow))
         padded = pm.temp(name="padded", shape=p_shape)
-        padded[p_indices, ihp_, iwp_] = 0
-        padded[p_indices, iy + pad, ix + pad] = data[p_indices, iy, ix]
-        out[o_indices, y, x] = pm.sum([dy, dx, k], (padded[p_indices, dy + stride*y, dx + stride*x] * w[c, k, dy, dx])) + bias[c]
+        padded[p_indices + (ihp_, iwp_)] = 0
+        padded[p_indices + (iy + pad, ix + pad)] = data[p_indices + (iy, ix)]
+
+        out[o_indices + (y, x)] = pm.sum([dy, dx, k], (padded[p_indices + (dy + stride*y, dx + stride*x)] * w[c, k, dy, dx])) + bias[c]
 
 class avg_pool2d(pm.Template):
     def define_graph(self, inp, out, kh, kw, stride, pad, **kwargs):
-
         oh = ((inp.shape[2] + 2 * pad - kh) // stride + 1)
         ow = ((inp.shape[3] + 2 * pad - kw) // stride + 1)
         out.set_shape((inp.shape[0], inp.shape[1], oh, ow))
@@ -242,19 +242,24 @@ class elem_sigmoid(pm.Template):
         out[indices] = pm.sigmoid(x[indices])
 
 class softmax(pm.Template):
-    def define_graph(self, data, out, axis=1, shape=None, name=None, **kwargs):
+    def define_graph(self, data, out, axis=0, shape=None, name=None, **kwargs):
         out.set_shape(data.shape)
-        i = pm.index(0, data.shape[0]-1)
-        j = pm.index(0, data.shape[0]-1)
-        mval = pm.max([i], data[i], name="max_test")
-        e_x = pm.exp((data[i] - mval))
-        out[i] = e_x[i] / pm.sum([j], e_x[j], name="num")
+        i = pm.index(0, data.shape[axis]-1, name="i")
+        j = pm.index(0, data.shape[axis]-1, name="j")
+        indices = [pm.index(0, s - 1) for s in data.shape]
+        indices_denom = indices
+        indices_denom[axis] = j
+        indices[axis] = i
+        indices = tuple(indices)
+        indices_denom = tuple(indices_denom)
+        mval = pm.max([i], data[indices], name="max_test")
+        e_x = pm.exp((data[indices] - mval), name="e_x")
+        out[indices] = e_x[indices] / pm.sum([indices_denom[axis]], e_x[indices_denom], name="denom")
 
 class elem_tanh(pm.Template):
     def define_graph(self, x, out, shape=None, name=None):
         indices = tuple([pm.index(0, s - 1) for s in shape])
         out[indices] = pm.tanh(x[indices])
-
 
 class transpose(pm.Template):
     def define_graph(self, data, out, shape=None, name=None, **kwargs):
@@ -312,14 +317,15 @@ def cast(data, to=None, shape=None, name=None, **kwargs):
     indices = tuple([pm.index(0, s - 1) for s in shape])
     return pm.cast(to, data[indices], name=name, shape=shape)
 
-def unsqueeze(x, axis, *args, name=None, **kwargs):
-    x.graph.nodes[name] = x
-    return x
+# TODO: Need to fix this functionality to create a new node
+def unsqueeze(x, *args, axes=None, shape=None, name=None, **kwargs):
+    out = pm.unsqueeze(x, axis=axes, name=name, shape=shape)
+    return out
 
 # TODO: Check this works after changes
-def squeeze(x, axis, *args, shape=None, name=None, **kwargs):
-    x.graph.nodes[name] = x
-    return x
+def squeeze(x, *args, axes=None, shape=None, name=None, **kwargs):
+    out = pm.squeeze(x, axis=axes, name=name, shape=shape)
+    return out
 
 def lvmatmul(a, b, shape=None, name=None, **kwargs):
     i = pm.index(0, a.shape[0] - 1)
@@ -350,18 +356,11 @@ def get_elem(a, b, **kwargs):
     else:
         return lvmatmul(a, b, **kwargs)
 
-class flatten(pm.Template):
+class coarse_flatten(pm.Template):
     def define_graph(self, data, out, axis=1, shape=None, **kwargs):
-        d0 = data.shape[0]
-        d1 = data.shape[1]
-        d2 = data.shape[2]
-        d3 = data.shape[3]
-        i = pm.index(0, d0 - 1, name="i")
-        j = pm.index(0, d1 - 1, name="j")
-        k = pm.index(0, d2 - 1, name="k")
-        l = pm.index(0, d3 - 1, name="l")
-        out[i, ((j * d2 + k) * d3 + l)] = data[i, j, k, l]
-
+        o_indices = tuple([pm.index(0, s - 1) for s in shape])
+        i_indices = tuple([pm.index(0, s - 1) for s in data.shape])
+        out[o_indices] = data[i_indices]
 
 class dropout(pm.Template):
     def define_graph(self, x, y, ratio=0.0, name=None, shape=None, **kwargs):
@@ -394,7 +393,6 @@ def _get_indices(node, all_indices, tgt_shape):
     for idx, i in enumerate(all_indices):
         if len(node.shape) > idx and tgt_shape[idx] == node.shape[idx]:
             indices.append(i)
-
     if tgt_shape != node.shape:
         for idx, i in enumerate(node.shape):
             if i != tgt_shape[idx]:
@@ -446,11 +444,10 @@ class conv(pm.Template):
         out[tuple(o_indices + [y, x])] = pm.sum([dy, dx, k], (padded[tuple(p_indices + [dy + stride*y, dx + stride*x])] * w[c, k, dy, dx]))
 
 class gemm(pm.Template):
-    def define_graph(self, a, b, c, y,  shape=None, name=None, alpha=None, beta=None, transA=None, transB=None, **kwargs):
-
-        i = pm.index(0, shape[0] - 1)
+    def define_graph(self, a, b, c, y,  shape=None, name=None, alpha=1.0, beta=0.0, transA=None, transB=None, **kwargs):
+        i = pm.index(0, a.shape[0] - 1)
         j = pm.index(0, b.shape[0] - 1)
-        k = pm.index(0, shape[1] - 1)
+        k = pm.index(0, b.shape[1] - 1)
         y[i, k] = pm.sum([j], a[i, j]*b[j, k]) + c[i, k]
 
 class lrn(pm.Template):
@@ -526,6 +523,7 @@ def get_concat(*inputs, axis=None, shape=None, name=None):
 def get_conv(x, w, bias=None, dilations=None, group=None, kernel_shape=None, pads=None, auto_pad=None, strides=None, shape=None, name=None):
     output = pm.output(shape=shape, name=name)
     if auto_pad:
+
         h_out = np.ceil(x.shape[-2] / strides[0])
         w_out = np.ceil(x.shape[-1] / strides[1])
         ph = max(0, (h_out - 1) * strides[0] + kernel_shape[0] - x.shape[-2])
@@ -591,15 +589,17 @@ def get_avg_pool(x, auto_pad=None, ceil_mode=0, kernel_shape=None, pads=None, st
             pads[0] = ph - pads[1]
             pads[3] = np.floor(pw // 2)
             pads[2] = pw - pads[3]
+
     pm.avg_pool(x, y, kernel_shape[0], kernel_shape[1], (int(strides[0]), int(strides[1])),
                 (int(pads[0]), int(pads[2])), shape=shape)
     return y
 
-def get_max_pool(x, kernel_shape=None, pads=None, auto_pad=None, strides=None, shape=None, name=None):
+def get_max_pool(x, ceil_mode=0, kernel_shape=None, pads=None, auto_pad=None, strides=None, shape=None, name=None):
     y = pm.output(shape=shape, name=name)
+    int_fn = np.ceil if ceil_mode != 0 else np.floor
     if auto_pad:
-        h_out = np.ceil(x.shape[-2] / strides[0])
-        w_out = np.ceil(x.shape[-1] / strides[1])
+        h_out = int_fn(x.shape[-2] / strides[0])
+        w_out = int_fn(x.shape[-1] / strides[1])
         ph = max(0, (h_out - 1) * strides[0] + kernel_shape[0] - x.shape[-2])
         pw = max(0, (w_out - 1) * strides[1] + kernel_shape[1] - x.shape[-1])
         pads = [0,0,0,0]
@@ -627,13 +627,9 @@ def get_dropout(x, ratio=None, training_mode=False, shape=None, name=None):
     return y
 
 
-def get_flatten(x, axis=None, name=None, shape=None):
+def get_flatten(x, axis=1, name=None, shape=None):
     y = pm.output(shape=shape, name=name)
-    if shape == x.shape:
-        indices = tuple([pm.index(0, s - 1) if s > 1 else 0 for s in shape])
-        y[indices] = x[indices]
-    else:
-        pm.flatten(x, y, shape=shape)
+    coarse_flatten(x, y, axis=axis, shape=shape)
     return y
 
 def get_gemm(a, b , c=None, shape=None, name=None, alpha=None, beta=None, transA=None, transB=None):
@@ -648,6 +644,9 @@ def get_gemm(a, b , c=None, shape=None, name=None, alpha=None, beta=None, transA
         pm.gemm(a, b, t_c, y, shape=shape, alpha=alpha, beta=beta, transA=transA, transB=transB)
     return y
 
+def get_shape(x, *args, name=None, shape=None, **kwargs):
+    x.graph.nodes[name] = x.shape
+    return x.graph.nodes[name]
 
 # TODO: Add reshape operator, constant operator, gemm
 NODE_NAMES = {"SVMClassifier": svm_classifier_train,
@@ -680,4 +679,5 @@ NODE_NAMES = {"SVMClassifier": svm_classifier_train,
               "Resize" : resize,
               "Sigmoid": get_elem_sigmoid,
               "Tanh": get_elem_tanh,
-              "Greater": elem_greater}
+              "Greater": elem_greater,
+              "Shape": get_shape}

@@ -96,6 +96,8 @@ class NormalizeGraph(Pass):
             shape = node.args[1]
         elif isinstance(node, pm.NonLinear):
             shape = node.args[0].shape
+        elif isinstance(node, pm.Transformation):
+            shape = node.compute_shape()
         elif isinstance(node, pm.func_op):
             non_scalar = list(filter(lambda x: isinstance(x, pm.Node) and x.shape not in [UNSET_SHAPE, DEFAULT_SHAPES[0]], node.args))
             assert len(non_scalar) <= 1
@@ -105,8 +107,8 @@ class NormalizeGraph(Pass):
         else:
             shape = node.shape
 
-        if not isinstance(node, pm.output):
 
+        if not isinstance(node, pm.output):
             for s in shape:
                 if isinstance(s, pm.Node):
                     if s.name not in self.context and s not in self.evaluated:

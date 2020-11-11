@@ -150,7 +150,6 @@ class index_op(index):
         return self.args
 
     def _evaluate(self, op1, op2, **kwargs):
-
         if is_iterable(op1) and is_iterable(op2) and all([i.shape != (1,) for i in [op1,op2]]):
             if self.op1_dom.names != self.op2_dom.names:
                 pairs = list(product(*(op1, op2)))

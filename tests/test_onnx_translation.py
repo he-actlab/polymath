@@ -1,7 +1,7 @@
 import polymath as pm
 from tests.util import linear, op_counts, logistic, svm, reco,\
     dense, conv, two_layer_dense, pooling, backprop, batchnorm, \
-    global_avg_pool, lrn
+    global_avg_pool, lrn, np_softmax
 from pathlib import Path
 import pickle
 import pytest
@@ -387,17 +387,16 @@ def test_translate_vmul(x_shape):
     pm_res = pm_graph("out", {"a": a, "b": b})
     np.testing.assert_allclose(pm_res, np_res)
 
-@pytest.mark.parametrize('x_shape', [
-    (1024,),
+@pytest.mark.parametrize('x_shape, axis', [
+    ((1, 1024,), 1),
 ])
-def test_translate_softmax(x_shape):
-    softmax = lambda i: np.exp(i) / np.sum(np.exp(i))
-    x = np.random.randint(0, 5, x_shape)
+def test_translate_softmax(x_shape, axis):
+    x = np.random.randint(0, 5, x_shape).astype(np.float)
     data = pm.input("x", shape=x.shape)
     out = pm.output("out")
-    g = pm.softmax(data, out)
+    g = pm.softmax(data, out, axis=1)
     res = g("out", {"x": x})
-    np_res = softmax(x)
+    np_res = np_softmax(x, axis=1)
     np.testing.assert_allclose(np_res, res)
 
 
@@ -443,6 +442,22 @@ def test_lenet():
     assert Path(filepath).exists()
     graph = pm.from_onnx(filepath)
 
+def test_resnet18():
+    filename = f"resnet18v1.onnx"
+    filepath = f"{BENCH_DIR}/full_dnns/{filename}"
+    assert Path(filepath).exists()
+    graph = pm.from_onnx(filepath)
+    for k, n in graph.nodes.items():
+        print(f"{k} - {n.op_name}")
+
+
+def test_maskrcnn():
+    MRCNN_PATH = f"{BENCH_DIR}/full_dnns/mask_rcnn/builtin"
+    filenames = [f"backbone_mrcnn_builtin_opt.onnx", f"rpn_mrcnn_builtin_opt.onnx"]
+    for f in filenames:
+        filepath = f"{MRCNN_PATH}/{f}"
+        assert Path(filepath).exists()
+        graph = pm.from_onnx(filepath)
 
 
 
