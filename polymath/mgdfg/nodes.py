@@ -129,6 +129,9 @@ class output(placeholder):
         key = _flatten_iterable(key)
         name = f"{self.name}{self.write_count}"
         prev_name = f"{self.name}{self.write_count - 1}" if self.write_count > 0 else self.name
+        if prev_name not in self.graph.nodes:
+            raise KeyError(f"{prev_name} not found in graph {self.graph.name} nodes:\n"
+                           f"Keys: {list(self.graph.nodes.keys())}")
         x = write(value, list(key), self.graph.nodes[prev_name], name=name, alias=self.name, graph=self.graph)
         self.write_count += 1
 
@@ -370,7 +373,15 @@ class write(Node):
             domain = src.domain
         else:
             domain = Domain(dst_key)
-        super(write, self).__init__(src, dst_key, dst, domain=domain, shape=dst.shape, type_modifier=self.type_modifier,
+
+        if "write_graph" in kwargs:
+            kwargs.pop("write_graph")
+        active_graph = Node.get_active_graph()
+        graph_location = []
+        while active_graph:
+            graph_location.insert(0, active_graph.name)
+            active_graph = active_graph.graph
+        super(write, self).__init__(src, dst_key, dst, write_graph=graph_location, domain=domain, shape=dst.shape, type_modifier=self.type_modifier,
                                     **kwargs)
         self.alias = kwargs["alias"]
         self.shape_domain = Domain(self.dest.shape)

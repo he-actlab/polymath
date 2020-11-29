@@ -7,8 +7,8 @@ from polymath import DEFAULT_SHAPES, UNSET_SHAPE
 
 class Transformation(Node):
 
-    def __init__(self, target, node, domain, **kwargs):
-        super(Transformation, self).__init__(node, target=f"{target.__module__}.{target.__name__}", domain=domain, **kwargs)
+    def __init__(self, target, *args, **kwargs):
+        super(Transformation, self).__init__(*args, target=f"{target.__module__}.{target.__name__}", **kwargs)
         self.target = target
 
     def _evaluate(self, val, **kwargs):
@@ -44,7 +44,7 @@ class unsqueeze(Transformation):
             new_shape = list(input_node.shape)
             new_shape.insert(axis, 1)
         new_domain = Domain(tuple(new_shape))
-        super(unsqueeze, self).__init__(_unsqueeze, input_node, new_domain, axis=axis, shape=new_shape, **kwargs)
+        super(unsqueeze, self).__init__(_unsqueeze, input_node, domain=new_domain, axis=axis, shape=new_shape, **kwargs)
 
     def compute_shape(self):
         assert all([not isinstance(s, Node) for s in self.args[0].shape])
@@ -73,7 +73,7 @@ class squeeze(Transformation):
                 if a == 1:
                     new_shape.pop(i)
         new_domain = Domain(tuple(new_shape))
-        super(squeeze, self).__init__(_squeeze, input_node, new_domain, axis=axis, shape=new_shape, **kwargs)
+        super(squeeze, self).__init__(_squeeze, input_node, domain=new_domain, axis=axis, shape=new_shape, **kwargs)
 
     def compute_shape(self):
         assert all([not isinstance(s, Node) for s in self.args[0].shape])
@@ -112,7 +112,7 @@ class flatten(Transformation):
                 dim1 = dim1*i
             new_shape = (dim0, dim1)
         new_domain = Domain(tuple(new_shape))
-        super(flatten, self).__init__(_flatten, input_node, new_domain, axis=axis, shape=new_shape, **kwargs)
+        super(flatten, self).__init__(_flatten, input_node, domain=new_domain, axis=axis, shape=new_shape, **kwargs)
 
     def compute_shape(self):
         assert all([not isinstance(s, Node) for s in self.args[0].shape])
@@ -134,6 +134,50 @@ class flatten(Transformation):
     @property
     def axis(self):
         return self.kwargs['axis']
+
+class gather(Transformation):
+    def __init__(self, input_node, indices, axis=1, shape=None, **kwargs):
+        if shape:
+            new_shape = shape
+        else:
+            new_shape = list(input_node.shape)
+            new_shape.pop(axis)
+            curr_axis = axis
+            for i in indices.shape:
+                new_shape.insert(curr_axis, i)
+                curr_axis += 1
+        new_domain = Domain(tuple(new_shape))
+        super(gather, self).__init__(_gather, input_node, indices, domain=new_domain, axis=axis, shape=new_shape, **kwargs)
+
+    def compute_shape(self):
+        assert all([not isinstance(s, Node) for s in self.args[0].shape])
+        assert all([not isinstance(s, Node) for s in self.args[1].shape])
+        new_shape = list(self.args[0].shape)
+        new_shape[self.axis].pop()
+        curr_axis = self.axis
+        for i in self.args[1].shape:
+            new_shape[curr_axis].insert(curr_axis, i)
+            curr_axis += 1
+        return tuple(new_shape)
+
+    def _evaluate(self, val, indices, **kwargs):
+        if "target" in kwargs:
+            kwargs.pop("target")
+        if "domain" in kwargs:
+            kwargs.pop("domain")
+
+        val = self.target(val, indices, self.axis)
+
+        if not self.is_shape_finalized():
+            self.shape = val.shape
+        return val
+
+    @property
+    def axis(self):
+        return self.kwargs['axis']
+
+def _gather(value, indices, axis=0):
+    return np.take(value, indices, axis=axis)
 
 def _unsqueeze(value, axis=0):
     return np.expand_dims(value, axis=axis)

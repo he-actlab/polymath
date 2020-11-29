@@ -128,7 +128,7 @@ def tvm_gemm(node, ctx):
         inputs[0] = relay.transpose(inputs[0], axes=(1, 0))
     if not transB:
         inputs[1] = relay.transpose(inputs[1], axes=(1, 0))
-    inputs[0] = relay.nn.batch_flatten(inputs[0])
+    # inputs[0] = relay.nn.batch_flatten(inputs[0])
 
     if alpha != 1.0:
         inputs[0] *= relay.expr.const(alpha)

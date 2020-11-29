@@ -48,7 +48,7 @@ def test_linear_deserialize():
         d = (h-y_).set_name("h-y")
         g = (d*x_[i]).set_name("d*x")
         mug = (mu*g[i]).set_name("mu*g[i]")
-        w_ = ((w_[i])- mug).set_name("w_out")
+        w_ = ((w_[i]) - mug).set_name("w_out")
     x = np.random.randint(0, 10, 10)
     y = np.random.randint(0, 10, 1)[0]
     w = np.random.randint(0, 10, 10)

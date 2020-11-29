@@ -415,7 +415,6 @@ def test_translate_layers(layer_name, param_dict, data_func, input_keys, output_
 ])
 def test_batchnorm(x_shape):
     graph, inp_info, out_info, keys = batchnorm(x_shape, coarse=True)
-
     test_out = graph(keys[0], inp_info)
     np.testing.assert_allclose(out_info[keys[0]], test_out)
 
@@ -438,17 +437,29 @@ def test_lrn(x_shape, alpha, beta, bias, nsize):
 
 def test_lenet():
     filename = f"lenet.onnx"
-    filepath = f"{BENCH_DIR}/full_dnns/{filename}"
+    full_path = f"{BENCH_DIR}/full_dnns"
+
+    filepath = f"{full_path}/{filename}"
+    pb_path = f"{full_path}/torch-jit-export.pb"
+
     assert Path(filepath).exists()
     graph = pm.from_onnx(filepath)
+    pm.pb_store(graph, full_path)
+    node = pm.pb_load(pb_path, verbose=True)
+    assert len(node.nodes) == len(graph.nodes)
+
 
 def test_resnet18():
     filename = f"resnet18v1.onnx"
     filepath = f"{BENCH_DIR}/full_dnns/{filename}"
     assert Path(filepath).exists()
     graph = pm.from_onnx(filepath)
-    for k, n in graph.nodes.items():
-        print(f"{k} - {n.op_name}")
+    full_path = f"{BENCH_DIR}/full_dnns"
+    pb_path = f"{full_path}/mxnet_converted_model.pb"
+    pm.pb_store(graph, full_path)
+
+    node = pm.pb_load(pb_path, verbose=True)
+    assert len(node.nodes) == len(graph.nodes)
 
 
 def test_maskrcnn():

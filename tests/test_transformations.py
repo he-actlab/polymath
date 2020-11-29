@@ -54,12 +54,45 @@ def quick_flatten(a, new_shape):
         b[b_idx] = a[a_idx]
     return b
 
-def test_int():
-    shape = (2, 3, 4, 5)
-    a = np.random.random_sample(shape).astype(np.float32)
 
-    for i in range(-len(shape), 0):
-        new_shape = (np.prod(shape[0:i]).astype(int), -1)
-        b = a.reshape(new_shape)
-        tb = quick_flatten(a, b.shape)
-        np.testing.assert_allclose(tb, b)
+def test_gather0():
+    axis=0
+    x = np.random.randn(5, 4, 3, 2).astype(np.float32)
+    idx = np.array([0, 1, 3])
+
+    with pm.Node(name="gather_op") as graph:
+        data = pm.input(name="input", shape=x.shape)
+        indices = pm.input(name="indices", shape=idx.shape)
+        out = pm.gather(data, indices, axis=axis, name="res")
+
+    pm_y = graph("res", {"input": x, "indices": idx})
+    np_y = np.take(x, idx, axis=axis)
+    np.testing.assert_allclose(np_y, pm_y)
+
+def test_gather2d():
+    axis = 1
+    x = np.random.randn(3, 3).astype(np.float32)
+    idx = np.array([[0, 2]])
+
+    with pm.Node(name="gather_op") as graph:
+        data = pm.input(name="input", shape=x.shape)
+        indices = pm.input(name="indices", shape=idx.shape)
+        out = pm.gather(data, indices, axis=axis, name="res")
+
+    pm_y = graph("res", {"input": x, "indices": idx})
+    np_y = np.take(x, idx, axis=axis)
+    np.testing.assert_allclose(np_y, pm_y)
+
+def test_gather1():
+    axis = 1
+    x = np.random.randn(5, 4, 3, 2).astype(np.float32)
+    idx = np.array([0, 1, 3])
+
+    with pm.Node(name="gather_op") as graph:
+        data = pm.input(name="input", shape=x.shape)
+        indices = pm.input(name="indices", shape=idx.shape)
+        out = pm.gather(data, indices, axis=axis, name="res")
+
+    pm_y = graph("res", {"input": x, "indices": idx})
+    np_y = np.take(x, idx, axis=axis)
+    np.testing.assert_allclose(np_y, pm_y)

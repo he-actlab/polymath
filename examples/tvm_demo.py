@@ -130,14 +130,17 @@ def tvm_lenet(num_classes=10, data_shape=(1, 1, 32, 32),
 
     conv5 = layers.conv2d(data=pool4, channels=120, kernel_size=(5,5), name='conv5')
     conv5 = relay.tanh(conv5)
-
-    flattened6 = relay.nn.batch_flatten(conv5)
-
-    fcw7 = relay.var('fc7_weight')
+    # Temp
+    flattened6 = relay.reshape(conv5, (1, 120))
+    # flattened6 = relay.nn.batch_flatten(conv5)
+    fcw7 = relay.var('fc7_weight', shape=(120, 84))
+    fcw7 = relay.transpose(fcw7)
     fc7 = relay.nn.dense(data=flattened6, weight=fcw7, units=84)
     fc7 = relay.tanh(fc7)
 
-    fcw8 = relay.var('fc6_weight')
+    fcw8 = relay.var('fc6_weight', shape=(84, 10))
+    fcw8 = relay.transpose(fcw8)
+
     fc8 = relay.nn.dense(data=fc7, weight=fcw8, units=10)
 
     softmax = relay.nn.softmax(data=fc8)
