@@ -141,7 +141,7 @@ class NormalizeGraph(Pass):
                 node.graph.insert_node(scalar_node, idx)
                 scalar_node.graph = node.graph
 
-            elif isinstance(node, pm.var_index) and isinstance(node.var, (pm.GroupNode, pm.placeholder, pm.NonLinear, pm.func_op)) and node.var.shape == pm.DEFAULT_SHAPES[0]:
+            elif isinstance(node, pm.var_index) and isinstance(node.var, (pm.GroupNode, pm.placeholder, pm.NonLinear, pm.func_op, pm.Transformation)) and node.var.shape == pm.DEFAULT_SHAPES[0]:
                 self.scalar_translations[node] = node.var
                 node.graph.nodes.pop(node.name)
             else:
@@ -215,7 +215,6 @@ class NormalizeGraph(Pass):
         node_dom = node.domain
         op1_idx = node_dom.map_sub_domain(arg0.domain) if isinstance(arg0, pm.Node) and arg0.shape != DEFAULT_SHAPES[0] else SCALAR_IDX
         op2_idx = node_dom.map_sub_domain(arg1.domain) if isinstance(arg1, pm.Node) and arg1.shape != DEFAULT_SHAPES[0] else SCALAR_IDX
-
         if len(node_dom.set_names) > len(node.shape):
             dom_pairs = node_dom.compute_pairs(squeeze=True)
         else:
@@ -262,7 +261,7 @@ class NormalizeGraph(Pass):
             out_indices = np.array(list(product(*out_indices)))
             dom_pairs = node.domain.compute_pairs()
             dom_pairs = list(map(lambda x: x.tolist() if isinstance(x, np.ndarray) else x, dom_pairs))
-        elif isinstance(node.var, pm.placeholder):
+        elif isinstance(node.var, (pm.placeholder)):
             indices = [(0,)]
             out_shape = (1,)
             out_indices = ['']
@@ -273,6 +272,7 @@ class NormalizeGraph(Pass):
             out_indices = [pm.SCALAR_IDX]
             dom_pairs = [pm.SCALAR_IDX]
             idx_name = f"{node.var.name}{pm.SCALAR_IDX}"
+
             if idx_name not in node.var.nodes:
                 if isinstance(node.var, pm.NonLinear):
                     # TODO: Add check or fix so that the input variable is checked to have nodes or not
@@ -283,12 +283,10 @@ class NormalizeGraph(Pass):
                     x = node.var[pm.SCALAR_IDX]
                     self.stored_objects[id(x)] = x
                 else:
-                    raise RuntimeError
+                    raise RuntimeError(f"Invalid variable for indexing into: {node.var}")
                     # TODO: Add initializers for other types of node
-
         node._shape = out_shape
         node.domain.set_computed(out_shape, dom_pairs)
-
         for i, d in enumerate(dom_pairs):
             ph_node = node.var[indices[i]]
             name = f"{node.var.name}{out_indices[i]}"

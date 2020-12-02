@@ -21,7 +21,7 @@ from polymath.mgdfg.from_onnx.converter import from_onnx, get_attributes, get_va
 from polymath.mgdfg.from_onnx.node_definitions import linear_regressor_train,\
     svm_classifier_train, logistic_regressor_train, logistic_regressor, conv_bias, dense, relu, avg_pool2d,\
     batch_flatten, softmax, relu1d, dense_sigmoid, elem_mul, elem_sub, reduce_sum, matmul, batch_norm,\
-    global_avg_pool, conv, max_pool, dropout, gemm, leaky_relu, avg_pool, lrn, elem_tanh, coarse_flatten, elem_gather
+    global_avg_pool, conv, max_pool, dropout, gemm, leaky_relu, avg_pool, lrn, elem_tanh, coarse_flatten, elem_gather, transpose
 
 from polymath.mgdfg.passes import register_pass, Pass
 from polymath.mgdfg.passes.compiler_passes import NormalizeGraph, Lower, CountNodes, CountOpTypes

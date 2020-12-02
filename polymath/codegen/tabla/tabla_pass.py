@@ -48,7 +48,7 @@ class TablaPass(pm.Pass):
                 self.temp_map[node.args[2].name] = node.args[0]
 
             if a0_key not in self.dfg:
-                assert not isinstance(node.args[0], pm.Node)
+                assert not isinstance(node.args[0], pm.Node), f"Error, argument not found for write:{node.name} - {a0_key}"
                 self.set_dfg_node(node.args[0], self.create_node(str(node.args[0]), dtype="constant", parents=[0]))
                 self.get_dfg_node("source")["children"].append(self.get_dfg_node(node.args[0])["id"])
             self.get_dfg_node(node.args[0])["dataType"] = node.args[2].type_modifier

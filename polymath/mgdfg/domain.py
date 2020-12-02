@@ -44,8 +44,11 @@ class Domain(object):
                     dset += [i for i in a.domain.dom_set]
                 elif isinstance(a, Domain):
                     dset += a.doms
+                elif not isinstance(a, Integral):
+                    raise RuntimeError(f"Invalid domain type for domain:\n"
+                                       f"Dom: {a}\n"
+                                       f"Names: {names}")
                 else:
-                    assert isinstance(a, Integral)
                     dset.append(a)
             self.dom_set = tuple(dset)
         self.names = tuple(names)

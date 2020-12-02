@@ -139,13 +139,13 @@ class output(placeholder):
         key = _flatten_iterable(key)
         if isinstance(key, (tuple, list, np.ndarray)) and len(key) == 0:
             return self
-        elif self.is_shape_finalized() and all([not isinstance(i, Node) for i in key]):
+        elif self.is_shape_finalized() and all([not isinstance(i, Node) for i in key]) and len(self.nodes) > 0:
+        # elif self.is_shape_finalized() and all([not isinstance(i, Node) for i in key]):
             idx = np.ravel_multi_index(key, dims=self.shape, order='C')
             ret = self.current_value().nodes.item_by_index(idx)
             return ret
         else:
             idx_name = str(tuple([i.name if isinstance(i, Node) else i for i in key])).replace("'","")
-
             name = f"{self.current_value().name}{idx_name}"
             if name in self.graph.nodes:
                 return self.graph.nodes[name]
@@ -393,7 +393,6 @@ class write(Node):
     def _evaluate(self, src, dst_key, dst, context=None, **kwargs):
         if not self.is_shape_finalized():
             self._shape = self.args[2].shape
-
         # TODO: This should not be default shapes, fix
         if self.shape in DEFAULT_SHAPES:
             value = src
@@ -404,6 +403,7 @@ class write(Node):
             key_indices = self.domain.compute_pairs()
             src_dom = self.args[0].domain
             src_indices = self.domain.map_sub_domain(src_dom)
+
             value = np.zeros(shape=dst.shape, dtype=src.dtype)
 
             for i in dst_indices:
@@ -431,6 +431,24 @@ class write(Node):
                 return self.graph.nodes[name]
             else:
                 return var_index(self, key, name=name, graph=self.graph)
+        # key = _flatten_iterable(key)
+        # if isinstance(key, (tuple, list, np.ndarray)) and len(key) == 0:
+        #     return self
+        # elif self.is_shape_finalized() and self.shape == DEFAULT_SHAPES[0]:
+        #     return self
+        # elif self.is_shape_finalized() and len(self.nodes) > 0:
+        #     idx = np.ravel_multi_index(key, dims=self.shape, order='C')
+        #     ret = self.nodes.item_by_index(idx)
+        #     return ret
+        # else:
+        #     indices = str(tuple([i.name if isinstance(i, Node) else i for i in key])).replace("'","")
+        #     name = f"{self.name}{indices}"
+        #     if self.graph and name in self.graph.nodes:
+        #         return self.graph.nodes[name]
+        #     else:
+        #         return var_index(self, key, name=name, graph=self.graph)
+
+
 
     @property
     def source(self):

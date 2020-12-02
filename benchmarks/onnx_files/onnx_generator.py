@@ -7,12 +7,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-
+from onnxsim import simplify
 from onnx import optimizer
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 
 
-def create_backprop(l1, l2, l3):
+def create_backprop(l1, l2, l3, optimize_model):
     batch_size = 1
     model_name = f"backprop{l1}_{l2}_{l3}"
     with tf.Session() as sess:
@@ -21,6 +21,7 @@ def create_backprop(l1, l2, l3):
 
         w1 = tf.placeholder(tf.float32, shape=(l1, l2), name='W1')
         w2 = tf.placeholder(tf.float32, shape=(l2, l3), name='W2')
+        input_shapes = {"x:0": x.shape, "W1:0": w1.shape, "W2:0": w2.shape, "y:0": y.shape}
 
         mu = tf.constant(1, dtype=tf.float32)
         #     _ = tf.Variable(initial_value=np.random.rand(1))
@@ -43,7 +44,9 @@ def create_backprop(l1, l2, l3):
         onnx_graph = tf2onnx.tfonnx.process_tf_graph(sess.graph, input_names=input_names, output_names=output_names)
         model_proto = onnx_graph.make_model(model_name)
         model_proto = optimizer.optimize(model_proto, ['eliminate_identity'])
-
+        if optimize_model:
+            model_proto, check = simplify(model_proto, input_shapes=input_shapes)
+            assert check
         with open(f"./{model_name}.onnx", "wb") as f:
             f.write(model_proto.SerializeToString())
 
@@ -57,7 +60,7 @@ def init_bias(shape):
     return tf.Variable(b)
 
 
-def create_lenet(features):
+def create_lenet(features, optimize_model):
     RANDOM_SEED = 42
     LEARNING_RATE = 0.001
     BATCH_SIZE = 32
@@ -118,10 +121,12 @@ def create_lenet(features):
                       input_names=['input'],  # the model's input names
                       output_names=['output'])
     onnx_model = onnx.load(fname)
-    model, check = simplify(onnx_model)
+    if optimize_model:
+        model, check = simplify(onnx_model)
+        assert check
     onnx.save(model, fname)
 
-def create_linear(m):
+def create_linear(m, optimize_model):
     batch_size = 1
     model_name = f"linear_{m}"
 
@@ -130,7 +135,7 @@ def create_linear(m):
         y = tf.placeholder(tf.float32, shape=(1,), name='y')
 
         w = tf.placeholder(tf.float32, shape=(m,), name='W')
-
+        input_shapes = {"x:0": x.shape, "W:0": w.shape, "y:0": y.shape}
         mu = tf.constant(1, dtype=tf.float32, name="mu")
         h = tf.reduce_sum(tf.multiply(w, x))
         d = tf.subtract(h, y)
@@ -145,10 +150,13 @@ def create_linear(m):
         onnx_graph = tf2onnx.tfonnx.process_tf_graph(sess.graph, input_names=input_names, output_names=output_names)
         model_proto = onnx_graph.make_model(model_name)
         model_proto = optimizer.optimize(model_proto, ['eliminate_identity'])
+        if optimize_model:
+            model_proto, check = simplify(model_proto, input_shapes=input_shapes)
+            assert check
         with open(f"./{model_name}.onnx", "wb") as f:
             f.write(model_proto.SerializeToString())
 
-def create_logistic(m):
+def create_logistic(m, optimize_model):
     batch_size = 1
     model_name = f"logistic{m}"
     with tf.Session() as sess:
@@ -156,6 +164,7 @@ def create_logistic(m):
         y = tf.placeholder(tf.float32, shape=(1,), name='y')
 
         w = tf.placeholder(tf.float32, shape=(m,), name='W')
+        input_shapes = {"x:0": x.shape, "W:0": w.shape, "y:0": y.shape}
 
         mu = tf.constant(1, dtype=tf.float32, name="mu")
         h = tf.reduce_sum(tf.multiply(w, x))
@@ -174,10 +183,13 @@ def create_logistic(m):
         model_proto = onnx_graph.make_model(model_name)
 
         model_proto = optimizer.optimize(model_proto, ['eliminate_identity'])
+        if optimize_model:
+            model_proto, check = simplify(model_proto, input_shapes=input_shapes)
+            assert check
         with open(f"./{model_name}.onnx", "wb") as f:
             f.write(model_proto.SerializeToString())
 
-def create_svm(m):
+def create_svm(m, optimize_model):
     batch_size = 1
     model_name = f"svm{m}"
 
@@ -187,6 +199,7 @@ def create_svm(m):
         y = tf.placeholder(tf.float32, shape=(1,), name='y')
 
         w = tf.placeholder(tf.float32, shape=(m,), name='W')
+        input_shapes = {"x:0": x.shape, "W:0": w.shape, "y:0": y.shape}
 
         mu = tf.constant(1, dtype=tf.float32, name="mu")
 
@@ -206,10 +219,13 @@ def create_svm(m):
         onnx_graph = tf2onnx.tfonnx.process_tf_graph(sess.graph, input_names=input_names, output_names=output_names)
         model_proto = onnx_graph.make_model(model_name)
         model_proto = optimizer.optimize(model_proto, ['eliminate_identity'])
+        if optimize_model:
+            model_proto, check = simplify(model_proto, input_shapes=input_shapes)
+            assert check
         with open(f"./{model_name}.onnx", "wb") as f:
             f.write(model_proto.SerializeToString())
 
-def create_reco(m, n, k):
+def create_reco(m, n, k, optimize_model):
     batch_size = 1
     model_name = f"reco{m}_{n}_{k}"
 
@@ -226,6 +242,8 @@ def create_reco(m, n, k):
 
         w1 = tf.placeholder(tf.float32, shape=(m, k), name='w1')
         w2 = tf.placeholder(tf.float32, shape=(n, k), name='w2')
+        input_shapes = {"x1:0": x1.shape, "w1:0": w1.shape, "y1:0": y1.shape, "r1:0": r1.shape,
+                        "x2:0": x2.shape, "w2:0": w2.shape, "y2:0": y2.shape, "r2:0": r2.shape,}
 
         mu = tf.constant(1, dtype=tf.float32, name="mu")
         h1_sum = tf.matmul(w1, x2)
@@ -249,9 +267,22 @@ def create_reco(m, n, k):
         onnx_graph = tf2onnx.tfonnx.process_tf_graph(sess.graph, input_names=input_names, output_names=output_names)
         model_proto = onnx_graph.make_model(model_name)
         model_proto = optimizer.optimize(model_proto, ['eliminate_identity'])
+        if optimize_model:
+            model_proto, check = simplify(model_proto, input_shapes=input_shapes)
+            assert check
+
         with open(f"./{model_name}.onnx", "wb") as f:
             f.write(model_proto.SerializeToString())
 
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser(description='ONNX Benchmark Generator')
     argparser.add_argument('-b', '--benchmark', required=True,
@@ -259,20 +290,22 @@ if __name__ == "__main__":
                                 'or "svm".')
     argparser.add_argument('-fs', '--feature_size', nargs='+', required=True,
                            help='Feature size to use for creating the benchmark')
+    argparser.add_argument('-o', '--optimize_model', type=str2bool, nargs='?', default=True,
+                           const=True, help='Optimize the model')
     args = argparser.parse_args()
     features = tuple([int(i) for i in args.feature_size])
     if args.benchmark == "linear":
-        create_linear(*features)
+        create_linear(*features, args.optimize_model)
     elif args.benchmark == "logistic":
-        create_logistic(*features)
+        create_logistic(*features, args.optimize_model)
     elif args.benchmark == "reco":
-        create_reco(*features)
+        create_reco(*features, args.optimize_model)
     elif args.benchmark == "svm":
-        create_svm(*features)
+        create_svm(*features, args.optimize_model)
     elif args.benchmark == "backprop":
-        create_backprop(*features)
+        create_backprop(*features, args.optimize_model)
     elif args.benchmark == "lenet":
-        create_lenet(*features)
+        create_lenet(*features, args.optimize_model)
     else:
         raise RuntimeError(f"Invalid benchmark supplied. Options are one of:\n"
                            f"\"logistic\", \"linear\", \"reco\","

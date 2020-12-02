@@ -85,7 +85,6 @@ class Node(object):
         """
         return self._graph
 
-
     def preds(self):
         return self._preds
 
@@ -1068,6 +1067,9 @@ class slice_op(Node):
             op1 = np.asarray(list(map(lambda x: op1[x], op1_idx))).reshape(self.domain.computed_shape)
             op2 = np.asarray(list(map(lambda x: op2[x], op2_idx))).reshape(self.domain.computed_shape)
             value = self.target(op1, op2)
+
+        if not self.is_shape_finalized():
+            self._shape = value.shape
 
         return value
 

@@ -1,7 +1,9 @@
 import polymath as pm
 from polymath.mgdfg.util import squeeze_shape
+from numbers import Integral
 import numpy as np
 import functools
+
 class avg_pool(pm.Template):
     def define_graph(self, data, out, kh, kw, stride, pad, **kwargs):
         sx, sy = stride
@@ -45,7 +47,6 @@ class avg_pool(pm.Template):
     @property
     def outputs(self):
         return (self.args[1],)
-
 
 class dense(pm.Template):
     def define_graph(self, x, w, y, **kwargs):
@@ -290,11 +291,13 @@ class batch_norm(pm.Template):
         return (self.args[5],)
 
 class matmul(pm.Template):
-    def define_graph(self, a, b, out, shape=None, name=None, **kwargs):
-        i = pm.index(0, a.shape[0] - 1)
-        j = pm.index(0, b.shape[0] - 1)
-        k = pm.index(0, b.shape[1] - 1)
-        out[i, k] = pm.sum([j], a[i, j]*b[j, k])
+    def define_graph(self, a, w, out, shape=None, name=None, **kwargs):
+        indices = tuple([pm.index(0, s - 1) for s in a.shape])
+        sum_idx = indices[-1]
+        o_idx = pm.index(0, w.shape[0]-1) if w.shape[-1] == a.shape[-1] else pm.index(0, w.shape[1]-1)
+        w_idx = (o_idx, sum_idx) if w.shape[-1] == a.shape[-1] else (sum_idx, o_idx)
+        out_idx = indices[:-1] + (o_idx,)
+        out[out_idx] = pm.sum([sum_idx], a[indices]*w[w_idx])
 
     @property
     def inputs(self):
@@ -355,8 +358,9 @@ class elem_tanh(pm.Template):
 
 class transpose(pm.Template):
     def define_graph(self, data, out, shape=None, name=None, **kwargs):
-        indices = tuple([pm.index(0, s - 1) for s in shape])
-        out[indices] = data[tuple(reversed(indices))]
+        indices = tuple([pm.index(0, s - 1) for s in data.shape])
+        rev_idx = tuple(reversed(indices))
+        out[rev_idx] = data[indices]
 
     @property
     def inputs(self):
@@ -366,30 +370,54 @@ class transpose(pm.Template):
     def outputs(self):
         return (self.args[1],)
 
-def reduce_sum(data, axes=None, keepdims=None, shape=None, name=None, **kwargs):
-    i = pm.index(0, data.shape[axes] - 1)
-    return pm.sum([i], data[i], name=name)
-
-def elem_greater(a, b, shape=None, name=None, **kwargs):
-    indices = tuple([pm.index(0, s - 1) for s in shape])
-    a_idx = _get_indices(a, indices, shape)
-    b_idx = _get_indices(b, indices, shape)
-
-    return (a[a_idx] > b[b_idx]).set_name(name)
+class reduce_sum(pm.Template):
+    def define_graph(self, data, out, axes=(0,), keepdims=True, shape=None, name=None, **kwargs):
+        indices = tuple([pm.index(0, s - 1) for s in data.shape])
+        sum_idx = tuple([indices[i] for i in axes])
+        out_idx = tuple([indices[i] for i in axes if i not in axes])
+        out[out_idx] = pm.sum([sum_idx], data[indices])
 
 
-def elem_sub(a, b, shape=None, name=None, **kwargs):
-    indices = tuple([pm.index(0, s - 1) if s > 1 else 0 for s in shape])
-    a_idx = _get_indices(a, indices, shape)
-    b_idx = _get_indices(b, indices, shape)
-    return (a[a_idx] - b[b_idx]).set_name(name)
+# def reduce_sum(data, axes=None, keepdims=None, shape=None, name=None, **kwargs):
+#     i = pm.index(0, data.shape[axes] - 1)
+#     return pm.sum([i], data[i], name=name)
+
+
+class elem_greater(pm.Template):
+    def define_graph(self, a, b, out, shape=None, name=None, **kwargs):
+        a_idx, b_idx, indices = _get_elem_indices(a, b)
+
+        out[indices] = (a[a_idx] > b[b_idx])
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1])
+
+    @property
+    def outputs(self):
+        return (self.args[2],)
+
+class elem_sub(pm.Template):
+    def define_graph(self, a, b, out, shape=None, name=None, **kwargs):
+        a_idx, b_idx, indices = _get_elem_indices(a, b)
+        out[indices] = (a[a_idx] - b[b_idx])
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1])
+
+    @property
+    def outputs(self):
+        return (self.args[2],)
 
 class elem_add(pm.Template):
     def define_graph(self, a, b, out, shape=None, name=None, **kwargs):
         # indices = tuple([pm.index(0, s - 1) if s > 1 else 0 for s in shape])
-        indices = tuple([pm.index(0, s - 1) for s in shape])
-        a_idx = _get_indices(a, indices, shape)
-        b_idx = _get_indices(b, indices, shape)
+        # indices = tuple([pm.index(0, s - 1) for s in shape])
+        # a_idx = _get_indices(a, indices, shape)
+        # b_idx = _get_indices(b, indices, shape)
+        # out[indices] = (a[a_idx] + b[b_idx])
+        a_idx, b_idx, indices = _get_elem_indices(a, b)
         out[indices] = (a[a_idx] + b[b_idx])
 
     @property
@@ -402,10 +430,7 @@ class elem_add(pm.Template):
 
 class elem_mul(pm.Template):
     def define_graph(self, a, b, out, shape=None, name=None, **kwargs):
-        # indices = tuple([pm.index(0, s - 1) if s > 1 else 0 for s in shape])
-        indices = tuple([pm.index(0, s - 1) for s in shape])
-        a_idx = _get_indices(a, indices, shape)
-        b_idx = _get_indices(b, indices, shape)
+        a_idx, b_idx, indices = _get_elem_indices(a, b)
         out[indices] = (a[a_idx] * b[b_idx])
 
     @property
@@ -415,6 +440,7 @@ class elem_mul(pm.Template):
     @property
     def outputs(self):
         return (self.args[2],)
+
 # TODO: Need to convert this to a node with an output
 def cast(data, to=None, shape=None, name=None, **kwargs):
     indices = tuple([pm.index(0, s - 1) for s in shape])
@@ -454,6 +480,15 @@ class coarse_flatten(pm.Template):
     def outputs(self):
         return (self.args[1],)
 
+class ppo(pm.Template):
+    def define_graph(self, obs, action, states,
+                     gamma=0.99,
+                     clip=0.2,
+                     ent_coeff=0.01,
+                     lam=0.95,
+                     adam_eps=1e-5):
+        pass
+
 class dropout(pm.Template):
     def define_graph(self, x, y, ratio=0.0, name=None, shape=None, **kwargs):
         indices = tuple([pm.index(0, s - 1) if s > 1 else 0 for s in shape])
@@ -469,7 +504,6 @@ class dropout(pm.Template):
 
 # TODO: Check this works after changes
 def reshape(data, *args, shape=None, name=None, **kwargs):
-
     data._shape = shape
     data.graph.nodes[name] = data
     return data
@@ -484,6 +518,55 @@ def resize(data, *args, shape=None, name=None, **kwargs):
 def identity(data, shape=None, name=None, **kwargs):
     data.set_name(name)
     return data
+
+# Use numpy broadcasting rules
+def _get_elem_indices(node_a, node_b):
+    a_idx = []
+    b_idx = []
+    out_idx = []
+    nmap = {}
+    if len(node_a.shape) > len(node_b.shape):
+        small_node = node_b
+        lg_node = node_a
+        nmap["small"] = b_idx
+        nmap["large"] = a_idx
+    else:
+        small_node = node_a
+        lg_node = node_b
+        nmap["small"] = a_idx
+        nmap["large"] = b_idx
+
+    for i in range(-1, -len(lg_node.shape) - 1, -1):
+        if len(small_node.shape) < abs(i):
+            idx = pm.index(0, lg_node.shape[i] - 1)
+            nmap["large"].append(idx)
+            out_idx.append(idx)
+        elif node_a.shape[i] == node_b.shape[i]:
+            if node_a.shape[i] == 1:
+                idx = 0
+            else:
+                idx = pm.index(0, node_a.shape[i] - 1)
+            a_idx.append(idx)
+            b_idx.append(idx)
+            out_idx.append(idx)
+        elif node_a.shape[i] == 1:
+            idx = pm.index(0, node_b.shape[i] - 1)
+            # a_idx.append((0,)) # TESTING
+            b_idx.append(idx)
+            out_idx.append(idx)
+        elif node_b.shape[i] == 1:
+            idx = pm.index(0, node_a.shape[i] - 1)
+            a_idx.append(idx)
+            # b_idx.append((0,)) # TESTING
+            out_idx.append(idx)
+        else:
+            raise RuntimeError(f"Unable to broadcast indices:\n"
+                               f"{node_a.name}: {node_a.shape}\n"
+                               f"{node_b.name}: {node_b.shape}\n")
+    return format_idx(a_idx), format_idx(b_idx), format_idx(out_idx)
+
+def format_idx(x):
+    return tuple(list(reversed(x)))
 
 def _get_indices(node, all_indices, tgt_shape):
     indices = []
@@ -668,41 +751,85 @@ class max_pool(pm.Template):
     def outputs(self):
         return (self.args[1],)
 
+    @property
+    def stride(self):
+        return self.args[4]
+
+    @property
+    def kernel_size(self):
+        return (self.args[2], self.args[3])
+
+    @property
+    def pad(self):
+        return self.args[4]
+
 def get_transpose(data, shape=None, name=None, out=None, **kwargs):
     if not out:
         out = pm.output(name=name, shape=shape)
-    return transpose(data, out, shape=shape)
+    transpose(data, out, shape=shape)
+    return out
+    # return transpose(data, out, shape=shape)
 
 def get_elem_sigmoid(x, shape=None, name=None, out=None):
     if not out:
         out = pm.output(name=name, shape=shape)
-    return elem_sigmoid(x, out, shape=shape)
+    # return elem_sigmoid(x, out, shape=shape)
+    elem_sigmoid(x, out, shape=shape)
+    return out
 
 def get_softmax(x, axis=1, shape=None, name=None, out=None):
     if not out:
         out = pm.output(name=name, shape=shape)
-    return softmax(x, out, axis=axis, shape=shape)
+    # return softmax(x, out, axis=axis, shape=shape)
+    softmax(x, out, axis=axis, shape=shape)
+    return out
 
 def get_elem_tanh(x, shape=None, name=None, out=None):
     if not out:
         out = pm.output(name=name, shape=shape)
-    return elem_tanh(x, out, shape=shape)
+    # return elem_tanh(x, out, shape=shape)
+    elem_tanh(x, out, shape=shape)
+    return out
 
 
 def get_elem_add(a, b, shape=None, name=None, out=None):
     if not out:
         out = pm.output(name=name, shape=shape)
-    return elem_add(a, b, out, shape=shape)
+    # return elem_add(a, b, out, shape=shape)
+    elem_add(a, b, out, shape=shape)
+    return out
 
 def get_elem_sub(a, b, shape=None, name=None, out=None):
     if not out:
         out = pm.output(name=name, shape=shape)
-    return elem_sub(a, b, out, shape=shape)
+    elem_sub(a, b, out, shape=shape)
+    return out
+
+def get_elem_greater(a, b, shape=None, name=None, out=None):
+    if not out:
+        out = pm.output(name=name, shape=shape)
+    elem_greater(a, b, out, shape=shape)
+    return out
 
 def get_elem_mul(a, b, shape=None, name=None, out=None):
     if not out:
         out = pm.output(name=name, shape=shape)
-    return elem_mul(a, b, out, shape=shape)
+    elem_mul(a, b, out, shape=shape)
+    return out
+
+
+def get_reduce_sum(x, shape=None, name=None, out=None, axes=(0,), **kwargs):
+    if not out:
+        out = pm.output(name=name, shape=shape)
+    if isinstance(axes, Integral):
+        axes = (axes,)
+    elif isinstance(axes, list):
+        axes = tuple(axes)
+    else:
+        assert isinstance(axes, tuple)
+    reduce_sum(x, out, shape=shape, axes=axes, **kwargs)
+    return out
+
 
 def get_matmul(a, b, out=None, **kwargs):
 
@@ -718,7 +845,7 @@ def get_matmul(a, b, out=None, **kwargs):
 def get_elem(a, b, **kwargs):
 
     if len(a.shape) == len(b.shape):
-        return matmul(a,b,**kwargs)
+        return matmul(a, b, **kwargs)
     elif len(a.shape) > len(b.shape):
         return rvmatmul(a, b, **kwargs)
     else:
@@ -727,7 +854,7 @@ def get_elem(a, b, **kwargs):
 def get_lrn(x, alpha=None, beta=None, bias=None, size=None, name=None, shape=None, out=None):
     if not out:
         out = pm.output(name=name, shape=shape)
-    pm.lrn(x, out, alpha=alpha,beta=beta, bias=bias, nsize=size)
+    pm.lrn(x, out, alpha=alpha, beta=beta, bias=bias, nsize=size)
     return out
 
 # TODO: Add concat to transformations
@@ -897,6 +1024,7 @@ def get_gemm(a, b , c=None, shape=None, name=None, alpha=None,
         pm.gemm(a, b, t_c, out, shape=shape, alpha=alpha, beta=beta, transA=transA, transB=transB)
     return out
 
+
 # TODO: Make range operation
 def get_range(start, limit, delta, shape=None, name=None):
     value = np.arange(start, limit, delta)
@@ -937,7 +1065,7 @@ NODE_NAMES = {"SVMClassifier": svm_classifier_train,
               "Transpose": get_transpose,
               "Sigmoid": get_elem_sigmoid,
               "Tanh": get_elem_tanh,
-              "Greater": elem_greater,
+              "Greater": get_elem_greater,
               "Shape": get_shape,
               "Gather": get_gather,
               "Range": get_range,
@@ -947,7 +1075,7 @@ NODE_NAMES = {"SVMClassifier": svm_classifier_train,
               "Constant": pm.parameter,
               "Reshape": reshape,
               "Identity": identity,
-              "ReduceSum": reduce_sum,
+              "ReduceSum": get_reduce_sum,
               "Unsqueeze": unsqueeze,
               "Squeeze": squeeze,
               "Resize": resize,
