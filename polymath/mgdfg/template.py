@@ -21,7 +21,6 @@ class Template(pm.Node):
 
         with self:
            self.define_graph(*self.args, **kwargs)
-
         if self.graph:
             self.reset_graphs()
 

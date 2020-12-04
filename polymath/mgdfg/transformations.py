@@ -33,7 +33,7 @@ class Transformation(Node):
         return call(self, val, **kwargs)
 
     def __repr__(self):
-        return "<transformation '%s' target=%s>"% \
+        return "<nonlinear '%s' target=%s>"% \
                (self.name, self.op_name)
 
 class unsqueeze(Transformation):

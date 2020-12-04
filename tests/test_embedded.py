@@ -7,7 +7,6 @@ import threading
 import pytest
 import polymath as pm
 import numpy as np
-from polymath.mgdfg.from_onnx.node_definitions import _get_elem_indices
 from pathlib import Path
 from polymath.mgdfg.util import _node_hash, _dif_hash, node_hash
 import pprint
@@ -670,26 +669,4 @@ def test_linear_embedded():
 
     graph_res = graph("w-mu*g", {"x": x, "y": y, "w": w})
     actual_res = w - ((np.sum(x*w) - y)*x)*1.0
-    np.testing.assert_allclose(graph_res, actual_res)
-
-def test_broadcast():
-    a_shape = (8, 1)
-    b_shape = (1, 16)
-    c_shape = (8, 16)
-    with pm.Node(name="broadcast") as graph:
-        a = pm.input("a", shape=a_shape)
-        b = pm.input("b", shape=b_shape)
-        c = pm.output("c", shape=c_shape)
-        a_idx, b_idx, c_idx = _get_elem_indices(a, b)
-        # a_idx = (pm.index(0, a_shape[0] - 1),)
-        # b_idx = (pm.index(0, b_shape[1] - 1),)
-        # c_idx = a_idx + b_idx
-        c[c_idx] = a[a_idx] + b[b_idx]
-
-    a_np = np.random.randint(0, 10, np.prod(a_shape)).reshape(a_shape)
-    b_np = np.random.randint(0, 10, np.prod(b_shape)).reshape(b_shape)
-    actual_res = a_np + b_np
-
-
-    graph_res = graph("c", {"a": a_np, "b": b_np})
     np.testing.assert_allclose(graph_res, actual_res)

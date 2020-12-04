@@ -32,8 +32,6 @@ def pooling(data, kh, kw, pad=0,  stride=2):
     return out
 
 
-
-
 def np_svm(input_info):
     out_info = {}
     out_info["x*w"] = input_info["x"]*input_info["w"]

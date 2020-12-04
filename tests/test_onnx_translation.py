@@ -31,6 +31,7 @@ def test_convert_benchmarks(benchmark_name, feature_dict, data_func, input_keys,
     filepath = f"{BENCH_DIR}/ml_algorithms/{filename}"
     assert Path(filepath).exists()
     graph = pm.from_onnx(filepath)
+
     # Apply transformations and/or generate verilog using 'transformed_graph'
 
     int_feat_dict = {k: int(v) for k,v  in feature_dict.items()}
@@ -57,7 +58,7 @@ def test_convert_benchmarks(benchmark_name, feature_dict, data_func, input_keys,
 
     ref_ocount_pass = pm.CountOpTypes(skip=['temp', 'parameter', ref_tabla_graph.name])
     _ = ref_ocount_pass(ref_tabla_graph)
-    ocount_pass = pm.CountOpTypes(skip=['temp', 'parameter', 'output', 'write', tabla_graph.name])
+    ocount_pass = pm.CountOpTypes(skip=['temp', 'parameter', 'output','write', tabla_graph.name])
     _ = ocount_pass(tabla_graph)
     pprint.pprint(ref_ocount_pass.op_types)
     pprint.pprint(ocount_pass.op_types)
@@ -211,6 +212,7 @@ def test_translate_svm(m):
     test_res = test_graph(tkeys, tinput_info)
     np.testing.assert_allclose(test_res, (out_info["w"]))
 
+    onx_input_info = copy.deepcopy(input_info)
     translated_inputs = {out_key_map[k]: v for k,v in input_info.items() if k in out_key_map}
 
     onnx_res = graph(in_key_map[0][1], translated_inputs)
@@ -219,7 +221,7 @@ def test_translate_svm(m):
     tabla_path = f"{OUTPATH}/{graph.name}{m}_tabla.json"
     tabla_ir, tabla_graph = pm.generate_tabla(graph,
                                               shape_dict,
-                                              tabla_path, debug=False)
+                                              tabla_path)
 
 @pytest.mark.parametrize('m, n, k', [
     (3, 3, 2),
@@ -363,9 +365,8 @@ def test_translate_elem_mul(x_shape):
 
     pm_a = pm.input(name="a", shape=x_shape, graph=graph)
     pm_b = pm.input(name="b", shape=x_shape, graph=graph)
-    pm_o = pm.output(name="out", shape=x_shape, graph=graph)
     with graph:
-        pm.elem_mul(pm_a, pm_b, pm_o, shape=x_shape)
+        pm_output = pm.elem_mul(pm_a, pm_b, shape=x_shape, name="out")
     pm_res = graph("out", {"a": a, "b": b})
     np.testing.assert_allclose(pm_res, np_res)
 
@@ -380,9 +381,8 @@ def test_translate_vmul(x_shape):
     with pm.Node("vmul") as pm_graph:
         pm_a = pm.input(name="a", shape=x_shape)
         pm_b = pm.input(name="b", shape=x_shape)
-        pm_o = pm.output(name="o", shape=x_shape)
-        pm.elem_mul(pm_a, pm_b, pm_o, shape=x_shape)
-        _ = pm.reduce_sum(pm_o, axes=0, keepdims=0, shape=x_shape, name="out")
+        outp = pm.elem_mul(pm_a, pm_b, shape=x_shape)
+        _ = pm.reduce_sum(outp, axes=0, keepdims=0, shape=x_shape, name="out")
 
     pm_res = pm_graph("out", {"a": a, "b": b})
     np.testing.assert_allclose(pm_res, np_res)
@@ -469,51 +469,6 @@ def test_maskrcnn():
         filepath = f"{MRCNN_PATH}/{f}"
         assert Path(filepath).exists()
         graph = pm.from_onnx(filepath)
-
-@pytest.mark.parametrize('in_shape, w_shape',[
-    ((10, 7), (3, 7)), ((10, 7), (7, 3))
-])
-def test_matmul(in_shape, w_shape):
-
-    x = np.random.randint(0, 30, np.prod(in_shape)).reshape(in_shape)
-    w = np.random.randint(0, 30, np.prod(w_shape)).reshape(w_shape)
-    if in_shape[-1] == w_shape[-1]:
-        o_np = x@w.T
-    else:
-        assert in_shape[-1] == w_shape[0]
-        o_np = x @ w
-    with pm.Node(name="mmul") as graph:
-        x_pm = pm.input(name="x", shape=in_shape)
-        w_pm = pm.state(name="w", shape=w_shape)
-        o_pm = pm.output(name="o", shape=o_np.shape)
-        pm.matmul(x_pm, w_pm, o_pm)
-
-
-    in_dict = {"x": x, "w": w}
-    res = graph("o", in_dict)
-    np.testing.assert_allclose(o_np, res)
-
-
-@pytest.mark.parametrize('in_shape',[
-    (10, 7)
-])
-def test_transpose(in_shape):
-    x = np.random.randint(0, 30, np.prod(in_shape)).reshape(in_shape)
-
-    with pm.Node(name="tpose") as graph:
-        x_pm = pm.input(name="x", shape=in_shape)
-        o_pm = pm.output(name="o", shape=x.T.shape)
-        pm.transpose(x_pm, o_pm)
-
-    in_dict = {"x": x}
-    res = graph("o", in_dict)
-    np.testing.assert_allclose(x.T, res)
-
-
-
-
-
-
 
 
 
