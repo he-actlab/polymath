@@ -15,11 +15,12 @@ dom_fields = ("doms", "names")
 @dataclass(unsafe_hash=True)
 class Domain(object):
     doms: Tuple[Any] = field(hash=False)
+    einstein_notation: Sequence = field(default=None, hash=False)
     dom_set: Tuple[Any] = field(default=None, hash=False)
     names: Tuple[str] = field(init=False)
     computed: dict = field(default=None, hash=False)
-    computed_pairs: Sequence = field(default=None, hash=False)
-    computed_set_pairs: Sequence = field(default=None, hash=False)
+    computed_pairs: Sequence = field(default=None, hash=False, repr=False)
+    computed_set_pairs: Sequence = field(default=None, hash=False, repr=False)
 
     def __post_init__(self):
         if is_iterable(self.doms):
@@ -99,8 +100,40 @@ class Domain(object):
         unique_keys = list(sorted(set(all_keys), key=all_keys.index))
         return Domain(unique_keys)
 
+    def set_einstein_repr(self, dom):
+
+        cnt = 0
+        op1 = []
+        op2 = []
+        all_ops = []
+
+        for i in self.set_names:
+            if isinstance(i, Integral):
+                op1.append("1")
+                all_ops.append("1")
+            else:
+                op1.append(f"d{cnt}")
+                all_ops.append(f"d{cnt}")
+                cnt += 1
+
+        for i in dom.set_names:
+            if i in self.set_names:
+                idx = self.set_names.index(i)
+                op2.append(op1[idx])
+            elif isinstance(i, Integral):
+                op2.append("1")
+                all_ops.append("1")
+            else:
+                op2.append(f"d{cnt}")
+                all_ops.append(f"d{cnt}")
+
+                cnt += 1
+        self.einstein_notation = {"in": [op1, op2], "out": [all_ops]}
+
+
     def combine_set_domains(self, dom):
         assert isinstance(dom, Domain)
+        self.set_einstein_repr(dom)
         all_keys = self.dom_set + dom.dom_set
         unique_keys = list(sorted(set(all_keys), key=all_keys.index))
         return Domain(unique_keys)
@@ -145,7 +178,7 @@ class Domain(object):
             dom_pairs = [tuple(i) for i in dom_pairs]
         return dom_pairs
 
-    def compute_set_pairs(self, tuples=True):
+    def compute_set_pairs(self, dom=None, tuples=True):
         if self.computed_set_pairs is not None:
             dom_pairs = self.computed_set_pairs
         else:
@@ -153,7 +186,7 @@ class Domain(object):
             if self.dom_set == DEFAULT_SHAPES[0]:
                 dom_pairs.append([0])
             else:
-                for i in self.dom_set:
+                for n, i in enumerate(self.dom_set):
                     if _is_node_instance(i):
                         if i.value is not None:
                             dom_pairs.append(i.value)
@@ -298,18 +331,29 @@ class Domain(object):
         self.computed_pairs = unraveled_set_pairs.reshape(np.prod(self.computed_set_shape), 1)
         return self.computed_pairs
 
-    def map_sub_domain(self, dom, is_index_dom=False):
+    def map_sub_domain(self, dom, is_index_dom=False, is_write=False):
 
         dom_set_pairs = self.compute_set_pairs(tuples=False)
-        target_set_pairs = dom.compute_set_pairs(tuples=False)
+        target_set_pairs = dom.compute_set_pairs(dom=dom, tuples=False)
         target_pairs = dom.compute_pairs(tuples=False)
+
         if dom.computed:
             target_pairs = np.asarray([dom.computed[tuple(x)] for x in target_pairs])
+
+        if dom_set_pairs.shape[-1] < target_set_pairs.shape[-1]:
+            idx = np.argwhere(np.all(target_set_pairs[..., :] == 0, axis=0))
+            target_set_pairs = np.delete(target_set_pairs, idx, axis=1)
+
+        if dom_set_pairs.shape[-1] < target_pairs.shape[-1]:
+            idx = np.argwhere(np.all(target_pairs[..., :] == 0, axis=0))
+            target_pairs = np.delete(target_pairs, idx, axis=1)
+
+
         idx_map = np.asarray([self.set_names.index(n) for n in dom.set_names if n in self.set_names], dtype=np.int)
         pair_mappings = np.apply_along_axis(lambda x: x[idx_map], 1, dom_set_pairs)
         dims = target_set_pairs.max(0) + 1
-        X1D = np.ravel_multi_index(target_set_pairs.T, dims)
 
+        X1D = np.ravel_multi_index(target_set_pairs.T, dims)
         searched_valuesID = np.ravel_multi_index(pair_mappings.T, dims)
         sidx = X1D.argsort()
         out = sidx[np.searchsorted(X1D, searched_valuesID, sorter=sidx)]

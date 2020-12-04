@@ -86,7 +86,6 @@ def generate_mgdfg(onnx_graph):
         else:
             node_info[i.name] = pm.input(name=i.name, shape=get_value_info_shape(i, mgdfg), graph=mgdfg)
 
-
     for v in onnx_graph.value_info:
         assert v.name not in node_info
 

@@ -275,7 +275,7 @@ class batch_flatten(pm.Template):
 
 class batch_norm(pm.Template):
     def define_graph(self, x, scale, b, mean, var, out, eps=1e-05, momentum=0.9, spatial=1, shape=None, name=None, **kwargs):
-        indices = tuple([pm.index(0, s - 1) for s in shape])
+        indices = _get_single_node_indices(out, shape=shape)
         if len(shape) > 3:
             i = indices[1]
         else:
@@ -292,7 +292,8 @@ class batch_norm(pm.Template):
 
 class matmul(pm.Template):
     def define_graph(self, a, w, out, shape=None, name=None, **kwargs):
-        indices = tuple([pm.index(0, s - 1) for s in a.shape])
+        indices = _get_single_node_indices(a)
+        # indices = tuple([pm.index(0, s - 1) for s in a.shape])
         sum_idx = indices[-1]
         o_idx = pm.index(0, w.shape[0]-1) if w.shape[-1] == a.shape[-1] else pm.index(0, w.shape[1]-1)
         w_idx = (o_idx, sum_idx) if w.shape[-1] == a.shape[-1] else (sum_idx, o_idx)
@@ -309,8 +310,21 @@ class matmul(pm.Template):
 
 class elem_sigmoid(pm.Template):
     def define_graph(self, x, out, shape=None, name=None):
-        indices = tuple([pm.index(0, s - 1) for s in shape])
+        indices = _get_single_node_indices(out, shape=shape)
         out[indices] = pm.sigmoid(x[indices])
+
+    @property
+    def inputs(self):
+        return (self.args[0],)
+
+    @property
+    def outputs(self):
+        return (self.args[1],)
+
+class elem_cast(pm.Template):
+    def define_graph(self, x, out, to, shape=None, name=None):
+        indices = _get_single_node_indices(out, shape=shape)
+        out[indices] = pm.cast(to, x[indices], shape=shape)
 
     @property
     def inputs(self):
@@ -345,7 +359,7 @@ class softmax(pm.Template):
 
 class elem_tanh(pm.Template):
     def define_graph(self, x, out, shape=None, name=None):
-        indices = tuple([pm.index(0, s - 1) for s in shape])
+        indices = _get_single_node_indices(out, shape=shape)
         out[indices] = pm.tanh(x[indices])
 
     @property
@@ -358,7 +372,8 @@ class elem_tanh(pm.Template):
 
 class transpose(pm.Template):
     def define_graph(self, data, out, shape=None, name=None, **kwargs):
-        indices = tuple([pm.index(0, s - 1) for s in data.shape])
+        # indices = tuple([pm.index(0, s - 1) for s in data.shape])
+        indices = _get_single_node_indices(data)
         rev_idx = tuple(reversed(indices))
         out[rev_idx] = data[indices]
 
@@ -372,7 +387,8 @@ class transpose(pm.Template):
 
 class reduce_sum(pm.Template):
     def define_graph(self, data, out, axes=(0,), keepdims=True, shape=None, name=None, **kwargs):
-        indices = tuple([pm.index(0, s - 1) for s in data.shape])
+        indices = _get_single_node_indices(data)
+        # indices = tuple([pm.index(0, s - 1) for s in data.shape])
         sum_idx = tuple([indices[i] for i in axes])
         out_idx = tuple([indices[i] for i in axes if i not in axes])
         out[out_idx] = pm.sum([sum_idx], data[indices])
@@ -385,7 +401,8 @@ class reduce_sum(pm.Template):
 
 class elem_greater(pm.Template):
     def define_graph(self, a, b, out, shape=None, name=None, **kwargs):
-        a_idx, b_idx, indices = _get_elem_indices(a, b)
+        a_idx, b_idx, indices = _get_elem_indices(a, b, out)
+        # a_idx, b_idx, indices = _get_binop_idx(a, b, out)
 
         out[indices] = (a[a_idx] > b[b_idx])
 
@@ -399,7 +416,8 @@ class elem_greater(pm.Template):
 
 class elem_sub(pm.Template):
     def define_graph(self, a, b, out, shape=None, name=None, **kwargs):
-        a_idx, b_idx, indices = _get_elem_indices(a, b)
+        a_idx, b_idx, indices = _get_elem_indices(a, b, out)
+        # a_idx, b_idx, indices = _get_binop_idx(a, b, out)
         out[indices] = (a[a_idx] - b[b_idx])
 
     @property
@@ -412,12 +430,8 @@ class elem_sub(pm.Template):
 
 class elem_add(pm.Template):
     def define_graph(self, a, b, out, shape=None, name=None, **kwargs):
-        # indices = tuple([pm.index(0, s - 1) if s > 1 else 0 for s in shape])
-        # indices = tuple([pm.index(0, s - 1) for s in shape])
-        # a_idx = _get_indices(a, indices, shape)
-        # b_idx = _get_indices(b, indices, shape)
-        # out[indices] = (a[a_idx] + b[b_idx])
-        a_idx, b_idx, indices = _get_elem_indices(a, b)
+        a_idx, b_idx, indices = _get_elem_indices(a, b, out)
+        # a_idx, b_idx, indices = _get_binop_idx(a, b, out)
         out[indices] = (a[a_idx] + b[b_idx])
 
     @property
@@ -430,7 +444,8 @@ class elem_add(pm.Template):
 
 class elem_mul(pm.Template):
     def define_graph(self, a, b, out, shape=None, name=None, **kwargs):
-        a_idx, b_idx, indices = _get_elem_indices(a, b)
+        a_idx, b_idx, indices = _get_elem_indices(a, b, out)
+        # a_idx, b_idx, indices = _get_binop_idx(a, b, out)
         out[indices] = (a[a_idx] * b[b_idx])
 
     @property
@@ -441,10 +456,7 @@ class elem_mul(pm.Template):
     def outputs(self):
         return (self.args[2],)
 
-# TODO: Need to convert this to a node with an output
-def cast(data, to=None, shape=None, name=None, **kwargs):
-    indices = tuple([pm.index(0, s - 1) for s in shape])
-    return pm.cast(to, data[indices], name=name, shape=shape)
+
 
 # TODO: Need to fix this functionality to create a new node
 def unsqueeze(x, *args, axes=None, shape=None, name=None, **kwargs):
@@ -468,8 +480,9 @@ def rvmatmul(a, b, shape=None, name=None, **kwargs):
 
 class coarse_flatten(pm.Template):
     def define_graph(self, data, out, axis=1, shape=None, **kwargs):
-        o_indices = tuple([pm.index(0, s - 1) for s in shape])
-        i_indices = tuple([pm.index(0, s - 1) for s in data.shape])
+        o_indices = _get_single_node_indices(out, shape=shape)
+        # i_indices = tuple([pm.index(0, s - 1) for s in data.shape])
+        i_indices = _get_single_node_indices(data, shape=shape)
         out[o_indices] = data[i_indices]
 
     @property
@@ -489,7 +502,9 @@ class ppo(pm.Template):
                      adam_eps=1e-5):
         pass
 
+
 class dropout(pm.Template):
+    # TODO: Fix and test indices here
     def define_graph(self, x, y, ratio=0.0, name=None, shape=None, **kwargs):
         indices = tuple([pm.index(0, s - 1) if s > 1 else 0 for s in shape])
         y[indices] = x[indices] * 1.0 / (1 - ratio)
@@ -519,54 +534,170 @@ def identity(data, shape=None, name=None, **kwargs):
     data.set_name(name)
     return data
 
+def _get_single_node_indices(node, shape=None):
+    if node.shape == pm.DEFAULT_SHAPES[0]:
+        return tuple([])
+    else:
+        if not shape:
+            shape = node.shape
+        indices = tuple([pm.index(0, s - 1) for s in shape])
+        return indices
+
+def is_broadcastable(shp1, shp2):
+    for a, b in zip(shp1[::-1], shp2[::-1]):
+        if a == 1 or b == 1 or a == b:
+            pass
+        else:
+            return False
+    return True
+
 # Use numpy broadcasting rules
-def _get_elem_indices(node_a, node_b):
+def _get_elem_indices(node_a, node_b, node_c, zero_indices=True):
+    broadcastable = is_broadcastable(node_a.shape, node_b.shape)
+
     a_idx = []
     b_idx = []
     out_idx = []
     nmap = {}
-    if len(node_a.shape) > len(node_b.shape):
-        small_node = node_b
-        lg_node = node_a
-        nmap["small"] = b_idx
-        nmap["large"] = a_idx
+    reverse = True
+
+    if not broadcastable:
+        reverse = False
+
+        a_idx = [None] * len(node_a.shape)
+        b_idx = [None] * len(node_b.shape)
+        a_map = {}
+        b_map = {}
+        for s in node_c.shape:
+            idx = pm.index(0, s-1)
+            out_idx.append(idx)
+            if s in node_a.shape:
+                start = 0
+                if s in a_map:
+                    start = a_map[s]
+                sidx = node_a.shape.index(s, start)
+                a_idx[sidx] = idx
+                a_map[s] = sidx
+
+            if s in node_b.shape:
+                start = 0
+                if s in b_map:
+                    start = b_map[s]
+                sidx = node_b.shape.index(s, start)
+                b_idx[sidx] = idx
+                b_map[s] = sidx
+                
+        for i in range(len(a_idx)):
+            if a_idx[i] is None:
+                assert node_a.shape[i] == 1
+                a_idx[i] = 0
+
+        for i in range(len(b_idx)):
+            if b_idx[i] is None:
+                assert node_b.shape[i] == 1
+                b_idx[i] = 0
+
     else:
-        small_node = node_a
-        lg_node = node_b
-        nmap["small"] = a_idx
-        nmap["large"] = b_idx
 
-    for i in range(-1, -len(lg_node.shape) - 1, -1):
-        if len(small_node.shape) < abs(i):
-            idx = pm.index(0, lg_node.shape[i] - 1)
-            nmap["large"].append(idx)
-            out_idx.append(idx)
-        elif node_a.shape[i] == node_b.shape[i]:
-            if node_a.shape[i] == 1:
-                idx = 0
-            else:
-                idx = pm.index(0, node_a.shape[i] - 1)
-            a_idx.append(idx)
-            b_idx.append(idx)
-            out_idx.append(idx)
-        elif node_a.shape[i] == 1:
-            idx = pm.index(0, node_b.shape[i] - 1)
-            # a_idx.append((0,)) # TESTING
-            b_idx.append(idx)
-            out_idx.append(idx)
-        elif node_b.shape[i] == 1:
-            idx = pm.index(0, node_a.shape[i] - 1)
-            a_idx.append(idx)
-            # b_idx.append((0,)) # TESTING
-            out_idx.append(idx)
+        if node_a.shape == pm.DEFAULT_SHAPES[0] and node_b.shape == pm.DEFAULT_SHAPES[0]:
+            idx = format_idx([])
+            return idx, idx, idx
+        elif node_a.shape == pm.DEFAULT_SHAPES[0]:
+            idx = format_idx([])
+            indices = _get_single_node_indices(node_b)
+            return idx, indices, indices
+        elif node_b.shape == pm.DEFAULT_SHAPES[0]:
+            idx = format_idx([])
+            indices = _get_single_node_indices(node_a)
+            return indices, idx, indices
+
+        if len(node_a.shape) > len(node_b.shape):
+            small_node = node_b
+            lg_node = node_a
+            nmap["small"] = b_idx
+            nmap["large"] = a_idx
         else:
-            raise RuntimeError(f"Unable to broadcast indices:\n"
-                               f"{node_a.name}: {node_a.shape}\n"
-                               f"{node_b.name}: {node_b.shape}\n")
-    return format_idx(a_idx), format_idx(b_idx), format_idx(out_idx)
+            small_node = node_a
+            lg_node = node_b
+            nmap["small"] = a_idx
+            nmap["large"] = b_idx
 
-def format_idx(x):
-    return tuple(list(reversed(x)))
+        for i in range(-1, -len(lg_node.shape) - 1, -1):
+            if len(small_node.shape) < abs(i):
+                idx = pm.index(0, lg_node.shape[i] - 1)
+                nmap["large"].append(idx)
+                out_idx.append(idx)
+            elif node_a.shape[i] == node_b.shape[i]:
+                if node_a.shape[i] != 1:
+                    idx = pm.index(0, node_a.shape[i] - 1)
+                    a_idx.append(idx)
+                    b_idx.append(idx)
+                    out_idx.append(idx)
+            elif node_a.shape[i] == 1:
+                idx = pm.index(0, node_b.shape[i] - 1)
+                if zero_indices:
+                    a_idx.append(0) # TESTING
+                b_idx.append(idx)
+                out_idx.append(idx)
+            elif node_b.shape[i] == 1:
+                idx = pm.index(0, node_a.shape[i] - 1)
+                a_idx.append(idx)
+                if zero_indices:
+                    b_idx.append(0) # TESTING
+                out_idx.append(idx)
+            else:
+                raise RuntimeError(f"Unable to broadcast indices:\n"
+                                   f"{node_a.name}: {node_a.shape}\n"
+                                   f"{node_b.name}: {node_b.shape}\n")
+    return format_idx(a_idx, reverse), format_idx(b_idx, reverse), format_idx(out_idx, reverse)
+
+def _get_binop_idx(node_a, node_b, out_node):
+    # TODO: Figure out what to do about multiple dimensions with the same value
+    cnt = 0
+    op1 = []
+    op2 = []
+    all_ops = []
+
+    for i in node_a.shape:
+        if i == 1:
+            op1.append(0)
+            # all_ops.append(0)
+        else:
+            idx = pm.index(0, i - 1)
+            op1.append(idx)
+            all_ops.append(idx)
+            cnt += 1
+
+    for i in node_b.shape:
+        if i in node_a.shape:
+            idx = node_a.shape.index(i)
+            op2.append(op1[idx])
+        elif i == 1:
+            op2.append(0)
+            # all_ops.append(0)
+        else:
+            idx = pm.index(0, i - 1)
+            op2.append(idx)
+            all_ops.append(idx)
+            cnt += 1
+    if out_node.is_shape_finalized():
+        all_ops = []
+        for s in out_node.shape:
+            if s in node_a.shape:
+                idx = node_a.shape.index(s)
+                all_ops.append(idx)
+            else:
+                assert s in node_b.shape, f"Output shape value {s} not in other shapes"
+                idx = node_b.shape.index(s)
+                all_ops.append(idx)
+
+    return op1, op2, all_ops
+
+def format_idx(x, reverse=True):
+    if reverse:
+        return tuple(list(reversed(x)))
+    else:
+        return tuple(x)
 
 def _get_indices(node, all_indices, tgt_shape):
     indices = []
@@ -586,7 +717,7 @@ def _get_indices(node, all_indices, tgt_shape):
 class global_avg_pool(pm.Template):
     def define_graph(self, x, out, shape=None, name=None, **kwargs):
         # indices = tuple([pm.index(0, s - 1) if s > 1 else 0 for s in shape])
-        indices = tuple([pm.index(0, s - 1) for s in shape])
+        indices = _get_single_node_indices(out, shape=shape)
         m = pm.index(0, x.shape[2]-1)
         n = pm.index(0, x.shape[3]-1)
         h = x.shape[2]
@@ -792,6 +923,14 @@ def get_elem_tanh(x, shape=None, name=None, out=None):
     return out
 
 
+# TODO: Need to convert this to a node with an output
+def get_elem_cast(data, to=None, shape=None, name=None, out=None, **kwargs):
+    if not out:
+        out = pm.output(name=name, shape=shape)
+    elem_cast(data, out, to, shape=shape)
+    # return pm.cast(to, data[indices], name=name, shape=shape)
+    return out
+
 def get_elem_add(a, b, shape=None, name=None, out=None):
     if not out:
         out = pm.output(name=name, shape=shape)
@@ -833,14 +972,10 @@ def get_reduce_sum(x, shape=None, name=None, out=None, axes=(0,), **kwargs):
 
 def get_matmul(a, b, out=None, **kwargs):
 
-    if len(a.shape) == len(b.shape):
-        if not out:
-            out = pm.output(shape=kwargs['shape'], name=kwargs['name'])
-        return matmul(a, b, out)
-    elif len(a.shape) > len(b.shape):
-        return rvmatmul(a, b, **kwargs)
-    else:
-        return lvmatmul(a, b, **kwargs)
+    if not out:
+        out = pm.output(shape=kwargs['shape'], name=kwargs['name'])
+    matmul(a, b, out)
+    return out
 
 def get_elem(a, b, **kwargs):
 
@@ -1071,7 +1206,7 @@ NODE_NAMES = {"SVMClassifier": svm_classifier_train,
               "Range": get_range,
               "Expand": get_expand,
               "LinearRegressor": linear_regressor_train,
-              "Cast": cast,
+              "Cast": get_elem_cast,
               "Constant": pm.parameter,
               "Reshape": reshape,
               "Identity": identity,

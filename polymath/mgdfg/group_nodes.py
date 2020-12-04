@@ -22,6 +22,7 @@ class GroupNode(Node):
             axes = kwargs.pop("axes") if isinstance(kwargs["axes"], tuple) else tuple(kwargs.pop("axes"))
         else:
             axes = input_node.domain.compute_set_reduction_index(domain)
+
         super(GroupNode, self).__init__(bounds, input_node, target=target_name, domain=domain, axes=axes, **kwargs)
         self.target = target
         if self.target.__name__ == "reduce":
@@ -85,8 +86,15 @@ class GroupNode(Node):
         if len(value.shape) == 0:
             value = np.asarray([value])
 
+        # if value.shape == DEFAULT_SHAPES[0]:
+        #     value = value[0]
+
         if not self.is_shape_finalized():
             self.shape = value.shape
+
+        # if len(value.shape) == 0:
+        #     value = np.asarray([value])
+
 
         return value
 

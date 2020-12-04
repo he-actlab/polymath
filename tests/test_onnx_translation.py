@@ -343,11 +343,12 @@ def test_translate_reduce_sum(x_shape):
     np_res = np.sum(data)
     graph = pm.Node("reduce")
     pm_data = pm.input(name="a", shape=x_shape, graph=graph)
-    axis = 0
+    out = pm.output(name="out", graph=graph)
+    axis = (0,)
     keepdims = 0
 
     with graph:
-        pm_graph = pm.reduce_sum(pm_data, axis, keepdims, x_shape[0], name="out")
+        pm.reduce_sum(pm_data, out, axes=axis, keepdims=keepdims)
     pm_res = graph("out", {"a": data})
     np.testing.assert_allclose(pm_res, np_res)
 
@@ -381,8 +382,9 @@ def test_translate_vmul(x_shape):
         pm_a = pm.input(name="a", shape=x_shape)
         pm_b = pm.input(name="b", shape=x_shape)
         pm_o = pm.output(name="o", shape=x_shape)
+        pm_s = pm.output(name="out")
         pm.elem_mul(pm_a, pm_b, pm_o, shape=x_shape)
-        _ = pm.reduce_sum(pm_o, axes=0, keepdims=0, shape=x_shape, name="out")
+        pm.reduce_sum(pm_o, pm_s, axes=(0,), keepdims=0)
 
     pm_res = pm_graph("out", {"a": a, "b": b})
     np.testing.assert_allclose(pm_res, np_res)

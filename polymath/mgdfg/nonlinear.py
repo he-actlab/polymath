@@ -66,18 +66,22 @@ class NonLinear(Node):
             else:
                 return var_index(self, [key], name=name, graph=self.graph)
 
-    def _evaluate(self, val, **kwargs):
+    def _evaluate(self, value, **kwargs):
         if "target" in kwargs:
             kwargs.pop("target")
         if "domain" in kwargs:
             kwargs.pop("domain")
-        val = self.target(val)
-        if isinstance(val, Real) or len(val.shape) == 0:
-            val = np.asarray([val])
+        value = self.target(value)
+        if isinstance(value, Real) or len(value.shape) == 0:
+            value = np.asarray([value])
+
+        # if value.shape == DEFAULT_SHAPES[0]:
+        #     value = value[0]
 
         if not self.is_shape_finalized():
-            self.shape = val.shape
-        return val
+            self.shape = value.shape
+
+        return value
 
     @property
     def domain(self):

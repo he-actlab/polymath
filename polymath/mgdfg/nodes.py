@@ -402,15 +402,18 @@ class write(Node):
             dst_indices = self.shape_domain.compute_shape_domain(indices=dst_key)
             key_indices = self.domain.compute_pairs()
             src_dom = self.args[0].domain
-            src_indices = self.domain.map_sub_domain(src_dom)
 
+            src_indices = self.domain.map_sub_domain(src_dom, is_write=True)
             value = np.zeros(shape=dst.shape, dtype=src.dtype)
+
+            # TODO: Fix logic here to check for validity
+            if len(src_indices[0]) != len(src.shape):
+                src = src.squeeze()
 
             for i in dst_indices:
                 if i in key_indices:
                     idx = key_indices.index(i)
-                    test = src_indices[idx]
-                    value[i] = src[test]
+                    value[i] = src[src_indices[idx]]
                 else:
                     value[i] = dst[i]
 
@@ -431,24 +434,6 @@ class write(Node):
                 return self.graph.nodes[name]
             else:
                 return var_index(self, key, name=name, graph=self.graph)
-        # key = _flatten_iterable(key)
-        # if isinstance(key, (tuple, list, np.ndarray)) and len(key) == 0:
-        #     return self
-        # elif self.is_shape_finalized() and self.shape == DEFAULT_SHAPES[0]:
-        #     return self
-        # elif self.is_shape_finalized() and len(self.nodes) > 0:
-        #     idx = np.ravel_multi_index(key, dims=self.shape, order='C')
-        #     ret = self.nodes.item_by_index(idx)
-        #     return ret
-        # else:
-        #     indices = str(tuple([i.name if isinstance(i, Node) else i for i in key])).replace("'","")
-        #     name = f"{self.name}{indices}"
-        #     if self.graph and name in self.graph.nodes:
-        #         return self.graph.nodes[name]
-        #     else:
-        #         return var_index(self, key, name=name, graph=self.graph)
-
-
 
     @property
     def source(self):

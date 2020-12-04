@@ -505,10 +505,11 @@ def backprop(l1=9, l2=10, l3=1, coarse=False, debug=False, pbar=False):
         i2 = pm.index(0, (l2_ - 1), name="i2")
         i3 = pm.index(0, (l3_ - 1), name="i3")
 
-        a1 = pm.sigmoid(pm.sum([i1], x[i1]*(w1[i1, i2]).set_name("w1*x"),name="sum(w1*x)"),name="a1")
+        a1 = pm.sigmoid(pm.sum([i1], x[i1]*(w1[i1, i2]).set_name("w1*x"), name="sum(w1*x)"),name="a1")
         a2 = pm.sigmoid(pm.sum([i2], (w2[i2, i3] * a1[i2]).set_name("w2*a1"), name="sum(w2*a1)"), name="a2")
         d3 = (a2[i3] - y[i3]).set_name("d3")
-        d2 = pm.sum([i3], (w2[i2, i3]*d3[i3]), name="d2") * (a1[i2]*(mu - a1[i2]))
+        d2 = pm.sum([i3], (w2[i2, i3]*d3[i3]), name="d2")
+        d2 = d2[i2] * (a1[i2]*(mu - a1[i2]))
         g1 = (x[i1]*d2[i2]).set_name("g1")
         g2 = (a1[i2]*d3[i3]).set_name("g2")
         w1[i1, i2] = w1[i1, i2] - mu*g1[i1, i2]
