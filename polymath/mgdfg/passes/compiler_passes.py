@@ -93,6 +93,7 @@ class NormalizeGraph(Pass):
         if node.is_shape_finalized():
             shape = node.shape
         elif isinstance(node, pm.var_index):
+            assert isinstance(node.args[1], (tuple, list))
             shape = node.args[1]
         elif isinstance(node, pm.NonLinear):
             shape = node.args[0].shape
@@ -111,17 +112,21 @@ class NormalizeGraph(Pass):
         if not isinstance(node, pm.output):
             for s in shape:
                 if isinstance(s, pm.Node):
-                    if s.name not in self.context and s not in self.evaluated:
+                    if isinstance(node, pm.var_index) and not isinstance(s, pm.index):
+                        assert len(s.shape) == 1
+                        new_shape.append(s.shape[0])
+                    elif s.name not in self.context and s not in self.evaluated:
                         raise RuntimeError(f"Unable to evaluate shape variable {s} for node {node}.\n"
                                            f"\tContext keys: {list(self.context.keys())}.\n"
                                            f"")
-                    if s.name in self.context:
-                        new_shape.append(self.context[s.name])
-                    elif isinstance(s, pm.index):
-                        sval = self.evaluated[s][-1] - self.evaluated[s][0] + 1
-                        new_shape.append(sval)
                     else:
-                        new_shape.append(self.evaluated[s])
+                        if s.name in self.context:
+                            new_shape.append(self.context[s.name])
+                        elif isinstance(s, pm.index):
+                            sval = self.evaluated[s][-1] - self.evaluated[s][0] + 1
+                            new_shape.append(sval)
+                        else:
+                            new_shape.append(self.evaluated[s])
                 else:
                     assert isinstance(s, Integral)
                     new_shape.append(s)
@@ -199,9 +204,14 @@ class NormalizeGraph(Pass):
         indices = list(product(*tuple([np.arange(i) for i in node.args[0].shape])))
 
         if len(indices) > 1:
+            if 'init_extras' in node.kwargs:
+                in_args = node.kwargs.pop('init_extras')
+            else:
+                in_args = tuple([])
             for i in indices:
-                x = node.__class__.init_from_args(node.args[0][i], graph=node, name=f"{node.name}{i}", shape=(1,))
+                x = node.__class__.init_from_args(*(in_args + (node.args[0][i],)), graph=node, name=f"{node.name}{i}", shape=(1,))
                 self.stored_objects[id(x)] = x
+
         elif isinstance(node.args[0], pm.GroupNode):
             # TODO: Remove this conditional somehow, group nodes should not require special handling
             new_args = list(node.args)
@@ -254,10 +264,10 @@ class NormalizeGraph(Pass):
         if node.var.shape != pm.DEFAULT_SHAPES[0]:
 
             indices = get_indices(node.args[1])
-
             indices = np.array(list(product(*indices)))
             indices = list(map(lambda x: tuple(x), indices))
             out_shape = node.domain.shape_from_indices(node.args[1])
+
             out_indices = tuple([np.arange(out_shape[i]) for i in range(len(out_shape))])
             out_indices = np.array(list(product(*out_indices)))
             dom_pairs = node.domain.compute_pairs()
@@ -377,6 +387,7 @@ class NormalizeGraph(Pass):
                         node.nodes[val.name] = val
 
     def populate_group_op(self, node):
+
         if len(node.domain) == 0 or node.shape == pm.DEFAULT_SHAPES[0]:
 
             input_domain = node.input_node.domain.compute_pairs()

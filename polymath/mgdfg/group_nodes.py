@@ -1,6 +1,7 @@
 import operator
 import builtins
 import numpy as np
+from numbers import Real
 from .nodes import slice_op
 from .base import Node, add, sub, mul, min_, max_, var_index, DEFAULT_SHAPES
 from .util import _flatten_iterable
@@ -38,6 +39,9 @@ class GroupNode(Node):
         elif self.is_shape_finalized() and len(self.nodes) > 0:
             if isinstance(key, int):
                 key = tuple([key])
+            elif isinstance(key, Real):
+                raise TypeError(f"Invalid key type for indexinginto {self.name}:\n"
+                                f"Key: {key}\tType: {type(key)}")
             idx = np.ravel_multi_index(key, dims=self.shape, order='C')
             ret = self.output_nodes[idx]
             return ret

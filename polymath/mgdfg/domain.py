@@ -382,7 +382,8 @@ class Domain(object):
         shape = []
         for i in idx_vals:
             if _is_node_instance(i):
-                shape.append(len(i.value))
+                assert len(i.shape) == 1
+                shape.append(i.shape[0])
             elif is_iterable(i):
                 shape.append(len(i))
             else:

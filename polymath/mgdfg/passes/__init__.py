@@ -221,7 +221,6 @@ class Pass(object):
 
         visitor = NodePass(debug=self.debug, pbar=self.pbar, cls_name=self.__class__.__name__)
         self.ctx = self.ctx if self.ctx else ctx
-
         gcpy = pickle.loads(pickle.dumps(node))
 
         initialized_node = self.initialize_pass(gcpy, self.ctx)

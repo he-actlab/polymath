@@ -749,6 +749,8 @@ class var_index(Node):  # pylint: disable=C0103,W0223
         Tuple of either integer values or index/index_op nodes.
     """
     def __init__(self, var, idx, name=None, **kwargs):  # pylint: disable=W0235
+        if isinstance(idx, list):
+            idx = tuple(idx)
         if "domain" in kwargs:
             domain = tuple(kwargs.pop("domain")) if isinstance(kwargs["domain"], list) else kwargs.pop("domain")
         else:
@@ -1003,6 +1005,10 @@ class slice_op(Node):
         elif self.is_shape_finalized() and len(self.nodes) > 0:
             if isinstance(key, (int, Node)):
                 key = tuple([key])
+            if len(key) != len(self.shape):
+                raise KeyError(f"Invalid index value applied to shape {self.name}:\n"
+                               f"Key: {key}\n"
+                               f"Shape: {self.shape}")
             assert len(key) == len(self.shape)
 
             name = f"{self.name}{key}"

@@ -77,8 +77,7 @@ class TablaPass(pm.Pass):
             if a1_key not in self.dfg:
                 raise KeyError(f"Arg1 with key {a1_key} not found in dfg for func op node {node.name}\n"
                                f"Args: {node.args}\n"
-                                f"Graph ndoes: {node.graph.nodes.keys()}\n"
-                               f"Keys: {self.dfg.keys()}")
+                               f"Op name: {node.op_name}")
 
             self.set_dfg_node(node, self.create_node(node.op_name, parents=[self.get_dfg_node(node.args[0])["id"], self.get_dfg_node(node.args[1])["id"]]))
             self.get_dfg_node(node.args[0])["children"].append(self.get_dfg_node(node)["id"])
