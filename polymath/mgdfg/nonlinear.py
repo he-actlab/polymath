@@ -131,7 +131,7 @@ class sqrt(NonLinear):
 class cast(NonLinear):
     def __init__(self, np_dtype, input_node, **kwargs):
         kwargs['np_dtype'] = np_dtype
-
+        kwargs['init_extras'] = (np_dtype,)
         super(cast, self).__init__(_cast, input_node, **kwargs)
 
     @property

@@ -199,9 +199,14 @@ class NormalizeGraph(Pass):
         indices = list(product(*tuple([np.arange(i) for i in node.args[0].shape])))
 
         if len(indices) > 1:
+            if 'init_extras' in node.kwargs:
+                in_args = node.kwargs.pop('init_extras')
+            else:
+                in_args = tuple([])
             for i in indices:
-                x = node.__class__.init_from_args(node.args[0][i], graph=node, name=f"{node.name}{i}", shape=(1,))
+                x = node.__class__.init_from_args(*(in_args + (node.args[0][i],)), graph=node, name=f"{node.name}{i}", shape=(1,))
                 self.stored_objects[id(x)] = x
+                
         elif isinstance(node.args[0], pm.GroupNode):
             # TODO: Remove this conditional somehow, group nodes should not require special handling
             new_args = list(node.args)
