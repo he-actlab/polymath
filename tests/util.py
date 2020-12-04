@@ -881,7 +881,6 @@ def get_im2col_indices(x_shape, field_height, field_width, padding=1, stride=1):
 
   return (k, i, j)
 
-
 def im2col_indices(x, field_height, field_width, padding=1, stride=1):
   """ An implementation of im2col based on some fancy indexing """
   # Zero-pad the input

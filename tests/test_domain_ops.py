@@ -47,14 +47,7 @@ def test_broadcast(a_shape, b_shape, c_shape):
 
     a_np_t = repeat(a_np, 'i k -> i k j', j=b_shape[1])
     b_np_t = repeat(b_np, 'i k -> j i k', j=a_shape[0])
-    for i in range(a_shape[0]):
-        for j in range(a_shape[1]):
-            for k in range(b_shape[1]):
-                c_np_out[i][j][k] = a_np[i][j] + b_np[j][k]
-    c_np_out = c_np_out.squeeze()
     actual_res = (a_np_t + b_np_t).squeeze()
-    print(np.allclose(c_np_out, actual_res))
     graph_res = graph("c", {"a": a_np, "b": b_np})
-    print(np.allclose(c_np_out, graph_res))
 
     np.testing.assert_allclose(graph_res, actual_res)
