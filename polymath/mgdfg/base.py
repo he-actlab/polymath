@@ -997,7 +997,6 @@ class slice_op(Node):
         return self.kwargs["domain"]
 
     def __getitem__(self, key):
-
         if isinstance(key, (tuple, list, np.ndarray)) and len(key) == 0:
             return self
         elif self.is_shape_finalized() and len(self.nodes) > 0:
@@ -1068,6 +1067,10 @@ class slice_op(Node):
             op1 = np.asarray(list(map(lambda x: op1[x], op1_idx))).reshape(self.domain.computed_shape)
             op2 = np.asarray(list(map(lambda x: op2[x], op2_idx))).reshape(self.domain.computed_shape)
             value = self.target(op1, op2)
+
+        if not self.is_shape_finalized():
+            self._shape = value.shape
+
         return value
 
     def get_index_nodes(self, slice1_var=None, slice2_var=None):
