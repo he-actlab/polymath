@@ -6,7 +6,7 @@ import numpy as np
 from .node_definitions import NODE_NAMES
 import polymath as pm
 
-def from_onnx(filepath, infer_shapes=True, use_filename=True):
+def from_onnx(filepath, infer_shapes=True):
     onnx_proto, graph_name = load_onnx_proto(filepath)
     attr = get_model_attributes(onnx_proto)
     if infer_shapes:
@@ -18,14 +18,13 @@ def from_onnx(filepath, infer_shapes=True, use_filename=True):
             raise RuntimeError(f"Support for {n.op_type} or {n.name} is not currently included in PolyMath")
 
     graph = generate_mgdfg(onnx_graph)
-    if use_filename:
-        graph_name = filepath.split("/")[-1].split(".")[0]
-        graph.set_name(graph_name)
+
     return graph
 
 def load_onnx_proto(filepath):
     graph_name = pathlib.Path(filepath).stem
     return load(filepath), graph_name
+
 
 def get_model_attributes(model):
     kwargs = {des.name: getattr(model, des.name) for des in model.DESCRIPTOR.fields if des.name != "graph"}
@@ -67,6 +66,7 @@ def generate_mgdfg(onnx_graph):
         assert o.name not in node_info
 
         if o.name in state_variables:
+
             node_info[o.name] = pm.state(name=state_variables[o.name], shape=get_value_info_shape(o, mgdfg), graph=mgdfg)
             node_info[state_variables[o.name]] = node_info[o.name]
         else:
@@ -118,6 +118,7 @@ def convert_node(onnx_node, mgdfg, node_info, state_vars):
     # assert name not in node_info
 
     for i in onnx_node.input:
+
         if i not in mgdfg.nodes:
             raise KeyError(f"Input node {i} for {name} not in graph nodes:\n"
                            f"Nodes: {list(mgdfg.nodes.keys())}")
@@ -127,6 +128,7 @@ def convert_node(onnx_node, mgdfg, node_info, state_vars):
     assert len(onnx_node.output) == 1 and onnx_node.output[0] in node_info
     o_name = state_vars[onnx_node.output[0]] if onnx_node.output[0] in state_vars else onnx_node.output[0]
     if isinstance(node_info[o_name], dict):
+
         o_shape = node_info[o_name]["shape"]
         attributes = get_attributes(onnx_node)
         args = tuple(args)
@@ -146,15 +148,16 @@ def convert_node(onnx_node, mgdfg, node_info, state_vars):
         if not new_node.is_shape_finalized():
             new_node._shape = o_shape
     else:
-
         o_shape = node_info[o_name].shape
         attributes = get_attributes(onnx_node)
         args = tuple(args)
         kwargs = attributes
         kwargs['shape'] = tuple(list(o_shape))
-        kwargs['out'] = node_info[o_name]
+        indices = tuple([pm.index(0, s-1, graph=mgdfg) for s in o_shape])
         with mgdfg:
             new_node = NODE_NAMES[onnx_node.op_type](*args, **kwargs)
+            node_info[o_name][indices] = new_node[indices]
+
 
     return mgdfg
 

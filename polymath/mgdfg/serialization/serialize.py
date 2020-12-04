@@ -1,5 +1,5 @@
 import polymath.mgdfg.serialization.mgdfgv3_pb2 as pb
-from polymath import Node, Domain, Template, output
+from polymath import Node, Domain, Template
 from numproto import ndarray_to_proto, proto_to_ndarray
 from typing import Iterable, Union
 from numbers import Integral
@@ -16,11 +16,11 @@ def pb_store(node, file_path, outname=None):
         program_file.write(_serialize_node(node).SerializeToString())
     count_after = len(node.nodes.keys())
 
-def pb_load(file_path, verbose=False):
+def pb_load(file_path):
     new_program = pb.Node()
     with open(file_path, "rb") as program_file:
         new_program.ParseFromString(program_file.read())
-    deser_node = _deserialize_node(new_program, verbose=verbose)
+    deser_node = _deserialize_node(new_program)
     return deser_node
 
 
@@ -84,22 +84,14 @@ def _serialize_domain(dom, pb_dom):
         else:
             raise TypeError(f"Cannot find serializable method for domain {d} with type {type(d)}")
 
-def _deserialize_domain(pb_dom, graph, node_name, write_graph=None):
+def _deserialize_domain(pb_dom, graph, node_name):
     doms = []
-
     for d in pb_dom.dom.domains:
         if d.type == pb.Attribute.Type.NODE:
             if d.s.decode("utf-8") != node_name:
-                d_name = d.s.decode("utf-8")
-                if d_name in graph.nodes:
-                    arg_node = graph.nodes[d_name]
-                elif write_graph and d_name in write_graph.nodes:
-                    arg_node = write_graph.nodes[d_name]
-                else:
-                    raise KeyError(f"Unable to find node in graph {d} for {node_name}:"
-                                   f"{graph.name} -")
+                assert d.s.decode("utf-8") in graph.nodes
+                arg_node = graph.nodes[d.s.decode("utf-8")]
                 doms.append(arg_node)
-
         elif d.type == pb.Attribute.Type.NDARRAY:
             doms.append(proto_to_ndarray(d.nda))
         elif d.type == pb.Attribute.Type.INT32:
@@ -111,15 +103,9 @@ def _deserialize_domain(pb_dom, graph, node_name, write_graph=None):
         elif d.type == pb.Attribute.Type.BOOL:
             doms.append(d.b)
         elif d.type == pb.Attribute.Type.NODES:
-            arg_node = []
             for a in d.ss:
-                if a.decode("utf-8") in graph.nodes:
-                    anode = graph.nodes[a.decode("utf-8")]
-                elif write_graph and a.decode("utf-8") in write_graph.nodes:
-                    anode = write_graph.nodes[a.decode("utf-8")]
-                else:
-                    raise KeyError(f"Unable to find node in graph {a.decode('utf-8')}")
-                arg_node.append(anode)
+                assert a.decode("utf-8") in graph.nodes
+            arg_node = [graph.nodes[a.decode("utf-8")] for a in d.ss]
             doms.append(arg_node)
         elif d.type == pb.Attribute.Type.NDARRAYS:
             doms.append([proto_to_ndarray(a) for a in d.ndas])
@@ -135,89 +121,22 @@ def _deserialize_domain(pb_dom, graph, node_name, write_graph=None):
             raise TypeError(f"Cannot find deserializeable method for argument {d} with type {d.type}")
     return Domain(tuple(doms))
 
-
-def _deserialize_node(pb_node, graph=None, verbose=False):
+def _deserialize_node(pb_node, graph=None):
     set_fields = pb_node.DESCRIPTOR.fields_by_name
     kwargs = {}
     kwargs["name"] = pb_node.name
     kwargs["op_name"] = pb_node.op_name
 
     kwargs["dependencies"] = [dep for dep in pb_node.dependencies]
-    write_graph = None
-    if kwargs["op_name"] == "write":
-        wg = pb_node.kwargs["write_graph"]
-        kwargs["write_graph"] = [a.decode("utf-8") for a in wg.ss]
-        curr_g = graph
-        while curr_g:
-            if len(kwargs["write_graph"]) > 0 and kwargs["write_graph"][-1] in curr_g.nodes:
-                write_graph = curr_g.nodes[kwargs["write_graph"][-1]]
-                break
-            curr_g = curr_g.graph
 
     args = []
-    for name in pb_node.kwargs:
-        arg = pb_node.kwargs[name]
-        if arg.type == pb.Attribute.Type.DOM:
-            kwargs[name] = _deserialize_domain(arg, graph, pb_node.name, write_graph=write_graph)
-        elif arg.type == pb.Attribute.Type.NODE:
-            if arg.decode("utf-8") in graph.nodes:
-                arg_node = graph.nodes[arg.decode("utf-8")]
-            elif write_graph and arg.decode("utf-8") in write_graph.nodes:
-                arg_node = write_graph.nodes[arg.decode("utf-8")]
-            else:
-                raise KeyError(f"Unable to find node in graph {arg.decode('utf-8')}")
-            kwargs[name] = arg_node
-        elif arg.type == pb.Attribute.Type.NDARRAY:
-            kwargs[name] = proto_to_ndarray(arg.nda)
-        elif arg.type == pb.Attribute.Type.INT32:
-            kwargs[name] = arg.i32
-        elif arg.type == pb.Attribute.Type.DOUBLE:
-            kwargs[name] = arg.d
-        elif arg.type == pb.Attribute.Type.STRING:
-            kwargs[name] = arg.s.decode("utf-8")
-        elif arg.type == pb.Attribute.Type.BOOL:
-            kwargs[name] = arg.b
-        elif arg.type == pb.Attribute.Type.NODES:
-            arg_node = []
-            for a in arg.ss:
-                if a.decode("utf-8") in graph.nodes:
-                    anode = graph.nodes[a.decode("utf-8")]
-                elif write_graph and a.decode("utf-8") in write_graph.nodes:
-                    anode = write_graph.nodes[a.decode("utf-8")]
-                else:
-                    raise KeyError(f"Unable to find node in graph {a.decode('utf-8')}")
-                arg_node.append(anode)
-            kwargs[name] = arg_node
-        elif arg.type == pb.Attribute.Type.NDARRAYS:
-            kwargs[name] = [proto_to_ndarray(a) for a in arg.ndas]
-        elif arg.type == pb.Attribute.Type.INT32S:
-            kwargs[name] = list(arg.i32s)
-        elif arg.type == pb.Attribute.Type.DOUBLES:
-            kwargs[name] = list(arg.ds)
-        elif arg.type == pb.Attribute.Type.STRINGS:
-            kwargs[name] = [a.decode("utf-8") for a in arg.ss]
-        elif arg.type == pb.Attribute.Type.BOOLS:
-            kwargs[name] = list(arg.b)
-        else:
-            raise TypeError(f"Cannot find deserializeable method for argument {name} with type {arg.type}")
-
-
-    for i, arg in enumerate(pb_node.args):
+    for arg in pb_node.args:
         if arg.type == pb.Attribute.Type.NODE:
             arg_str = arg.s.decode("utf-8")
-            if arg_str in graph.nodes:
-                arg_node = graph.nodes[arg_str]
-            elif write_graph and arg_str in write_graph.nodes:
-                arg_node = write_graph.nodes[arg_str]
-            else:
-                if verbose:
-                    err_str = f"Could not find {arg_str} in nodes for {graph.name} - {graph}\n" \
-                              f"Node name: {pb_node.name} - {pb_node.op_name}:\n" \
-                                   f"Keys: {list(graph.nodes.keys())}\n"
-                else:
-                    err_str = f"Could not find {arg_str} in nodes for {graph.name} - {graph}\n" \
-                              f"Node name: {pb_node.name} - {pb_node.op_name}:\n"
-                raise RuntimeError(err_str)
+            if arg_str not in graph.nodes:
+                raise RuntimeError(f"Could not find {arg_str} in nodes for {graph.name} - {graph}\n"
+                                   f"Node name: {pb_node.name} - {pb_node.op_name}")
+            arg_node = graph.nodes[arg_str]
             args.append(arg_node)
         elif arg.type == pb.Attribute.Type.NDARRAY:
             args.append(proto_to_ndarray(arg.nda))
@@ -230,15 +149,9 @@ def _deserialize_node(pb_node, graph=None, verbose=False):
         elif arg.type == pb.Attribute.Type.BOOL:
             args.append(arg.b)
         elif arg.type == pb.Attribute.Type.NODES:
-            arg_node = []
             for a in arg.ss:
-                if a.decode("utf-8") in graph.nodes:
-                    anode = graph.nodes[a.decode("utf-8")]
-                elif write_graph and a.decode("utf-8") in write_graph.nodes:
-                    anode = write_graph.nodes[a.decode("utf-8")]
-                else:
-                    raise KeyError(f"Unable to find node in graph {a.decode('utf-8')}")
-                arg_node.append(anode)
+                assert a.decode("utf-8") in graph.nodes
+            arg_node = [graph.nodes[a.decode("utf-8")] for a in arg.ss]
             args.append(arg_node)
         elif arg.type == pb.Attribute.Type.NDARRAYS:
             args.append([proto_to_ndarray(a) for a in arg.ndas])
@@ -252,38 +165,66 @@ def _deserialize_node(pb_node, graph=None, verbose=False):
             args.append(list(arg.b))
         else:
             raise TypeError(f"Cannot find deserializeable method for argument {arg} with type {arg.type}")
-
     args = tuple(args)
+
+    for name in pb_node.kwargs:
+        arg = pb_node.kwargs[name]
+        if arg.type == pb.Attribute.Type.DOM:
+            kwargs[name] = _deserialize_domain(arg, graph, pb_node.name)
+        elif arg.type == pb.Attribute.Type.NODE:
+            assert arg.s.decode("utf-8") in graph.nodes
+            arg_node = graph.nodes[arg.s.decode("utf-8")]
+            kwargs[name] = arg_node
+        elif arg.type == pb.Attribute.Type.NDARRAY:
+            kwargs[name] = proto_to_ndarray(arg.nda)
+        elif arg.type == pb.Attribute.Type.INT32:
+            kwargs[name] = arg.i32
+        elif arg.type == pb.Attribute.Type.DOUBLE:
+            kwargs[name] = arg.d
+        elif arg.type == pb.Attribute.Type.STRING:
+            kwargs[name] = arg.s.decode("utf-8")
+        elif arg.type == pb.Attribute.Type.BOOL:
+            kwargs[name] = arg.b
+        elif arg.type == pb.Attribute.Type.NODES:
+            for a in arg.ss:
+                assert a.decode("utf-8") in graph.nodes
+            arg_node = [graph.nodes[a.decode("utf-8")] for a in arg.ss]
+            kwargs[name] = arg_node
+        elif arg.type == pb.Attribute.Type.NDARRAYS:
+            kwargs[name] = [proto_to_ndarray(a) for a in arg.ndas]
+        elif arg.type == pb.Attribute.Type.INT32S:
+            kwargs[name] = list(arg.i32s)
+        elif arg.type == pb.Attribute.Type.DOUBLES:
+            kwargs[name] = list(arg.ds)
+        elif arg.type == pb.Attribute.Type.STRINGS:
+            kwargs[name] = [a.decode("utf-8") for a in arg.ss]
+        elif arg.type == pb.Attribute.Type.BOOLS:
+            kwargs[name] = list(arg.b)
+        else:
+
+            raise TypeError(f"Cannot find deserializeable method for argument {name} with type {arg.type}")
 
     mod_name, cls_name = pb_node.module.rsplit(".", 1)
     mod = __import__(mod_name, fromlist=[cls_name])
-
     if "target" in kwargs:
         func_mod_name, func_name = kwargs["target"].rsplit(".", 1)
         func_mod = __import__(func_mod_name, fromlist=[func_name])
         target = getattr(func_mod, func_name)
         kwargs.pop("target")
-
-        if cls_name in ["func_op", "slice_op", "index_op"]:
+        if cls_name in ["func_op", "slice_op"]:
             node = getattr(mod, cls_name)(target, *args, graph=graph, **kwargs)
         else:
             node = getattr(mod, cls_name)(*args, graph=graph, **kwargs)
     else:
         template_subclass_names = [c.__name__ for c in Template.__subclasses__()]
-
         if cls_name in template_subclass_names:
             kwargs.pop("op_name")
-            for a in args:
-                if isinstance(a, output):
-                    a.write_count = 0
-
         node = getattr(mod, cls_name)(*args, graph=graph, **kwargs)
 
     for pb_n in pb_node.nodes:
-
         if pb_n.name in node.nodes:
             continue
-        node.nodes[pb_n.name] = _deserialize_node(pb_n, graph=node, verbose=verbose)
+        node.nodes[pb_n.name] = _deserialize_node(pb_n, graph=node)
 
     shape_list = []
     for shape in pb_node.shape:
@@ -292,6 +233,7 @@ def _deserialize_node(pb_node, graph=None, verbose=False):
             shape_list.append(shape.shape_const)
         else:
             if shape.shape_id not in graph.nodes:
+                print(node.nodes.keys())
                 shape_list.append(node.nodes[shape.shape_id])
             else:
                 shape_list.append(graph.nodes[shape.shape_id])
@@ -411,7 +353,6 @@ def _serialize_node(node_instance):
         else:
             raise TypeError(f"Cannot find serializable method for argument {name}={arg} with type {type(arg)} in {node_instance}")
     serialized = []
-
     for k, node in node_instance.nodes.items():
         if not isinstance(node, Node):
             raise RuntimeError(f"Non-node object included in graph for {node_instance.name} with name {k}.")

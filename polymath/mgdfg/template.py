@@ -18,15 +18,13 @@ class Template(pm.Node):
 
         if "dependencies" in kwargs:
             kwargs.pop("dependencies")
-
+        # print(kwargs.keys())
+        # print(self.kwargs.keys())
+        # print()
         with self:
            self.define_graph(*self.args, **kwargs)
         if self.graph:
             self.reset_graphs()
-
-        for k, v in kwargs.items():
-            if k not in self.kwargs:
-                self.kwargs[k] = v
 
     def initialize_args(self):
         for a in self.args:

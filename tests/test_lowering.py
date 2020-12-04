@@ -43,6 +43,7 @@ def test_single_dim():
     loaded_node = pm.pb_load(pb_path)
     input_info = {f"w/w({i},)": w_[i] for i in range(len(w_))}
     input_info.update({f"x/x({i},)": x_[i] for i in range(len(x_))})
+
     fine_grained_eval = loaded_node("w/w(1,)", input_info)
     assert fine_grained_eval == np_result[1]
 
