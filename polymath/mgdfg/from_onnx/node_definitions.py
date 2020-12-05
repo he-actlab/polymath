@@ -293,7 +293,6 @@ class batch_norm(pm.Template):
 class matmul(pm.Template):
     def define_graph(self, a, w, out, shape=None, name=None, **kwargs):
         indices = _get_single_node_indices(a)
-        # indices = tuple([pm.index(0, s - 1) for s in a.shape])
         sum_idx = indices[-1]
         o_idx = pm.index(0, w.shape[0]-1) if w.shape[-1] == a.shape[-1] else pm.index(0, w.shape[1]-1)
         w_idx = (o_idx, sum_idx) if w.shape[-1] == a.shape[-1] else (sum_idx, o_idx)
@@ -446,6 +445,15 @@ class elem_mul(pm.Template):
     def define_graph(self, a, b, out, shape=None, name=None, **kwargs):
         a_idx, b_idx, indices = _get_elem_indices(a, b, out)
         # a_idx, b_idx, indices = _get_binop_idx(a, b, out)
+        # print(a.name)
+        # print(a.shape)
+        # print(b.name)
+        # print(b.shape)
+        # print(out.name)
+        # print(out.shape)
+        #
+        # print(indices)
+        # print()
         out[indices] = (a[a_idx] * b[b_idx])
 
     @property
@@ -481,7 +489,6 @@ def rvmatmul(a, b, shape=None, name=None, **kwargs):
 class coarse_flatten(pm.Template):
     def define_graph(self, data, out, axis=1, shape=None, **kwargs):
         o_indices = _get_single_node_indices(out, shape=shape)
-        # i_indices = tuple([pm.index(0, s - 1) for s in data.shape])
         i_indices = _get_single_node_indices(data, shape=shape)
         out[o_indices] = data[i_indices]
 
@@ -543,6 +550,16 @@ def _get_single_node_indices(node, shape=None):
         indices = tuple([pm.index(0, s - 1) for s in shape])
         return indices
 
+def _get_reduce_node_indices(a, b, output, axis):
+    if data.shape == pm.DEFAULT_SHAPES[0]:
+        return tuple([])
+    else:
+        if not data.shape:
+            shape = data.shape
+        indices = tuple([pm.index(0, s - 1) for s in data.shape])
+        return indices
+
+
 def is_broadcastable(shp1, shp2):
     for a, b in zip(shp1[::-1], shp2[::-1]):
         if a == 1 or b == 1 or a == b:
@@ -598,8 +615,10 @@ def _get_elem_indices(node_a, node_b, node_c, zero_indices=True):
                 b_idx[i] = 0
 
     else:
-
-        if node_a.shape == pm.DEFAULT_SHAPES[0] and node_b.shape == pm.DEFAULT_SHAPES[0]:
+        if node_a.shape == node_b.shape and node_c.shape == node_a.shape:
+            indices = _get_single_node_indices(node_a)
+            return indices, indices, indices
+        elif node_a.shape == pm.DEFAULT_SHAPES[0] and node_b.shape == pm.DEFAULT_SHAPES[0]:
             idx = format_idx([])
             return idx, idx, idx
         elif node_a.shape == pm.DEFAULT_SHAPES[0]:
@@ -621,6 +640,7 @@ def _get_elem_indices(node_a, node_b, node_c, zero_indices=True):
             lg_node = node_b
             nmap["small"] = a_idx
             nmap["large"] = b_idx
+
 
         for i in range(-1, -len(lg_node.shape) - 1, -1):
             if len(small_node.shape) < abs(i):

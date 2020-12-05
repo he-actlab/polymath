@@ -206,7 +206,7 @@ class NormalizeGraph(Pass):
             for i in indices:
                 x = node.__class__.init_from_args(*(in_args + (node.args[0][i],)), graph=node, name=f"{node.name}{i}", shape=(1,))
                 self.stored_objects[id(x)] = x
-                
+
         elif isinstance(node.args[0], pm.GroupNode):
             # TODO: Remove this conditional somehow, group nodes should not require special handling
             new_args = list(node.args)
@@ -292,6 +292,7 @@ class NormalizeGraph(Pass):
                     # TODO: Add initializers for other types of node
         node._shape = out_shape
         node.domain.set_computed(out_shape, dom_pairs)
+
         for i, d in enumerate(dom_pairs):
             ph_node = node.var[indices[i]]
             name = f"{node.var.name}{out_indices[i]}"
@@ -336,28 +337,33 @@ class NormalizeGraph(Pass):
                 self.stored_objects[id(x)] = x
 
     def populate_write(self, node):
-
+        expanded_dest = False
         if node.shape != pm.DEFAULT_SHAPES[0]:
 
             src, dst_key, dst = node.args
             key_indices = node.domain.compute_pairs()
-            dst_indices = list(product(*tuple([np.arange(i) for i in node.shape])))
-
             if isinstance(src, pm.Node):
                 if isinstance(node.args[0], pm.index):
                     src_dom = node.args[0].domain
-                    # indices = [i.value for i in src_dom.dom_set]
-                    # out_shape = src_dom.shape_from_indices(indices)
                 else:
                     src_dom = node.args[0].domain
 
-                src_indices = node.domain.map_sub_domain(src_dom)
+                src_indices = node.domain.map_sub_domain(src_dom, tuples=False)
+                if len(src_indices) > 0 and src_indices.shape[1] < len(src.shape):
+                    N = src_indices.shape[0]
+                    for i in range(len(src.shape)):
+                        if src.shape[i] <= 1:
+                            src_indices = np.c_[src_indices[:, :i], np.zeros(N), src_indices[:, i:]]
+
+                dst_indices = list(product(*tuple([np.arange(i) for i in node.shape])))
+                src_indices = list(map(lambda x: tuple(x), src_indices.astype(np.int)))
 
                 for i in dst_indices:
                     if i in key_indices:
                         idx = key_indices.index(i)
                         dst_node = node.graph.nodes[f"{dst.name}"][i]
                         state_var = node.graph.nodes[f"{dst.alias}"][i]
+
                         val = pm.write(src[src_indices[idx]], i, dst_node, graph=node, alias=state_var.name,
                                        name=f"{state_var.name}{state_var.write_count}")
                         state_var.write_count += 1
@@ -367,6 +373,8 @@ class NormalizeGraph(Pass):
                         node.nodes[val.name] = val
             else:
                 assert not is_iterable(src)
+                dst_indices = list(product(*tuple([np.arange(i) for i in node.shape])))
+
                 for i in dst_indices:
                     if i in key_indices:
                         dst_node = node.graph.nodes[f"{dst.name}"][i]

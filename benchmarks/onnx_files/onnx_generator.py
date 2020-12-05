@@ -253,7 +253,6 @@ def create_reco(m, n, k, optimize_model):
         h2 = h2_sum * r2
         d1 = h1 - y1
         d2 = h2 - y2
-
         g1 = d1 * tf.transpose(x2)
         g2 = d2 * tf.transpose(x1)
 

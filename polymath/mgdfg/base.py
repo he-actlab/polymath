@@ -1003,7 +1003,10 @@ class slice_op(Node):
         elif self.is_shape_finalized() and len(self.nodes) > 0:
             if isinstance(key, (int, Node)):
                 key = tuple([key])
-            assert len(key) == len(self.shape)
+            if len(key) != len(self.shape):
+                raise KeyError(f"Invalid key shape for {self.name}:\n"
+                               f"Shape: {self.shape}\n"
+                               f"Key: {key}")
 
             name = f"{self.name}{key}"
             if name not in self.nodes.keys():

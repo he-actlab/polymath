@@ -331,7 +331,7 @@ class Domain(object):
         self.computed_pairs = unraveled_set_pairs.reshape(np.prod(self.computed_set_shape), 1)
         return self.computed_pairs
 
-    def map_sub_domain(self, dom, is_index_dom=False, is_write=False):
+    def map_sub_domain(self, dom, is_index_dom=False, is_write=False, tuples=True):
 
         dom_set_pairs = self.compute_set_pairs(tuples=False)
         target_set_pairs = dom.compute_set_pairs(dom=dom, tuples=False)
@@ -358,7 +358,9 @@ class Domain(object):
         sidx = X1D.argsort()
         out = sidx[np.searchsorted(X1D, searched_valuesID, sorter=sidx)]
         out = np.apply_along_axis(lambda x: target_pairs[x], 0, out)
-        out = list(map(lambda x: tuple(x), out))
+
+        if tuples:
+            out = list(map(lambda x: tuple(x), out))
 
         return out
 
