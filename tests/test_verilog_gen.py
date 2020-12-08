@@ -35,7 +35,6 @@ def test_linear_reg():
     np.testing.assert_allclose(out, out_info["w"])
 
 
-
 def test_reco():
     m_ = 3
     n_ = 3
