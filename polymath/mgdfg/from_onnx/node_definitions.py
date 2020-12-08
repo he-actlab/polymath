@@ -444,16 +444,6 @@ class elem_add(pm.Template):
 class elem_mul(pm.Template):
     def define_graph(self, a, b, out, shape=None, name=None, **kwargs):
         a_idx, b_idx, indices = _get_elem_indices(a, b, out)
-        # a_idx, b_idx, indices = _get_binop_idx(a, b, out)
-        # print(a.name)
-        # print(a.shape)
-        # print(b.name)
-        # print(b.shape)
-        # print(out.name)
-        # print(out.shape)
-        #
-        # print(indices)
-        # print()
         out[indices] = (a[a_idx] * b[b_idx])
 
     @property
@@ -551,12 +541,12 @@ def _get_single_node_indices(node, shape=None):
         return indices
 
 def _get_reduce_node_indices(a, b, output, axis):
-    if data.shape == pm.DEFAULT_SHAPES[0]:
+    if output.shape == pm.DEFAULT_SHAPES[0]:
         return tuple([])
     else:
-        if not data.shape:
-            shape = data.shape
-        indices = tuple([pm.index(0, s - 1) for s in data.shape])
+        if not output.shape:
+            raise RuntimeError
+        indices = tuple([pm.index(0, s - 1) for s in output.shape])
         return indices
 
 

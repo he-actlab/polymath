@@ -83,6 +83,8 @@ def generate_mgdfg(onnx_graph):
             node_info[state_variables[i.name]] = node_info[i.name]
         elif i.name in initializers and not itercheck(initializers[i.name]):
             node_info[i.name] = pm.parameter(name=i.name, default=initializers[i.name], graph=mgdfg)
+        elif i.name in initializers:
+            node_info[i.name] = pm.state(name=i.name, shape=get_value_info_shape(i, mgdfg), graph=mgdfg)
         else:
             node_info[i.name] = pm.input(name=i.name, shape=get_value_info_shape(i, mgdfg), graph=mgdfg)
 
@@ -115,8 +117,7 @@ def convert_node(onnx_node, mgdfg, node_info, state_vars):
     name = onnx_node.name
     args = []
     # TODO: check if node name is already in the graph
-    # if name in node_info:
-    # assert name not in node_info
+
     for i in onnx_node.input:
         if i not in mgdfg.nodes:
             raise KeyError(f"Input node {i} for {name} not in graph nodes:\n"
