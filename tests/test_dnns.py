@@ -76,32 +76,7 @@ def test_lenet():
 #             # print(f"\n")
 #
 #
-#
-# def test_demo():
-#
-#     with pm.Node(name="svm") as graph:
-#         m = pm.parameter("m")
-#         mu = pm.parameter(name="mu", default=0.0001)
-#         x = pm.input("x", shape=(m))
-#         y = pm.input("y")
-#         w = pm.state("w", shape=(m))
-#         i = pm.index(0, m - 1, name="i")
-#         h = pm.sum([i], (x[i] * w[i]), name="h")
-#         c = (y*h).set_name("temp")
-#         ny = 0 - y
-#         p_ = pm.cast(np.float32, (c > y))
-#         p = p_*ny
-#         g = p * x[i]
-#         w[i] = w[i] - mu * g[i]
-#
-#     m_ = 3
-#     x_ = np.random.randint(0, 9, m_)
-#     w_ = np.random.randint(0, 9, m_)
-#     y_ = np.int(3)
-#     input_dict = {"m": m_, "x": x_, "w": w_, "y": y_}
-#     result = graph("w", input_dict)
-#     tabla_path = f"{OUTPATH}/{graph.name}_tabla.json"
-#     tabla_ir, tabla_graph = pm.generate_tabla(graph, input_dict, tabla_path)
+
 
 
 

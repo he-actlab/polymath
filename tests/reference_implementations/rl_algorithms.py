@@ -166,7 +166,6 @@ def ppo1_impl():
     model = PPO('MlpPolicy', env, verbose=1)
     return model, env
 
-
 def value_func(obs):
     pass
 
