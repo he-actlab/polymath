@@ -6,7 +6,7 @@ import numpy as np
 from polymath.mgdfg.from_onnx.node_definitions import NODE_NAMES
 import polymath as pm
 
-def from_onnx(filepath, infer_shapes=True, use_filename=False):
+def from_onnx(filepath, infer_shapes=True, use_filename=True):
     onnx_proto, graph_name = load_onnx_proto(filepath)
     attr = get_model_attributes(onnx_proto)
     if infer_shapes:

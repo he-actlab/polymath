@@ -122,11 +122,10 @@ def tvm_gemm(node, ctx):
     beta = node.kwargs['beta']
     transA = node.kwargs['transA']
     transB = node.kwargs['transB']
-
     channels = infer_channels(inputs[1], not transB)
     if transA:
         inputs[0] = relay.transpose(inputs[0], axes=(1, 0))
-    if not transB:
+    if transB:
         inputs[1] = relay.transpose(inputs[1], axes=(1, 0))
     # inputs[0] = relay.nn.batch_flatten(inputs[0])
 
@@ -135,10 +134,10 @@ def tvm_gemm(node, ctx):
     out = relay.nn.dense(inputs[0], inputs[1], units=channels)
 
     # skip (beta * C) if zero
-    if (beta == 0.0):
-        return node.args[3].name, out
-    g = relay.nn.bias_add(out, relay.expr.const(beta) * inputs[2])
-    return node.args[3].name, g
+    # if (beta == 0.0):
+    return node.args[3].name, out
+    # g = relay.nn.bias_add(out, relay.expr.const(beta) * inputs[2])
+    # return node.args[3].name, g
 
 def tvm_softmax(node, ctx):
     inp = ctx[node.args[0].name]

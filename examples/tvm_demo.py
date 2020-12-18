@@ -74,15 +74,17 @@ def lenet(lenet_type="lenet5", coarse=True, debug=False):
         n5 = pm.parameter(name="n5")
         f5 = pm.output(name="f5", shape=(n, m5))
         w5 = pm.state(name="w5", shape=(m5, n5))
+        # w5 = pm.state(name="w5", shape=(n5, m5))
         a6 = pm.output(name="a5", shape=(n, m5))
         b5 = pm.state(name="b5", shape=(n5,))
-        pm.gemm(f4, w5, b5, f5, shape=f5.shape,  alpha=1.0, beta=0.0, transA=False, transB=False)
+        pm.gemm(f4, w5, b5, f5, shape=f5.shape,  alpha=1.0, beta=0.0, transA=False, transB=True)
         pm.elem_tanh(f5, a6, shape=a6.shape)
 
         m7 = pm.parameter(name="m7")
         n7 = pm.parameter(name="n7")
         f7 = pm.output(name="f7", shape=(n, n7))
         w7 = pm.state(name="w7", shape=(m7, n7))
+        # w7 = pm.state(name="w7", shape=(n7, m7))
         b7 = pm.state(name="b7", shape=(n7,))
 
         pm.gemm(a6, w7, b7, f7, shape=f7.shape, alpha=1.0, beta=0.0, transA=False, transB=False)
@@ -151,23 +153,24 @@ def tvm_lenet(num_classes=10, data_shape=(1, 1, 32, 32),
 
 
 if __name__ == "__main__":
+
+    # Get PolyMath Lenet Definition
     graph, inp_info, out_info, key = lenet(coarse=True)
+
+
+    #
+    # # Load Lenet-5 Definition from ONNX
     onnx_pm_mod = get_onnx_lenet(inp_info)
     onnx_pm_mod = tvm.IRModule.from_expr(onnx_pm_mod)
     onnx_pm_mod = tvm.relay.transform.InferType()(onnx_pm_mod)
-    coarse_cpy = pickle.loads(pickle.dumps(inp_info))
-    # res = graph(key, coarse_cpy)
-    # np.testing.assert_allclose(res, out_info[key])
-    tvm_code = pm.generate_tvm(graph, inp_info, "")
-    pm_mod = tvm.IRModule.from_expr(tvm_code)
-    pm_mod = tvm.relay.transform.InferType()(pm_mod)
-    # #
+
+    # # Load native TVM Lenet
     net = tvm_lenet()
     mod = tvm.IRModule.from_expr(net)
     mod = tvm.relay.transform.InferType()(mod)
-    print(f"--------------------------------------------------TVM-Compiled Relay IR--------------------------------------------------\n")
-    print(mod)
-    print(f"--------------------------------------------------PolyMath-Compiled Relay IR--------------------------------------------------\n")
-    print(pm_mod)
-    print(f"--------------------------------------------------ONNX-mg-DFG-Compiled Relay IR--------------------------------------------------\n")
-    print(onnx_pm_mod)
+    # print(f"--------------------------------------------------TVM-Compiled Relay IR--------------------------------------------------\n")
+    # print(mod)
+    # print(f"--------------------------------------------------PolyMath-Compiled Relay IR--------------------------------------------------\n")
+    # print(pm_mod)
+    # print(f"--------------------------------------------------ONNX-mg-DFG-Compiled Relay IR--------------------------------------------------\n")
+    # print(onnx_pm_mod)

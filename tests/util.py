@@ -1482,10 +1482,11 @@ def np_lenetv2(lowered=False):
     input_info["s3"] = 1
     input_info["p3"] = 0
 
-    input_info["w5"] = np.random.randint(0, 5, (84, 120)).T
+    input_info["w5"] = np.random.randint(0, 5, (84, 120))
     input_info["b5"] = np.random.randint(0, 5, (84,))
 
-    input_info["w7"] = np.random.randint(0, 5, (10, 84)).T
+    input_info["w7"] = np.random.randint(0, 5, (10, 84))
+
     input_info["b7"] = np.random.randint(0, 5, (10,))
 
     out_info = {}
