@@ -2,7 +2,8 @@ import polymath as pm
 import numpy as np
 from itertools import product
 import pytest
-from polymath.mgdfg.from_onnx.node_definitions import _get_elem_indices, _get_binop_idx
+from polymath.srdfg.templates.template_utils import _get_elem_indices
+
 
 def test_index_op():
     with pm.Node(name="indexop") as graph:
@@ -29,7 +30,7 @@ def test_index_op():
 ])
 def test_broadcast(a_shape, b_shape, c_shape):
 
-    from einops import repeat, rearrange, reduce
+    from einops import repeat
     with pm.Node(name="broadcast") as graph:
         a = pm.input("a", shape=a_shape)
         b = pm.input("b", shape=b_shape)

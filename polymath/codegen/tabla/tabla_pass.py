@@ -4,7 +4,7 @@ import numpy as np
 from .tabla_utils import sigmoid_lut, gaussian_lut
 import tqdm
 import sys
-from polymath.mgdfg.util import is_iterable
+from polymath.srdfg.util import is_iterable
 LUT_NODES = {"sigmoid": sigmoid_lut,
              "gaussian": gaussian_lut}
 TABLA_OP_MAP = {"add": "+",

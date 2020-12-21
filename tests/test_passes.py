@@ -1,5 +1,5 @@
-from polymath.mgdfg.passes import register_pass, Pass, pass_registry
-from polymath.mgdfg.passes.compiler_passes import Lower, NormalizeGraph, CountNodes
+from polymath.srdfg.passes import register_pass, Pass, pass_registry
+from polymath.srdfg.passes.compiler_passes import Lower, NormalizeGraph, CountNodes
 import polymath as pm
 import numpy as np
 from itertools import product

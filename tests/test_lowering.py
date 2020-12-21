@@ -1,4 +1,4 @@
-from polymath.mgdfg.passes.compiler_passes import NormalizeGraph, Lower
+from polymath.srdfg.passes.compiler_passes import NormalizeGraph, Lower
 import polymath as pm
 import pprint
 import numpy as np

@@ -1,0 +1,91 @@
+syntax = "proto3";
+
+package srdfg;
+import "ndarray.proto";
+
+message Node {
+    repeated Node nodes = 1;
+    string name = 2;
+    string op_name = 3;
+    message Shape {
+        oneof value {
+            int32 shape_const = 1;
+            string shape_id = 2;
+        }
+    }
+    repeated Shape shape = 4;
+    repeated string dependencies = 5;
+    repeated Attribute args = 6;
+    map<string, Attribute> kwargs = 7;
+    string module = 8;
+    Node graph = 9;
+}
+
+message Attribute {
+
+    enum Type {
+        UNDEFINED = 0;
+        // Basic types.
+        FLOAT = 1;   // float
+        UINT8 = 2;   // uint8_t
+        INT8 = 3;    // int8_t
+        UINT16 = 4;  // uint16_t
+        INT16 = 5;   // int16_t
+        INT32 = 6;   // int32_t
+        INT64 = 7;   // int64_t
+        STRING = 8;  // string
+        BOOL = 9;    // bool
+        FLOAT16 = 10;
+        DOUBLE = 11;
+        UINT32 = 12;
+        UINT64 = 13;
+        COMPLEX64 = 14;     // complex with float32 real and imaginary components
+        COMPLEX128 = 15;
+        NDARRAY = 16;
+        NODE = 17;
+        FLOATS = 18;   // float
+        UINT8S = 19;   // uint8_t
+        INT8S = 20;    // int8_t
+        UINT16S = 21;  // uint16_t
+        INT16S = 22;   // int16_t
+        INT32S = 23;   // int32_t
+        INT64S = 24;   // int64_t
+        STRINGS = 25;  // string
+        BOOLS = 26;    // bool
+        FLOAT16S = 27;
+        DOUBLES = 28;
+        UINT32S = 29;
+        UINT64S = 30;
+        COMPLEX64S = 31;     // complex with float32 real and imaginary components
+        COMPLEX128S = 32;
+        NDARRAYS = 33;
+        NODES = 34;
+        DOM = 35;
+        DOMS = 36;
+    };
+    float f = 2;
+    int32 i32 = 3;
+    int64 i64 = 5;
+    bytes s = 6;
+    double d = 7;
+    uint64 ui64 = 8;
+    bool b = 9;
+    Node n = 10;
+    numproto.protobuf.NDArray nda = 11;
+    Domain dom = 12;
+    repeated float fs = 13;
+    repeated int32 i32s = 14;
+    repeated int64 i64s = 15;
+    repeated bytes ss = 16;
+    repeated double ds = 17;
+    repeated uint64 ui64s = 18;
+    repeated bool bs = 19;
+    repeated Node ns = 20;
+    repeated numproto.protobuf.NDArray ndas = 21;
+    repeated Domain doms = 22;
+    Type type = 23;
+
+}
+message Domain {
+    repeated Attribute domains = 1;
+}

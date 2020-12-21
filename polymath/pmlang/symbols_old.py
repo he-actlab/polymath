@@ -5,9 +5,9 @@ from collections import deque
 from antlr4 import *
 from polymath.pmlang.antlr_generator.graphutils import *
 from polymath.pmlang.antlr_generator.parser import PMLangParser
-from polymath.mgdfg.serialization import pmlang_mgdfg
+from polymath.srdfg.serialization import pmlang_mgdfg
 import polymath.pmlang.antlr_generator.loopy_utils as lu
-from polymath.mgdfg.template import Template, Index, Variable
+from polymath.srdfg.template import Template, Index, Variable
 
 logger = logging.getLogger(__name__)
 

@@ -6,7 +6,7 @@ from __future__ import unicode_literals
 import logging
 
 import numpy as np  # type: ignore
-from polymath.mgdfg.serialization.mgdfg_pb2 import Tensor
+from polymath.srdfg.serialization.mgdfg_pb2 import Tensor
 
 logger = logging.getLogger(__name__)
 

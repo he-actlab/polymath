@@ -1,6 +1,6 @@
 import polymath as pm
 import numpy as np
-from polymath.mgdfg.from_onnx.converter import get_value_info_shape
+from polymath.srdfg.from_onnx.converter import get_value_info_shape
 from .util import np_nms, onnx_nms, torch_nms, t_torch_nms
 import pytest
 from pathlib import Path

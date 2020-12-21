@@ -1,9 +1,9 @@
-from polymath.mgdfg.passes.flatten import flatten_graph, is_literal, is_number
-from polymath.mgdfg.passes.node_mapping import map_nodes
+from polymath.srdfg.passes.flatten import flatten_graph, is_literal, is_number
+from polymath.srdfg.passes.node_mapping import map_nodes
 from polymath.codegen.codegen_utils import CMLANG_CAST_MAP, get_func
 
-from polymath.mgdfg.serialization.mgdfg_pb2 import Component
-from polymath.mgdfg.visualize import *
+from polymath.srdfg.serialization.mgdfg_pb2 import Component
+from polymath.srdfg.visualize import *
 import json
 import logging
 from typing import Callable, List

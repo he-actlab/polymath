@@ -1,4 +1,4 @@
-from polymath.mgdfg.base import Node
+from polymath.srdfg.base import Node
 import numpy as np
 import polymath as pm
 from itertools import product
@@ -1253,6 +1253,40 @@ def np_lrn(x=None, alpha=None, beta=None, bias=None, nsize=None):
                                          w] ** 2)
     y = x / ((bias + (alpha / nsize) * square_sum) ** beta)
     return y
+def fft_datagen(x_shape):
+    inp_info = {}
+    out_info = {}
+    inp_info['x'] = np.random.randint(0, 10, x_shape).astype(np.float32)
+    out_info['X'] = np.abs(np.fft.fft(inp_info['x']))
+    n = np.arange(0, x_shape[0])
+    inp_info['M'] = np.exp(-2j * np.pi * (n * n.reshape(-1, 1)/x_shape[0]))
+    return inp_info, ['X'], out_info
+
+
+def unwound_fft(x_shape, coarse=False):
+    with pm.Node(name="fft") as graph:
+        N = pm.parameter("N")
+        x = pm.input("x", shape=(N,))
+        n1 = pm.index(0, N-1, name="n1")
+        n2 = pm.index(0, N-1, name="n2")
+
+        X = pm.output("X", shape=(N,))
+        M = pm.state("M", shape=(N, N))
+        # M[n1, n2] = (n1 * n2).set_name("test")
+        # M[n1, n2] = pm.exp(-2j * np.pi * M[n1,n2]/N)
+        X[n1] = pm.abs(pm.sum([n2], M[n1, n2] * x[n2]))
+
+    if coarse:
+        in_info, keys, out_info = fft_datagen(x_shape)
+        return graph, in_info, out_info, keys
+    else:
+
+        shape_dict = {"N": x_shape[0], "ic": x_shape[1], "ih": x_shape[2], "iw": x_shape[3]}
+        shape_val_pass = pm.NormalizeGraph(shape_dict)
+        new_graph = shape_val_pass(graph)
+        in_info, keys, out_info = global_avg_pool_datagen(x_shape, lowered=True)
+        return new_graph, in_info, out_info, keys
+    # return pm_res, np_res
 
 def max_pool(x_shape, coarse=False, debug_matrix=False):
     with pm.Node(name="conv") as graph:
@@ -1729,22 +1763,6 @@ def bit_reversal_indices(x):
     return x_out
 
 
-def fft_parallelized():
-    with pm.Node("fft") as graph:
-        N = pm.parameter("N")
-        x = pm.input("x", shape=(N,))
-        n1 = pm.index(0, N-1, name="n1")
-        n2 = pm.index(0, N-1, name="n2")
-
-        X = pm.output("X", shape=(N,))
-
-        M = pm.output("M", shape=(N,N))
-        M[n1, n2] = (n1 * n2).set_name("test")
-        M[n1, n2] = pm.exp(-2j * np.pi * M[n1,n2]/N)
-        X[n1] = pm.sum([n2], M[n1, n2]* x[n2])
-    return graph
-
-
 def test_fft2(x):
     x = np.asarray(x, dtype=float)
     N = x.shape[0]
@@ -1779,12 +1797,6 @@ def manual_fft(x):
 
     return m
 
-def unwound_fft(x_):
-
-    np_res = np.abs(np.fft.fft(x_))
-    graph = fft_parallelized()
-    pm_res = np.abs(graph("X", {"x": x_}))
-    return pm_res, np_res
 
 def GP_Model_BO(X, Y):
     import gpflow

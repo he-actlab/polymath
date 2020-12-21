@@ -30,7 +30,7 @@ def test_convert_benchmarks(benchmark_name, feature_dict, data_func, input_keys,
     filename = f"{benchmark_name}{'_'.join(feature_size)}.onnx"
     filepath = f"{BENCH_DIR}/ml_algorithms/{filename}"
     assert Path(filepath).exists()
-    graph = pm.from_onnx(filepath)
+    graph = pm.from_onnx(filepath, use_filename=False)
     # Apply transformations and/or generate verilog using 'transformed_graph'
 
     int_feat_dict = {k: int(v) for k,v  in feature_dict.items()}
@@ -442,7 +442,7 @@ def test_lenet():
     full_path = f"{BENCH_DIR}/full_dnns"
 
     filepath = f"{full_path}/{filename}"
-    pb_path = f"{full_path}/torch-jit-export.pb"
+    pb_path = f"{full_path}/lenet.pb"
 
     assert Path(filepath).exists()
     graph = pm.from_onnx(filepath)
@@ -457,7 +457,7 @@ def test_resnet18():
     assert Path(filepath).exists()
     graph = pm.from_onnx(filepath)
     full_path = f"{BENCH_DIR}/full_dnns"
-    pb_path = f"{full_path}/mxnet_converted_model.pb"
+    pb_path = f"{full_path}/resnet18v1.pb"
     pm.pb_store(graph, full_path)
 
     node = pm.pb_load(pb_path, verbose=True)

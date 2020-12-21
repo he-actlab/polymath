@@ -8,13 +8,13 @@ project_root = os.getcwd().rsplit("/", 1)[0]
 sys.path.insert(0, project_root)
 
 from antlr4 import FileStream, CommonTokenStream, ParseTreeWalker
-from polymath.mgdfg.instructions.ir import AxelVM
+from polymath.srdfg.instructions.ir import AxelVM
 from polymath.pmlang.antlr_generator.lexer import PMLangLexer
 from polymath.pmlang.antlr_generator.parser import PMLangParser
 from polymath.pmlang.symbols_old import PMLangListener
-from polymath.mgdfg.serialization import load_store
-from polymath.mgdfg import visualize
-from polymath.mgdfg.onnx_mgdfg.onnx_polymath import ONNXCMStack
+from polymath.srdfg.serialization import load_store
+from polymath.srdfg import visualize
+from polymath.srdfg.onnx_mgdfg.onnx_polymath import ONNXCMStack
 from polymath.codegen.loopygen.generator import LoopyGen
 from polymath.codegen.tabla.tabla_translate import TablaTranslation
 from polymath.codegen.translator import Translator

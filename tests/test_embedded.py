@@ -8,7 +8,7 @@ import pytest
 import polymath as pm
 import numpy as np
 from pathlib import Path
-from polymath.mgdfg.util import _node_hash, _dif_hash, node_hash
+from polymath.srdfg.util import _node_hash, _dif_hash, node_hash
 import pprint
 from .util import conv3d
 
