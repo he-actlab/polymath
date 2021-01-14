@@ -5,7 +5,7 @@ import numpy as np
 def get_transpose(data, shape=None, name=None, out=None, **kwargs):
     if not out:
         out = pm.output(name=name, shape=shape)
-    pm.transpose(data, out, shape=shape)
+    pm.transpose(data, out)
     return out
     # return transpose(data, out, shape=shape)
 
@@ -13,21 +13,21 @@ def get_elem_sigmoid(x, shape=None, name=None, out=None):
     if not out:
         out = pm.output(name=name, shape=shape)
     # return elem_sigmoid(x, out, shape=shape)
-    pm.elem_sigmoid(x, out, shape=shape)
+    pm.elem_sigmoid(x, out)
     return out
 
 def get_softmax(x, axis=1, shape=None, name=None, out=None):
     if not out:
         out = pm.output(name=name, shape=shape)
     # return softmax(x, out, axis=axis, shape=shape)
-    pm.softmax(x, out, axis=axis, shape=shape)
+    pm.softmax(x, out, axis=axis)
     return out
 
 def get_elem_tanh(x, shape=None, name=None, out=None):
     if not out:
         out = pm.output(name=name, shape=shape)
     # return elem_tanh(x, out, shape=shape)
-    pm.elem_tanh(x, out, shape=shape)
+    pm.elem_tanh(x, out)
     return out
 
 
@@ -35,7 +35,7 @@ def get_elem_tanh(x, shape=None, name=None, out=None):
 def get_elem_cast(data, to=None, shape=None, name=None, out=None, **kwargs):
     if not out:
         out = pm.output(name=name, shape=shape)
-    pm.elem_cast(data, out, to, shape=shape)
+    pm.elem_cast(data, out, to)
     # return pm.cast(to, data[indices], name=name, shape=shape)
     return out
 
@@ -43,25 +43,25 @@ def get_elem_add(a, b, shape=None, name=None, out=None):
     if not out:
         out = pm.output(name=name, shape=shape)
     # return elem_add(a, b, out, shape=shape)
-    pm.elem_add(a, b, out, shape=shape)
+    pm.elem_add(a, b, out)
     return out
 
 def get_elem_sub(a, b, shape=None, name=None, out=None):
     if not out:
         out = pm.output(name=name, shape=shape)
-    pm.elem_sub(a, b, out, shape=shape)
+    pm.elem_sub(a, b, out)
     return out
 
 def get_elem_greater(a, b, shape=None, name=None, out=None):
     if not out:
         out = pm.output(name=name, shape=shape)
-    pm.elem_greater(a, b, out, shape=shape)
+    pm.elem_greater(a, b, out)
     return out
 
 def get_elem_mul(a, b, shape=None, name=None, out=None):
     if not out:
         out = pm.output(name=name, shape=shape)
-    pm.elem_mul(a, b, out, shape=shape)
+    pm.elem_mul(a, b, out)
     return out
 
 
@@ -74,7 +74,7 @@ def get_reduce_sum(x, shape=None, name=None, out=None, axes=(0,), **kwargs):
         axes = tuple(axes)
     else:
         assert isinstance(axes, tuple)
-    pm.reduce_sum(x, out, shape=shape, axes=axes, **kwargs)
+    pm.reduce_sum(x, out, axes=axes)
     return out
 
 
@@ -147,7 +147,7 @@ def get_conv(x, w, bias=None, dilations=None, group=None, kernel_shape=None, pad
 def get_batch_norm(x, s, b, mean, var, spatial=None, momentum=None,  epsilon=None, name=None, shape=None, out=None):
     if not out:
         out = pm.output(name=name, shape=shape)
-    pm.batch_norm(x, s, b, mean, var, out, epsilon, momentum, shape=shape)
+    pm.batch_norm(x, s, b, mean, var, out, epsilon, momentum)
     return out
 
 def get_relu(x, shape=None, name=None, out=None):
@@ -165,7 +165,7 @@ def get_leaky_relu(x, alpha=0.01, shape=None, name=None, out=None):
 def get_global_avg_pool(x, shape=None, name=None, out=None):
     if not out:
         out = pm.output(shape=shape, name=name)
-    pm.global_avg_pool(x, out, shape=shape)
+    pm.global_avg_pool(x, out)
     return out
 
 def get_avg_pool(x, auto_pad=None, ceil_mode=0, kernel_shape=None, pads=None,
@@ -197,7 +197,7 @@ def get_avg_pool(x, auto_pad=None, ceil_mode=0, kernel_shape=None, pads=None,
             pads[2] = pw - pads[3]
 
     pm.avg_pool(x, out, kernel_shape[0], kernel_shape[1], (int(strides[0]), int(strides[1])),
-                (int(pads[0]), int(pads[2])), shape=shape)
+                (int(pads[0]), int(pads[2])))
     return out
 
 def get_max_pool(x, ceil_mode=0, kernel_shape=None, pads=None, auto_pad=None,
@@ -224,7 +224,7 @@ def get_max_pool(x, ceil_mode=0, kernel_shape=None, pads=None, auto_pad=None,
             pads[0] = ph - pads[1]
             pads[3] = np.floor(pw // 2)
             pads[2] = pw - pads[3]
-    pm.max_pool(x, out, kernel_shape[0], kernel_shape[1], (int(strides[0]), int(strides[1])), (int(pads[0]),int(pads[2])), shape=shape)
+    pm.max_pool(x, out, kernel_shape[0], kernel_shape[1], (int(strides[0]), int(strides[1])), (int(pads[0]),int(pads[2])))
     return out
 
 
@@ -232,22 +232,22 @@ def get_dropout(x, ratio=None, training_mode=False, shape=None, name=None, out=N
     if not out:
         out = pm.output(shape=shape, name=name)
     if training_mode:
-        pm.dropout(x, out, ratio=ratio, shape=shape)
+        pm.dropout(x, out, ratio=ratio)
     else:
-        pm.dropout(x, out, shape=shape)
+        pm.dropout(x, out)
     return out
 
 
 def get_flatten(x, axis=1, name=None, shape=None, out=None):
     if not out:
         out = pm.output(shape=shape, name=name)
-    pm.coarse_flatten(x, out, axis=axis, shape=shape)
+    pm.coarse_flatten(x, out, axis=axis)
     return out
 
 def get_gather(data, indices, axis=0, name=None, shape=None, out=None):
     if not out:
         out = pm.output(shape=shape, name=name)
-    pm.elem_gather(data, indices, out, axis=axis, shape=shape)
+    pm.elem_gather(data, indices, out, axis=axis)
     return out
 
 def get_gemm(a, b , c=None, shape=None, name=None, alpha=None,
@@ -258,13 +258,13 @@ def get_gemm(a, b , c=None, shape=None, name=None, alpha=None,
     if not out:
         out = pm.output(shape=shape, name=name)
     if c:
-        pm.gemm(a, b, c, out, shape=shape, alpha=alpha, beta=beta, transA=transA, transB=transB)
+        pm.gemm(a, b, c, out, alpha=alpha, beta=beta, transA=transA, transB=transB)
     else:
         t_c = pm.temp(shape=shape)
         i = pm.index(0, shape[0]-1)
         j = pm.index(0, shape[1]-1)
         t_c[i, j] = 0
-        pm.gemm(a, b, t_c, out, shape=shape, alpha=alpha, beta=beta, transA=transA, transB=transB)
+        pm.gemm(a, b, t_c, out, alpha=alpha, beta=beta, transA=transA, transB=transB)
     return out
 
 

@@ -6,7 +6,7 @@ import numpy as np
 import functools
 
 class transpose(pm.Template):
-    def define_graph(self, data, out, shape=None, name=None, **kwargs):
+    def define_graph(self, data, out):
         # indices = tuple([pm.index(0, s - 1) for s in data.shape])
         indices = _get_single_node_indices(data)
         rev_idx = tuple(reversed(indices))
@@ -21,9 +21,9 @@ class transpose(pm.Template):
         return (self.args[1],)
 
 class coarse_flatten(pm.Template):
-    def define_graph(self, data, out, axis=1, shape=None, **kwargs):
-        o_indices = _get_single_node_indices(out, shape=shape)
-        i_indices = _get_single_node_indices(data, shape=shape)
+    def define_graph(self, data, out, axis=1):
+        o_indices = _get_single_node_indices(out, shape=out.shape)
+        i_indices = _get_single_node_indices(data, shape=out.shape)
         out[o_indices] = data[i_indices]
 
     @property
@@ -36,12 +36,12 @@ class coarse_flatten(pm.Template):
 
 
 class elem_gather(pm.Template):
-    def define_graph(self, data, indices, output, axis=0, shape=None, name=None):
+    def define_graph(self, data, indices, output, axis=0):
         # TODO: Fix this to use manual implementation
         output.write(pm.gather(data, indices, axis=axis))
 
 class elem_expand(pm.Template):
-    def define_graph(self, data, new_shape, output, axis=0, shape=None, name=None):
+    def define_graph(self, data, new_shape, output, axis=0):
         # TODO: Fix this to use manual implementation
         in_dims = data.shape[0]
         new_dims = new_shape[0]

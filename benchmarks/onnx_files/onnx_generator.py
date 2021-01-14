@@ -43,6 +43,7 @@ def create_backprop(l1, l2, l3, optimize_model):
 
         onnx_graph = tf2onnx.tfonnx.process_tf_graph(sess.graph, input_names=input_names, output_names=output_names)
         model_proto = onnx_graph.make_model(model_name)
+        onnx.checker.check_model(model_proto)
         model_proto = optimizer.optimize(model_proto, ['eliminate_identity'])
         if optimize_model:
             model_proto, check = simplify(model_proto, input_shapes=input_shapes)

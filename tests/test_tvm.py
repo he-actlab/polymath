@@ -14,6 +14,7 @@ import pickle
 from onnx import numpy_helper, helper, defs
 
 
+# TODO: Fix this
 def test_lenet():
     graph, inp_info, out_info, key = lenet(coarse=True)
     coarse_cpy = pickle.loads(pickle.dumps(inp_info))

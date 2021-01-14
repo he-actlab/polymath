@@ -6,7 +6,7 @@ import numpy as np
 import functools
 
 class avg_pool(pm.Template):
-    def define_graph(self, data, out, kh, kw, stride, pad, **kwargs):
+    def define_graph(self, data, out, kh, kw, stride=(1,1), pad=(0,0)):
         sx, sy = stride
         oh = ((data.shape[-2] + 2 * pad[0] - kh) // stride[0] + 1)
         ow = ((data.shape[-1] + 2 * pad[1] - kw) // stride[1] + 1)
@@ -50,7 +50,7 @@ class avg_pool(pm.Template):
         return (self.args[1],)
 
 class dense(pm.Template):
-    def define_graph(self, x, w, y, **kwargs):
+    def define_graph(self, x, w, y):
         i = pm.index(0, (w.shape[1] - 1), name="i")
         j = pm.index(0, (w.shape[0] - 1), name="j")
         y.set_shape((w.shape[0]))
@@ -65,7 +65,7 @@ class dense(pm.Template):
         return (self.args[2],)
 
 class dense_sigmoid(pm.Template):
-    def define_graph(self, x, w, y, **kwargs):
+    def define_graph(self, x, w, y):
         i = pm.index(0, (w.shape[1] - 1), name="i")
         j = pm.index(0, (w.shape[0] - 1), name="j")
         y[j] = pm.sigmoid(pm.sum([i], w[j, i] * x[i], name="h"))
@@ -81,7 +81,7 @@ class dense_sigmoid(pm.Template):
 
 
 class relu(pm.Template):
-    def define_graph(self, inp, out, **kwargs):
+    def define_graph(self, inp, out):
         out.set_shape(inp.shape)
         # indices = tuple([pm.index(0, s - 1) if s > 1 else 0 for s in inp.shape])
         indices = tuple([pm.index(0, s - 1) for s in inp.shape])
@@ -96,7 +96,7 @@ class relu(pm.Template):
         return (self.args[1],)
 
 class leaky_relu(pm.Template):
-    def define_graph(self, inp, out, alpha=1e-2, **kwargs):
+    def define_graph(self, inp, out, alpha=1e-2):
         out.set_shape(inp.shape)
         indices = tuple([pm.index(0, s - 1) if s > 1 else 0 for s in inp.shape])
         out[indices] = (0 < inp[indices]) * inp[indices] + (0 >= inp[indices]) * inp[indices] * alpha
@@ -110,7 +110,7 @@ class leaky_relu(pm.Template):
         return (self.args[1],)
 
 class relu1d(pm.Template):
-    def define_graph(self, inp, out, **kwargs):
+    def define_graph(self, inp, out):
         i = pm.index(0, inp.shape[0] - 1, name="i")
         out.set_shape(inp.shape)
         out.write((0 < inp[i]) * inp[i])
@@ -124,7 +124,7 @@ class relu1d(pm.Template):
         return (self.args[1],)
 
 class conv_bias(pm.Template):
-    def define_graph(self, data, w, bias, out, stride, pad):
+    def define_graph(self, data, w, bias, out, stride=1, pad=0):
         oh = ((data.shape[-2] + 2 * pad - w.shape[-2]) // stride + 1)
         ow = ((data.shape[-1] + 2 * pad - w.shape[-1]) // stride + 1)
         c = pm.index(0, w.shape[0] - 1, name="c")
@@ -166,7 +166,7 @@ class conv_bias(pm.Template):
         return (self.args[3],)
 
 class avg_pool2d(pm.Template):
-    def define_graph(self, inp, out, kh, kw, stride, pad, **kwargs):
+    def define_graph(self, inp, out, kh, kw, stride=1, pad=0):
         oh = ((inp.shape[2] + 2 * pad - kh) // stride + 1)
         ow = ((inp.shape[3] + 2 * pad - kw) // stride + 1)
         out.set_shape((inp.shape[0], inp.shape[1], oh, ow))
@@ -198,7 +198,7 @@ class avg_pool2d(pm.Template):
 
 
 class batch_flatten(pm.Template):
-    def define_graph(self, data, out, **kwargs):
+    def define_graph(self, data, out):
         out.set_shape((data.shape[0]*data.shape[1]*data.shape[2]*data.shape[3],))
         m = data.shape[1]
         n = data.shape[2]
@@ -219,9 +219,9 @@ class batch_flatten(pm.Template):
         return (self.args[1],)
 
 class batch_norm(pm.Template):
-    def define_graph(self, x, scale, b, mean, var, out, eps=1e-05, momentum=0.9, spatial=1, shape=None, name=None, **kwargs):
-        indices = _get_single_node_indices(out, shape=shape)
-        if len(shape) > 3:
+    def define_graph(self, x, scale, b, mean, var, out, eps=1e-05, momentum=0.9, spatial=1):
+        indices = _get_single_node_indices(out, shape=out.shape)
+        if len(out.shape) > 3:
             i = indices[1]
         else:
             i = indices[0]
@@ -236,10 +236,9 @@ class batch_norm(pm.Template):
         return (self.args[5],)
 
 
-
 class elem_sigmoid(pm.Template):
-    def define_graph(self, x, out, shape=None, name=None):
-        indices = _get_single_node_indices(out, shape=shape)
+    def define_graph(self, x, out):
+        indices = _get_single_node_indices(out, shape=out.shape)
         out[indices] = pm.sigmoid(x[indices])
 
     @property
@@ -251,9 +250,9 @@ class elem_sigmoid(pm.Template):
         return (self.args[1],)
 
 class elem_cast(pm.Template):
-    def define_graph(self, x, out, to, shape=None, name=None):
-        indices = _get_single_node_indices(out, shape=shape)
-        out[indices] = pm.cast(to, x[indices], shape=shape)
+    def define_graph(self, x, out, to):
+        indices = _get_single_node_indices(out, shape=out.shape)
+        out[indices] = pm.cast(to, x[indices], shape=out.shape)
 
     @property
     def inputs(self):
@@ -264,7 +263,7 @@ class elem_cast(pm.Template):
         return (self.args[1],)
 
 class softmax(pm.Template):
-    def define_graph(self, data, out, axis=0, shape=None, name=None, **kwargs):
+    def define_graph(self, data, out, axis=0):
         out.set_shape(data.shape)
         i = pm.index(0, data.shape[axis]-1, name="i")
         j = pm.index(0, data.shape[axis]-1, name="j")
@@ -287,8 +286,8 @@ class softmax(pm.Template):
         return (self.args[1],)
 
 class elem_tanh(pm.Template):
-    def define_graph(self, x, out, shape=None, name=None):
-        indices = _get_single_node_indices(out, shape=shape)
+    def define_graph(self, x, out):
+        indices = _get_single_node_indices(out, shape=out.shape)
         out[indices] = pm.tanh(x[indices])
 
     @property
@@ -303,8 +302,8 @@ class elem_tanh(pm.Template):
 
 class dropout(pm.Template):
     # TODO: Fix and test indices here
-    def define_graph(self, x, y, ratio=0.0, name=None, shape=None, **kwargs):
-        indices = tuple([pm.index(0, s - 1) if s > 1 else 0 for s in shape])
+    def define_graph(self, x, y, ratio=0.0):
+        indices = tuple([pm.index(0, s - 1) if s > 1 else 0 for s in y.shape])
         y[indices] = x[indices] * 1.0 / (1 - ratio)
 
     @property
@@ -318,9 +317,9 @@ class dropout(pm.Template):
 
 
 class global_avg_pool(pm.Template):
-    def define_graph(self, x, out, shape=None, name=None, **kwargs):
+    def define_graph(self, x, out):
         # indices = tuple([pm.index(0, s - 1) if s > 1 else 0 for s in shape])
-        indices = _get_single_node_indices(out, shape=shape)
+        indices = _get_single_node_indices(out, shape=out.shape)
         m = pm.index(0, x.shape[2]-1)
         n = pm.index(0, x.shape[3]-1)
         h = x.shape[2]
@@ -336,7 +335,7 @@ class global_avg_pool(pm.Template):
         return (self.args[1],)
 
 class conv(pm.Template):
-    def define_graph(self, data, w, out, stride, pad):
+    def define_graph(self, data, w, out, stride=1, pad=0):
         oh = ((data.shape[-2] + 2 * pad - w.shape[-2]) // stride + 1)
         ow = ((data.shape[-1] + 2 * pad - w.shape[-1]) // stride + 1)
         c = pm.index(0, w.shape[0] - 1, name="c")
@@ -380,7 +379,7 @@ class conv(pm.Template):
 
 
 class lrn(pm.Template):
-    def define_graph(self, x, y, alpha, beta, bias, nsize, shape=None, name=None, **kwargs):
+    def define_graph(self, x, y, alpha, beta, bias, nsize):
         n = pm.index(0, x.shape[0] - 1)
         c = pm.index(0, x.shape[1] - 1)
         h = pm.index(0, x.shape[2] - 1)
@@ -409,7 +408,7 @@ class lrn(pm.Template):
 
 
 class max_pool(pm.Template):
-    def define_graph(self, data, out, kh, kw, stride, pad, **kwargs):
+    def define_graph(self, data, out, kh, kw, stride=(1,1), pad=(0,0)):
 
         oh = ((data.shape[-2] + 2 * pad[0] - kh) // stride[0] + 1)
         ow = ((data.shape[-1] + 2 * pad[1] - kw) // stride[1] + 1)

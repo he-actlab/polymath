@@ -11,3 +11,7 @@ pylint<=1.9.3
 protobuf
 indexed
 dataclasses
+tqdm
+pygraphviz
+jsonschema
+networkx

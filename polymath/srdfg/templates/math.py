@@ -7,7 +7,7 @@ import functools
 
 
 class reduce_sum(pm.Template):
-    def define_graph(self, data, out, axes=(0,), keepdims=True, shape=None, name=None, **kwargs):
+    def define_graph(self, data, out, axes=(0,), keepdims=True):
         indices = _get_single_node_indices(data)
         # indices = tuple([pm.index(0, s - 1) for s in data.shape])
         sum_idx = tuple([indices[i] for i in axes])
@@ -15,7 +15,7 @@ class reduce_sum(pm.Template):
         out[out_idx] = pm.sum([sum_idx], data[indices])
 
 class elem_greater(pm.Template):
-    def define_graph(self, a, b, out, shape=None, name=None, **kwargs):
+    def define_graph(self, a, b, out):
         a_idx, b_idx, indices = _get_elem_indices(a, b, out)
         # a_idx, b_idx, indices = _get_binop_idx(a, b, out)
 
@@ -30,7 +30,7 @@ class elem_greater(pm.Template):
         return (self.args[2],)
 
 class elem_sub(pm.Template):
-    def define_graph(self, a, b, out, shape=None, name=None, **kwargs):
+    def define_graph(self, a, b, out):
         a_idx, b_idx, indices = _get_elem_indices(a, b, out)
         # a_idx, b_idx, indices = _get_binop_idx(a, b, out)
         out[indices] = (a[a_idx] - b[b_idx])
@@ -44,7 +44,7 @@ class elem_sub(pm.Template):
         return (self.args[2],)
 
 class elem_add(pm.Template):
-    def define_graph(self, a, b, out, shape=None, name=None, **kwargs):
+    def define_graph(self, a, b, out):
         a_idx, b_idx, indices = _get_elem_indices(a, b, out)
         # a_idx, b_idx, indices = _get_binop_idx(a, b, out)
         out[indices] = (a[a_idx] + b[b_idx])
@@ -58,7 +58,7 @@ class elem_add(pm.Template):
         return (self.args[2],)
 
 class elem_mul(pm.Template):
-    def define_graph(self, a, b, out, shape=None, name=None, **kwargs):
+    def define_graph(self, a, b, out):
         a_idx, b_idx, indices = _get_elem_indices(a, b, out)
         out[indices] = (a[a_idx] * b[b_idx])
 
@@ -71,7 +71,7 @@ class elem_mul(pm.Template):
         return (self.args[2],)
 
 class matmul(pm.Template):
-    def define_graph(self, a, w, out, shape=None, name=None, **kwargs):
+    def define_graph(self, a, w, out):
         indices = _get_single_node_indices(a)
         sum_idx = indices[-1]
         o_idx = pm.index(0, w.shape[0]-1) if w.shape[-1] == a.shape[-1] else pm.index(0, w.shape[1]-1)
@@ -102,7 +102,7 @@ def rvmatmul(a, b, shape=None, name=None, **kwargs):
 
 
 class gemm(pm.Template):
-    def define_graph(self, a, b, c, y,  shape=None, name=None, alpha=1.0, beta=0.0, transA=None, transB=None, **kwargs):
+    def define_graph(self, a, b, c, y, alpha=1.0, beta=0.0, transA=None, transB=None):
         i = pm.index(0, a.shape[0] - 1)
         j = pm.index(0, b.shape[0] - 1)
         k = pm.index(0, b.shape[1] - 1)

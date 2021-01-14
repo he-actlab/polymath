@@ -43,15 +43,16 @@ def tvm_avg_pool(node, ctx):
         pool_size.append(ctx[node.args[3].name])
     pool_size = tuple(pool_size)
 
-    if not isinstance(node.args[4], pm.Node):
-        stride = (node.args[4], node.args[4])
+    if not isinstance(node.kwargs['stride'], pm.Node):
+        stride = (node.kwargs['stride'], node.kwargs['stride'])
     else:
-        stride = (ctx[node.args[4].name], ctx[node.args[4].name])
+        stride = (ctx[node.kwargs['stride'].name], ctx[node.kwargs['stride'].name])
 
-    if not isinstance(node.args[5], pm.Node):
-        pad = (node.args[5], node.args[5])
+    if not isinstance(node.kwargs['pad'], pm.Node):
+        pad = (node.kwargs['pad'], node.kwargs['pad'])
     else:
-        pad = (ctx[node.args[5].name], ctx[node.args[5].name])
+        pad = (ctx[node.kwargs['pad'].name], ctx[node.kwargs['pad'].name])
+
 
     if isinstance(pad, tuple) and isinstance(pad[0], tuple):
         pad = (pad[0][0], pad[1][0])
@@ -70,21 +71,21 @@ def tvm_conv2d(node, ctx):
 
     data = ctx[node.args[0].name]
     weights = ctx[node.args[1].name]
-    if not isinstance(node.args[4], pm.Node):
-        stride = (node.args[4], node.args[4])
+    if not isinstance(node.kwargs['stride'], pm.Node):
+        stride = (node.kwargs['stride'], node.kwargs['stride'])
     else:
-        stride = (ctx[node.args[4].name], ctx[node.args[4].name])
+        stride = (ctx[node.kwargs['stride'].name], ctx[node.kwargs['stride'].name])
 
-    if not isinstance(node.args[5], pm.Node):
-        pad = (node.args[5], node.args[5])
+    if not isinstance(node.kwargs['pad'], pm.Node):
+        pad = (node.kwargs['pad'], node.kwargs['pad'])
     else:
-        pad = (ctx[node.args[5].name], ctx[node.args[5].name])
+        pad = (ctx[node.kwargs['pad'].name], ctx[node.kwargs['pad'].name])
     c = relay.nn.conv2d(data, weights, strides=stride, padding=pad)
     return node.args[3].name, c
 
 
 def tvm_conv2d_bias(node, ctx):
-
+    print(f"Here")
     data = ctx[node.args[0].name]
     weights = ctx[node.args[1].name]
     bias = ctx[node.args[2].name]

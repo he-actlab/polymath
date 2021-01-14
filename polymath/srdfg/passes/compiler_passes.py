@@ -79,6 +79,26 @@ class NormalizeGraph(Pass):
                 new_args.append(a)
         return tuple(new_args)
 
+    def update_kwargs(self, kwargs):
+        new_kwargs = {}
+        for name, arg in kwargs.items():
+            if isinstance(arg, (pm.var_index, pm.slice_op)) and arg in self.scalar_translations:
+                new_kwargs[name] = self.scalar_translations[arg]
+            elif isinstance(arg, pm.Node) and not isinstance(arg, (pm.input, pm.state, pm.output, pm.temp)):
+                if arg.name in self.context:
+                    new_kwargs[name] = self.context[arg.name]
+                elif arg in self.evaluated:
+                    new_kwargs[name] = self.evaluated[arg]
+                else:
+                    new_kwargs[name] = arg
+            elif isinstance(arg, tuple):
+                new_kwargs[name] = arg
+                # raise RuntimeError(f"Dont have a case for handling this yet: {name} - {arg}")
+            else:
+                new_kwargs[name] = arg
+        return new_kwargs
+
+
     def initialize_pass(self, graph, _):
         for k in list(self.context.keys()):
             if k in graph.nodes:
@@ -128,6 +148,7 @@ class NormalizeGraph(Pass):
 
             node._shape = tuple(new_shape)
             node._args = self.update_args(node.args)
+            node.kwargs = self.update_kwargs(node.kwargs)
 
             if isinstance(node, pm.slice_op) and node.shape == pm.DEFAULT_SHAPES[0]:
                 idx = node.graph.nodes.item_index(node.name)

@@ -1119,13 +1119,13 @@ def batchnorm(x_shape, coarse=False, debug_matrix=False):
         c = pm.parameter(name="ic")
         ih = pm.parameter(name="ih")
         iw = pm.parameter(name="iw")
-        x = pm.input(name="x", shape=(n, c, ih, iw))
+        x = pm.input(name="x", shape=x_shape)
         s = pm.input(name="s", shape=(c,))
         mean = pm.input(name="mean", shape=(c,))
         var = pm.input(name="var", shape=(c,))
         bias = pm.input(name="bias", shape=(c,))
-        y = pm.output(name="y", shape=(n, c, ih, iw))
-        pm.batch_norm(x, s, bias, mean, var, y, shape=x_shape)
+        y = pm.output(name="y", shape=x_shape)
+        pm.batch_norm(x, s, bias, mean, var, y)
 
 
     if coarse:
@@ -1167,8 +1167,8 @@ def global_avg_pool(x_shape, coarse=False, debug_matrix=False):
         ih = pm.parameter(name="ih")
         iw = pm.parameter(name="iw")
         x = pm.input(name="x", shape=(n, c, ih, iw))
-        y = pm.output(name="y", shape=(n, c, 1, 1))
-        pm.global_avg_pool(x, y, shape=(x_shape[0], x_shape[1], 1,1))
+        y = pm.output(name="y", shape=(x_shape[0], x_shape[1], 1,1))
+        pm.global_avg_pool(x, y)
 
 
     if coarse:
@@ -1207,7 +1207,7 @@ def lrn(x_shape, alpha, beta, bias, nsize, coarse=False, debug_matrix=False):
         iw = pm.parameter(name="iw")
         x = pm.input(name="x", shape=(n, c, ih, iw))
         y = pm.output(name="y", shape=(n, c, ih, iw))
-        pm.lrn(x, y, alpha, beta, bias, nsize, shape=x_shape)
+        pm.lrn(x, y, alpha, beta, bias, nsize)
 
     if coarse:
         in_info, keys, out_info = lrn_datagen(x_shape, alpha, beta, bias, nsize)

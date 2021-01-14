@@ -281,7 +281,7 @@ def test_avg_pool(data_shape, kernel_shape, stride):
     kw = pm.parameter("kw")
     x = pm.input(name="data", shape=(n, ic, ih, iw))
 
-    g = pm.avg_pool2d(x, out, kh, kw, stride, 0)
+    g = pm.avg_pool2d(x, out, kh, kw, stride=stride, pad=0)
     inp_info = {}
     inp_info["data"] = data
     inp_info["kh"] = kernel_shape[0]
@@ -366,7 +366,7 @@ def test_translate_elem_mul(x_shape):
     pm_b = pm.input(name="b", shape=x_shape, graph=graph)
     pm_o = pm.output(name="out", shape=x_shape, graph=graph)
     with graph:
-        pm.elem_mul(pm_a, pm_b, pm_o, shape=x_shape)
+        pm.elem_mul(pm_a, pm_b, pm_o)
     pm_res = graph("out", {"a": a, "b": b})
     np.testing.assert_allclose(pm_res, np_res)
 
@@ -383,7 +383,7 @@ def test_translate_vmul(x_shape):
         pm_b = pm.input(name="b", shape=x_shape)
         pm_o = pm.output(name="o", shape=x_shape)
         pm_s = pm.output(name="out")
-        pm.elem_mul(pm_a, pm_b, pm_o, shape=x_shape)
+        pm.elem_mul(pm_a, pm_b, pm_o)
         pm.reduce_sum(pm_o, pm_s, axes=(0,), keepdims=0)
 
     pm_res = pm_graph("out", {"a": a, "b": b})
@@ -449,6 +449,10 @@ def test_lenet():
     pm.pb_store(graph, full_path)
     node = pm.pb_load(pb_path, verbose=True)
     assert len(node.nodes) == len(graph.nodes)
+    for name, n in node.nodes.items():
+        if n.op_name == "conv":
+            print(n.kwargs.keys())
+            break
 
 
 def test_resnet18():

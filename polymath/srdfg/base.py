@@ -58,6 +58,7 @@ class Node(object):
         if "name" in kwargs:
             kwargs.pop("name")
         self.added_attrs = []
+        # TODO: CHange this to underscore private variable
         self.kwargs = kwargs
         self.graph = graph
         self._shape = OrderedDict()
@@ -73,7 +74,6 @@ class Node(object):
         self.name = name or uuid.uuid4().hex
         self._op_name = None
         self.op_name = op_name
-
         # Get the stack context so we can report where the node was defined
         self._stack = traceback.extract_stack(limit=1)
 
