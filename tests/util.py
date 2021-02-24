@@ -1253,17 +1253,28 @@ def np_lrn(x=None, alpha=None, beta=None, bias=None, nsize=None):
                                          w] ** 2)
     y = x / ((bias + (alpha / nsize) * square_sum) ** beta)
     return y
+
 def fft_datagen(x_shape):
     inp_info = {}
     out_info = {}
+
     inp_info['x'] = np.random.randint(0, 10, x_shape).astype(np.float32)
+
     out_info['X'] = np.abs(np.fft.fft(inp_info['x']))
     n = np.arange(0, x_shape[0])
-    inp_info['M'] = np.exp(-2j * np.pi * (n * n.reshape(-1, 1)/x_shape[0]))
+    M = np.exp(-2j * np.pi * (n * n.reshape(-1, 1)/x_shape[0]))
+    inp_info['M_real'] = M.real
+    inp_info['M_imag'] = M.imag
+
     return inp_info, ['X'], out_info
 
 
 def unwound_fft(x_shape, coarse=False):
+    # Can also compute roots of unity with teh following:
+    # mat_r = 2 * np.pi * n * n.reshape(-1, 1) / float(m[0])
+    # mat_c = np.cos(mat_r)
+    # mat_s = -np.sin(mat_r)
+    # Source: https://matthew-brett.github.io/teaching/fourier_no_ei.html
     with pm.Node(name="fft") as graph:
         N = pm.parameter("N")
         x = pm.input("x", shape=(N,))
@@ -1271,10 +1282,12 @@ def unwound_fft(x_shape, coarse=False):
         n2 = pm.index(0, N-1, name="n2")
 
         X = pm.output("X", shape=(N,))
-        M = pm.state("M", shape=(N, N))
-        # M[n1, n2] = (n1 * n2).set_name("test")
-        # M[n1, n2] = pm.exp(-2j * np.pi * M[n1,n2]/N)
-        X[n1] = pm.abs(pm.sum([n2], M[n1, n2] * x[n2]))
+        M_real = pm.state("M_real", shape=(N, N))
+        M_imag = pm.state("M_imag", shape=(N, N))
+        M_real_dot = (pm.sum([n2], M_real[n1, n2] * x[n2])**2).set_name("M_real_dot")
+        M_imag_dot = (pm.sum([n2], M_imag[n1, n2] * x[n2])**2).set_name("M_imag_dot")
+
+        X[n1] = pm.sqrt(M_real_dot[n1] + M_imag_dot[n1])
 
     if coarse:
         in_info, keys, out_info = fft_datagen(x_shape)

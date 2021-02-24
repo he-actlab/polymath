@@ -178,15 +178,23 @@ def test_reco_state_write(m_, n_, k_):
     tabla_ir, tabla_graph = pm.generate_tabla(graph, shape_dict, tabla_path)
 
 @pytest.mark.parametrize('m', [
-    (32,), (64,)
+    (8,),
 ])
 def test_fft(m):
 
     graph, input_info, out_info, keys = unwound_fft(m, coarse=True)
     shape_dict = {"N": m[0]}
+    out_real = input_info['x'].dot(input_info['M_real'])**2
+    out_imag = input_info['x'].dot(input_info['M_imag'])**2
+    out_t = np.sqrt(out_imag + out_real)
+
     coarse_eval = graph(keys, input_info)
+
+    np.testing.assert_allclose(out_t, out_info['X'])
     np.testing.assert_allclose(coarse_eval[0], out_info['X'])
     tabla_path = f"{OUTPATH}/{graph.name}_tabla.json"
     lowered = set_shape_and_lower(graph, shape_dict)
     tabla_ir, tabla_graph = pm.generate_tabla(graph, shape_dict, tabla_path)
+
+
 
