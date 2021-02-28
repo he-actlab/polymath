@@ -141,3 +141,4 @@ TODO
 *.npz
 
 benchmarks/outputs/*
+scratch/

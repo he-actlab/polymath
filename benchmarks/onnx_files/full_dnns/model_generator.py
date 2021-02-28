@@ -1,5 +1,6 @@
 import argparse
 from onnxsim import simplify
+import polymath as pm
 import onnx
 import tf2onnx
 import torch
@@ -136,7 +137,7 @@ def add_value_info_for_constants(model : onnx.ModelProto):
 
     return add_const_value_infos_to_graph(model.graph)
 
-def create_lenet(optimize_model, training_mode, convert_data_format):
+def create_lenet(optimize_model, training_mode, convert_data_format, to_polymath):
     class LeNet(nn.Module):
         def __init__(self):
             super(LeNet, self).__init__()
@@ -170,10 +171,10 @@ def create_lenet(optimize_model, training_mode, convert_data_format):
     input_var = torch.randn(1, 1, 32, 32)
     output = model(input_var)
     model.eval()
-    convert_torch_model(input_var, model, "lenet", optimize_model, training_mode, convert_data_format=convert_data_format)
+    convert_torch_model(input_var, model, "lenet", optimize_model, training_mode, to_polymath, convert_data_format=convert_data_format)
 
 
-def create_resnet18(optimize_model, training_mode, convert_data_format):
+def create_resnet18(optimize_model, training_mode, convert_data_format, to_polymath):
     model = models.resnet18(pretrained=not training_mode)
     input_var = torch.randn(1, 3, 224, 224)
     if not training_mode:
@@ -183,9 +184,23 @@ def create_resnet18(optimize_model, training_mode, convert_data_format):
         input_var = input_var.contiguous(memory_format=torch.channels_last)
         model = model.to(memory_format=torch.channels_last)
         out = model(input_var)
-    convert_torch_model(input_var, model, "resnet18", optimize_model, training_mode, convert_data_format=convert_data_format)
+    convert_torch_model(input_var, model, "resnet18", optimize_model, training_mode, to_polymath, convert_data_format=convert_data_format)
 
-def convert_torch_model(input_var, model, model_name, optimize_model, training_mode, convert_data_format=False):
+def create_resnet50(optimize_model, training_mode, convert_data_format, to_polymath):
+    model = models.resnet50(pretrained=not training_mode)
+    input_var = torch.randn(1, 3, 224, 224)
+    if not training_mode:
+        output = model(input_var)
+        model.eval()
+    if convert_data_format:
+        input_var = input_var.contiguous(memory_format=torch.channels_last)
+        model = model.to(memory_format=torch.channels_last)
+        out = model(input_var)
+    convert_torch_model(input_var, model, "resnet50", optimize_model, training_mode, to_polymath, convert_data_format=convert_data_format)
+
+
+def convert_torch_model(input_var, model, model_name, optimize_model, training_mode, to_polymath,
+                        convert_data_format=False):
     f = io.BytesIO()
     mode = torch.onnx.TrainingMode.TRAINING if training_mode else torch.onnx.TrainingMode.EVAL
     torch.onnx.export(model,  # model being run
@@ -200,12 +215,18 @@ def convert_torch_model(input_var, model, model_name, optimize_model, training_m
     onnx.checker.check_model(model_proto)
     add_value_info_for_constants(model_proto)
     model_proto = onnx.shape_inference.infer_shapes(model_proto)
+    filepath = f"./{model_name}.onnx"
     # model_proto = optimizer.optimize(model_proto, ['eliminate_identity'])
     if optimize_model:
         model_proto, check = simplify(model_proto)
         assert check
-    with open(f"./{model_name}.onnx", "wb") as f:
+    with open(filepath, "wb") as f:
         f.write(model_proto.SerializeToString())
+
+    if to_polymath:
+        graph = pm.from_onnx(filepath)
+        pm.pb_store(graph, "./")
+
 
 def str2bool(v):
     if isinstance(v, bool):
@@ -230,11 +251,17 @@ if __name__ == "__main__":
 
     argparser.add_argument('-df', '--data_format_convert', type=str2bool, nargs='?', default=False,
                            const=True, help='Whether or not the model is in training mode')
+
+
+    argparser.add_argument('-pm', '--to_polymath', type=str2bool, nargs='?', default=False,
+                           const=True, help='Whether or not the model should be converted to PolyMath')
     args = argparser.parse_args()
     if args.benchmark == "lenet":
-        create_lenet(args.optimize_model, args.training_mode, args.data_format_convert)
+        create_lenet(args.optimize_model, args.training_mode, args.data_format_convert, args.to_polymath)
     elif args.benchmark == "resnet18":
-        create_resnet18(args.optimize_model, args.training_mode, args.data_format_convert)
+        create_resnet18(args.optimize_model, args.training_mode, args.data_format_convert, args.to_polymath)
+    elif args.benchmark == "resnet50":
+        create_resnet50(args.optimize_model, args.training_mode, args.data_format_convert, args.to_polymath)
     else:
         raise RuntimeError(f"Invalid benchmark supplied. Options are one of:\n"
                            f"\"lenet\", \"resnet18\".")

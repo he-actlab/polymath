@@ -9,7 +9,7 @@ def pb_store(node, file_path, outname=None):
     if outname:
         file_path = f"{file_path}/{outname}"
     else:
-        file_path = f"{file_path}/{node.name}.pb"
+        file_path = f"{file_path}/{node.name}.srdfg"
 
     count_before = len(node.nodes.keys())
     with open(file_path, "wb") as program_file:
