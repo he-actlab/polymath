@@ -12,7 +12,7 @@ from polymath.srdfg.nodes import variable, predicate, assert_, str_format, ident
     placeholder, temp, parameter, slice_op, input, state, output, write
 from polymath.srdfg.index import index, index_op
 from polymath.srdfg.group_nodes import GroupNode, sum, prod, max, min, argmin, argmax, bitreverse
-from polymath.srdfg.nonlinear import NonLinear, sigmoid, log2, exp, abs, sqrt, ceil, floor, cast, tanh
+from polymath.srdfg.nonlinear import NonLinear, sigmoid, log2, exp, abs, sqrt, ceil, floor, cast, tanh, square
 from polymath.srdfg.template import Template
 from polymath.srdfg.transformations import Transformation, unsqueeze, squeeze, flatten, gather
 from polymath.srdfg.util import Profiler, visualize, lower_graph, is_iterable

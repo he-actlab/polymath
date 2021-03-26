@@ -17,18 +17,19 @@ TABLA_OP_MAP = {"add": "+",
 @pm.register_pass
 class TablaPass(pm.Pass):
 
-    def __init__(self, test_values=None, add_kwargs=False, debug=True):
+    def __init__(self, test_values=None, add_kwargs=False, debug=True, add_node_name=True):
         self.evaluations = 0
         self.dfg = OrderedDict()
         self.used = {}
         self.hsh_map = {}
         self.add_kwargs = add_kwargs
+        self.add_node_name = add_node_name
         self.test_values = test_values or {}
         self.temp_map = {}
         self.norm_context = {}
 
-        self.dfg["source"] = self.create_node("source")
-        self.dfg["sink"] = self.create_node("sink")
+        self.dfg["source"] = self.create_node("source", dfg_node_name="source")
+        self.dfg["sink"] = self.create_node("sink", dfg_node_name="source")
         super(TablaPass, self).__init__(self.dfg, debug=debug)
 
     def apply_pass(self, node, ctx):
@@ -39,7 +40,7 @@ class TablaPass(pm.Pass):
         if isinstance(node, pm.parameter):
             self.add_constants(node)
             assert n_key not in self.dfg
-            self.set_dfg_node(node, self.create_node(_normalize_name(node.name), dtype="param", parents=[0]))
+            self.set_dfg_node(node, self.create_node(_normalize_name(node.name), dtype="param", parents=[0], dfg_node_name=node))
             self.get_dfg_node("source")["children"].append(self.get_dfg_node(node)["id"])
         elif isinstance(node, pm.write):
             a0_key = self.node_key(node.args[0])
@@ -49,7 +50,7 @@ class TablaPass(pm.Pass):
 
             if a0_key not in self.dfg:
                 assert not isinstance(node.args[0], pm.Node), f"Error, argument not found for write:{node.name} - {a0_key}"
-                self.set_dfg_node(node.args[0], self.create_node(str(node.args[0]), dtype="constant", parents=[0]))
+                self.set_dfg_node(node.args[0], self.create_node(str(node.args[0]), dtype="constant", parents=[0], dfg_node_name=node.args[0]))
                 self.get_dfg_node("source")["children"].append(self.get_dfg_node(node.args[0])["id"])
             self.get_dfg_node(node.args[0])["dataType"] = node.args[2].type_modifier
             self.get_dfg_node(node.args[0])["children"].append(1)
@@ -61,7 +62,7 @@ class TablaPass(pm.Pass):
         elif isinstance(node, pm.placeholder):
             self.add_constants(node)
             assert n_key not in self.dfg
-            self.set_dfg_node(node, self.create_node(_normalize_name(node.name), dtype=node.type_modifier, parents=[0]))
+            self.set_dfg_node(node, self.create_node(_normalize_name(node.name), dtype=node.type_modifier, parents=[0], dfg_node_name=node))
             self.get_dfg_node("source")["children"].append(self.get_dfg_node(node)["id"])
 
         elif isinstance(node, pm.func_op):
@@ -80,7 +81,7 @@ class TablaPass(pm.Pass):
                                 f"Graph ndoes: {node.graph.nodes.keys()}\n"
                                f"Keys: {self.dfg.keys()}")
 
-            self.set_dfg_node(node, self.create_node(node.op_name, parents=[self.get_dfg_node(node.args[0])["id"], self.get_dfg_node(node.args[1])["id"]]))
+            self.set_dfg_node(node, self.create_node(node.op_name, parents=[self.get_dfg_node(node.args[0])["id"], self.get_dfg_node(node.args[1])["id"]], dfg_node_name=node))
             self.get_dfg_node(node.args[0])["children"].append(self.get_dfg_node(node)["id"])
             self.get_dfg_node(node.args[1])["children"].append(self.get_dfg_node(node)["id"])
         elif isinstance(node, pm.NonLinear):
@@ -90,12 +91,15 @@ class TablaPass(pm.Pass):
                 raise KeyError(f"Input value {a0_key} for NonLinear node {node.name} not found in dfg\n"
                                f"Args: {node.args}\n"
                                f"Keys: {self.dfg.keys()}")
-            self.set_dfg_node(node, self.create_node(node.op_name, parents=[self.get_dfg_node(node.args[0])["id"]]))
+            self.set_dfg_node(node, self.create_node(node.op_name, parents=[self.get_dfg_node(node.args[0])["id"]], dfg_node_name=node))
             self.get_dfg_node(node.args[0])["children"].append(self.get_dfg_node(node)["id"])
 
         self.add_uses(node)
 
         return node
+
+    def get_dfg_ids(self):
+        return [n['id'] for key, n in self.dfg.items()]
 
     def finalize_pass(self, node, ctx):
         if node.graph is None:
@@ -169,20 +173,26 @@ class TablaPass(pm.Pass):
     def add_constants(self, node):
         for a in node.args:
             if not isinstance(a, pm.Node):
-                self.set_dfg_node(a, self.create_node(str(a), dtype="constant", parents=[0]))
+                self.set_dfg_node(a, self.create_node(str(a), dtype="constant", parents=[0], dfg_node_name=a))
                 self.get_dfg_node("source")["children"].append(self.get_dfg_node(a)["id"])
 
     def add_uses(self, node):
-
         for a in node.args:
             self.set_used_node(a, node)
 
-    def create_node(self, operation, dtype=None, parents=None):
+    def create_node(self, operation, dtype=None, parents=None, dfg_node_name=None):
 
         parents = parents if isinstance(parents, list) else []
-        node = {"id": len(self.dfg), "parents": parents, "dataType": dtype, "children": []}
-        if dtype == "constant":
 
+        node = {"id": len(self.dfg), "parents": parents, "dataType": dtype, "children": []}
+
+        if dfg_node_name is not None:
+            if isinstance(dfg_node_name, pm.Node):
+                node['dfg_node_name'] = dfg_node_name.name
+            else:
+                node['dfg_node_name'] = dfg_node_name
+
+        if dtype == "constant":
             node["computed"] = int(operation)
         if operation in TABLA_OP_MAP:
             node["operation"] = TABLA_OP_MAP[operation]
@@ -194,7 +204,7 @@ class TablaPass(pm.Pass):
         p_key = self.node_key(parent_arg)
         if p_key not in self.dfg:
             assert np.isreal(parent_arg)
-            self.set_dfg_node(parent_arg, self.create_node(str(parent_arg), dtype="constant", parents=[0]))
+            self.set_dfg_node(parent_arg, self.create_node(str(parent_arg), dtype="constant", parents=[0], dfg_node_name=parent_arg))
 
         self.get_dfg_node(parent_arg)["children"].append(child_node["id"])
 
@@ -211,9 +221,12 @@ class TablaPass(pm.Pass):
 
     def set_dfg_node(self, node, value):
         key = self.node_key(node)
-
-        self.dfg[key] = value
-        self.hsh_map[node] = node
+        if key in self.dfg:
+            prev = self.dfg[key]
+            assert prev['operation'] == value['operation'] and prev['parents'] == value['parents']
+        else:
+            self.dfg[key] = value
+            self.hsh_map[node] = node
 
     def set_used_node(self, a, node):
         id_v = self.get_dfg_node(node)["id"]

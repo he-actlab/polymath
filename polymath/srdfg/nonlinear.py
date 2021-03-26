@@ -71,7 +71,7 @@ class NonLinear(Node):
             kwargs.pop("target")
         if "domain" in kwargs:
             kwargs.pop("domain")
-        value = self.target(value)
+        value = self.target(value).astype(value.dtype)
         if isinstance(value, Real) or len(value.shape) == 0:
             value = np.asarray([value])
 
@@ -128,6 +128,10 @@ class sqrt(NonLinear):
     def __init__(self, input_node, **kwargs):
         super(sqrt, self).__init__(_sqrt, input_node, **kwargs)
 
+class square(NonLinear):
+    def __init__(self, input_node, **kwargs):
+        super(square, self).__init__(_square, input_node, **kwargs)
+
 class cast(NonLinear):
     def __init__(self, np_dtype, input_node, **kwargs):
         kwargs['np_dtype'] = np_dtype
@@ -167,6 +171,9 @@ def _abs(value):
 
 def _sqrt(value):
     return np.sqrt(value)
+
+def _square(value):
+    return np.square(value)
 
 def _floor(value):
     return int(np.floor(value))

@@ -389,15 +389,37 @@ def print_tabla_type_counts(tb_ir):
     pprint.pprint(list(counts))
     return counts
 
-def np_linear(input_info):
+def np_linear(input_info, inf=False):
     out_info = {}
     out_info["x*w"] = input_info["x"]*input_info["w"]
-    out_info["h"] = np.sum(out_info["x*w"])
-    out_info["d"] = out_info["h"] - input_info["y"]
-    out_info["g"] = out_info["d"] * input_info["x"]
-    out_info["mu*g"] = input_info["mu"] * out_info["g"]
-    out_info["w"] = input_info["w"] - out_info["mu*g"]
+    if inf:
+        out_info["y"] = np.sum(out_info["x*w"])
+    else:
+        out_info["h"] = np.sum(out_info["x*w"])
+        out_info["d"] = out_info["h"] - input_info["y"]
+        out_info["g"] = out_info["d"] * input_info["x"]
+        out_info["mu*g"] = input_info["mu"] * out_info["g"]
+        out_info["w"] = input_info["w"] - out_info["mu*g"]
     return out_info
+
+
+def linear_inf(m=3, coarse=False):
+    with pm.Node(name="linear") as graph:
+        m_ = pm.parameter("m")
+        x = pm.input("x", shape=(m_))
+        y = pm.output("y", shape=(1,))
+        w = pm.state("w", shape=(m_))
+        i = pm.index(0, (m_ - 1).set_name("m-1"), name="i")
+        y[0] = pm.sum([i], (x[i] * w[i]).set_name("x*w"))
+
+    if coarse:
+        in_info, keys, out_info = linear_data_gen(m=m, inf=True)
+        return graph, in_info, out_info, keys
+    else:
+        shape_val_pass = pm.NormalizeGraph({"m": m})
+        new_graph = shape_val_pass(graph)
+        in_info, keys, out_info = linear_data_gen(m=m, lowered=True, inf=True)
+        return new_graph, in_info, out_info, keys
 
 def linear(m=3, coarse=False):
     with pm.Node(name="linear") as graph:
@@ -548,13 +570,14 @@ def linear_raw(m=3, coarse=False):
         in_info, keys, out_info = linear_data_gen(m=m, lowered=True)
         return new_graph, in_info, out_info, keys
 
-def linear_data_gen(m=3, mu=1.0, lowered=False):
+def linear_data_gen(m=3, mu=1.0, lowered=False, inf=False):
     input_info = {}
     input_info["x"] = np.random.randint(-3, 10, m)
     input_info["w"] = np.random.randint(-3, 10, m)
-    input_info["y"] = np.random.randint(-3, 10, 1)[0]
-    input_info["mu"] = mu
-    out_info = np_linear(input_info)
+    if not inf:
+        input_info["y"] = np.random.randint(-3, 10, 1)[0]
+        input_info["mu"] = mu
+    out_info = np_linear(input_info, inf=inf)
     if lowered:
         all_keys = []
         for p in range(m):
@@ -564,24 +587,50 @@ def linear_data_gen(m=3, mu=1.0, lowered=False):
             input_info[f"x/x({p},)"] = input_info["x"][p]
         input_info.pop("w")
         input_info.pop("x")
+        if inf:
+            all_keys = ["y/y(0,)"]
     else:
         all_keys = "w"
+        if inf:
+            all_keys = "y"
 
     return input_info, all_keys, out_info
 
 def sigmoid(value):
     return (1 / (1 + np.exp(-value)))
 
-def np_logistic(input_info):
+def np_logistic(input_info, inf=False):
     out_info = {}
-    out_info["x*w"] = (input_info["x"]*input_info["w"])
-    out_info["reduce"] = np.sum(out_info["x*w"])
-    out_info["h"] = sigmoid(out_info["reduce"])
-    out_info["d"] = out_info["h"] - input_info["y"]
-    out_info["g"] = out_info["d"] * input_info["x"]
-    out_info["mu*g"] = input_info["mu"] * out_info["g"]
-    out_info["w"] = input_info["w"] - out_info["mu*g"]
+    out_info["x*w"] = (input_info["x"]*input_info["w"]).astype(np.int64)
+    out_info["reduce"] = np.sum(out_info["x*w"]).astype(np.int64)
+    if inf:
+        out_info["y"] = sigmoid(out_info["reduce"]).astype(np.int64)
+    else:
+        out_info["h"] = sigmoid(out_info["reduce"]).astype(np.int64)
+    if not inf:
+        out_info["d"] = out_info["h"] - input_info["y"]
+        out_info["g"] = out_info["d"] * input_info["x"]
+        out_info["mu*g"] = input_info["mu"] * out_info["g"]
+        out_info["w"] = input_info["w"] - out_info["mu*g"]
     return out_info
+
+def logistic_inf(m=3, coarse=False):
+    with pm.Node(name="logistic") as graph:
+        m_ = pm.parameter("m")
+        x = pm.input("x", shape=(m_))
+        w = pm.state("w", shape=(m_))
+        y = pm.output("y", shape=(1,))
+        i = pm.index(0, (m_ - 1).set_name("m-1"), name="i")
+        y[0] = pm.sigmoid(pm.sum([i], (x[i] * w[i]).set_name("x*w"), name="reduce"))
+
+    if coarse:
+        in_info, keys, out_info = logistic_data_gen(m=m, inf=True)
+        return graph, in_info, out_info, keys
+    else:
+        shape_val_pass = pm.NormalizeGraph({"m": m})
+        new_graph = shape_val_pass(graph)
+        in_info, keys, out_info = logistic_data_gen(m=m, lowered=True, inf=True)
+        return new_graph, in_info, out_info, keys
 
 def logistic(m=3, coarse=False):
     with pm.Node(name="logistic") as graph:
@@ -605,13 +654,15 @@ def logistic(m=3, coarse=False):
         in_info, keys, out_info = logistic_data_gen(m=m, lowered=True)
         return new_graph, in_info, out_info, keys
 
-def logistic_data_gen(m=3, mu=1.0, lowered=False):
+def logistic_data_gen(m=3, mu=1, lowered=False, inf=False):
     input_info = {}
-    input_info["x"] = np.random.randint(-3, 3, m).astype(np.float)
-    input_info["w"] = np.random.randint(-3, 3, m).astype(np.float)
-    input_info["y"] = np.random.randint(-3, 3, 1)[0].astype(np.float)
-    input_info["mu"] = mu
-    out_info = np_logistic(input_info)
+    input_info["x"] = np.random.randint(-10, 10, m).astype(np.int64)
+    input_info["w"] = np.random.randint(-5, 10, m).astype(np.int64)
+    if not inf:
+        input_info["y"] = np.random.randint(-5, 10, 1)[0].astype(np.int64)
+        input_info["mu"] = mu
+    out_info = np_logistic(input_info, inf=inf)
+
     if lowered:
         all_keys = []
         for p in range(m):
@@ -623,7 +674,8 @@ def logistic_data_gen(m=3, mu=1.0, lowered=False):
         input_info.pop("x")
     else:
         all_keys = "w"
-
+    if inf:
+        all_keys = "y"
     return input_info, all_keys, out_info
 
 
@@ -776,6 +828,83 @@ def reco(m=3, n=3, k=3, coarse=False):
         in_info, keys, out_info = reco_data_gen(m_=m, n_=n, k_=k, lowered=True)
         return new_graph, in_info, out_info, keys
 
+
+def svm_wifi_inf(features, locations, lr=1, deltav=1, coarse=True):
+    with pm.Node(name="svm_wifi_inf") as graph:
+        # learning_rate = pm.parameter("learning_rate", default=lr)
+        # delta = pm.parameter("delta", default=deltav)
+        n_features = pm.parameter("n_features", default=features)
+        n_locations = pm.parameter("n_locations", default=locations)
+        x_train = pm.input("x_train", shape=(n_features,))
+        # y_train = pm.input("y_train", shape=(n_locations,))
+        # y_train_inv = pm.input("y_train_inv", shape=(n_locations,))
+        scores = pm.output("scores", shape=(n_locations,))
+        weights = pm.state("weights", shape=(n_features, n_locations))
+
+        i = pm.index(0, n_features - 1, name="i")
+        j = pm.index(0, n_locations - 1, name="j")
+
+        scores[j] = pm.sum([i], (weights[i, j] * x_train[i]))
+        # correct_class_score = pm.sum([j], (scores[j] * y_train[j]), name="correct_class_score")
+        #
+        # h = ((scores[j] - correct_class_score + delta).set_name("h") > 0)
+        #
+        # # margin = (pm.cast(np.float32, h[j]) * y_train_inv[j]).set_name("margin")
+        # margin = (h[j] * y_train_inv[j]).set_name("margin")
+        # valid_margin_count = pm.sum([j], margin[j], name="valid_margin_count")
+        # partial = (y_train[j] * valid_margin_count).set_name("partial")
+        # updated_margin = (margin[j] - partial[j]).set_name("updated_margin")
+        # # # #
+        # dW = (x_train[i] * updated_margin[j]).set_name("dW")
+        # weights[i, j] = (weights[i, j] - learning_rate * dW[i, j]).set_name("weights_update")
+
+    if coarse:
+        in_info, keys, out_info = svm_wifi_datagen(features, locations, lr, deltav, inference=True)
+        return graph, in_info, out_info, keys
+    else:
+        shape_val_pass = pm.NormalizeGraph({"n_features": features, "n_locations": locations})
+        new_graph = shape_val_pass(graph)
+        in_info, keys, out_info = svm_wifi_datagen(features, locations, lr, deltav, lowered=True, inference=True)
+        return new_graph, in_info, out_info, keys
+
+def svm_wifi(features, locations, lr=1, deltav=1, coarse=True):
+    with pm.Node(name="svm_wifi") as graph:
+        learning_rate = pm.parameter("learning_rate", default=lr)
+        delta = pm.parameter("delta", default=deltav)
+        n_features = pm.parameter("n_features", default=features)
+        n_locations = pm.parameter("n_locations", default=locations)
+        x_train = pm.input("x_train", shape=(n_features,))
+        y_train = pm.input("y_train", shape=(n_locations,))
+        y_train_inv = pm.input("y_train_inv", shape=(n_locations,))
+        weights = pm.state("weights", shape=(n_features, n_locations))
+
+        i = pm.index(0, n_features - 1, name="i")
+        j = pm.index(0, n_locations - 1, name="j")
+
+        scores = pm.sum([i], (weights[i, j] * x_train[i]), name="scores")
+        correct_class_score = pm.sum([j], (scores[j] * y_train[j]), name="correct_class_score")
+
+        h = ((scores[j] - (correct_class_score + delta)).set_name("h") > 0)
+
+        # margin = (pm.cast(np.float32, h[j]) * y_train_inv[j]).set_name("margin")
+        margin = (h[j] * y_train_inv[j]).set_name("margin")
+        valid_margin_count = pm.sum([j], margin[j], name="valid_margin_count")
+        partial = (y_train[j] * valid_margin_count).set_name("partial")
+        updated_margin = (margin[j] - partial[j]).set_name("updated_margin")
+        # # #
+        dW = (x_train[i] * updated_margin[j]).set_name("dW")
+        weights[i, j] = (weights[i, j] - learning_rate * dW[i, j]).set_name("weights_update")
+
+    if coarse:
+        in_info, keys, out_info = svm_wifi_datagen(features, locations, lr, deltav)
+        return graph, in_info, out_info, keys
+    else:
+        shape_val_pass = pm.NormalizeGraph({"n_features": features, "n_locations": locations})
+        new_graph = shape_val_pass(graph)
+        in_info, keys, out_info = svm_wifi_datagen(features, locations, lr, deltav, lowered=True)
+        return new_graph, in_info, out_info, keys
+
+
 def debug_node_attr(node, tabs=None):
     tabs = "" if tabs is None else tabs
     added = "\t\t"
@@ -792,6 +921,102 @@ def count_nodes(graph):
     counts = _count_nodes(graph, {"global": 0, "count": 0})
     return counts
 
+def svm_wifi_reference(x_train, y_train, weights, lr=0.00001, delta=10, inference=False):
+    output_info = {}
+    learning_rate = lr
+    delta = delta
+    dW = np.zeros(weights.shape)
+
+    scores = np.dot(x_train, weights)
+
+    output_info["scores"] = scores
+    if inference:
+        return output_info
+    else:
+        correct_class_score = scores[y_train]
+        output_info["correct_class_score"] = correct_class_score
+
+        h = (scores - correct_class_score + delta)
+        output_info["h"] = h
+
+        margin = np.greater(h, 0).astype(float)
+        margin[y_train] = 0
+        output_info["margin"] = margin
+
+        valid_margin_count = margin.sum()
+        output_info["valid_margin_count"] = valid_margin_count
+
+        updated_margin = margin.copy()
+        updated_margin[y_train] -= valid_margin_count
+        output_info["updated_margin"] = updated_margin
+
+        x = x_train.reshape(x_train.shape[0], 1)
+        updated_margin = updated_margin.reshape(1, updated_margin.shape[0])
+
+        dW = np.dot(x, updated_margin)
+        output_info["dW"] = dW
+
+        weights = weights - learning_rate * dW
+        output_info["weights"] = weights
+
+        return output_info
+
+
+def svm_wifi_datagen(features_=3, locations_=3, lr_=2, delta_=1, inference=False, lowered=False):
+    input_info = {}
+
+    input_info["x_train"] = np.random.randint(-3, 50, features_)
+    input_info["weights"] = np.random.randint(-3, 50, features_ * locations_).reshape(features_, locations_)
+    if not inference:
+        input_info["y_train_np"] = np.random.randint(0, locations_, 1)[0]
+
+        input_info["y_train"] = np.zeros(locations_, dtype=np.int)
+        input_info["y_train"][input_info["y_train_np"]] = 1
+        input_info["y_train_inv"] = np.ones(locations_, dtype=np.int)
+        input_info["y_train_inv"][input_info["y_train_np"]] = 0
+
+        input_info["learning_rate"] = lr_
+        input_info["delta"] = delta_
+    else:
+        input_info["y_train_np"] = 0
+        input_info["scores"] = np.zeros(locations_, dtype=np.int)
+
+    out_info = svm_wifi_reference(input_info["x_train"], input_info["y_train_np"],
+                          input_info["weights"], lr_, delta_, inference=inference)
+    input_info.pop("y_train_np")
+    if lowered:
+        pairs_weights = list(product(*tuple([np.arange(i) for i in input_info["weights"].shape])))
+        for p in pairs_weights:
+            input_info[f"weights/weights({p[0]}, {p[1]})"] = input_info["weights"][p]
+        input_info.pop("weights")
+
+
+        for p in range(features_):
+            input_info[f"x_train/x_train({p},)"] = input_info["x_train"][p]
+        input_info.pop("x_train")
+        if not inference:
+            for p in range(locations_):
+                input_info[f"y_train/y_train({p},)"] = input_info["y_train"][p]
+                input_info[f"y_train_inv/y_train_inv({p},)"] = input_info["y_train_inv"][p]
+            input_info.pop("y_train")
+            input_info.pop("y_train_inv")
+        else:
+            for p in range(locations_):
+                input_info[f"scores/scores({p},)"] = input_info["scores"][p]
+            input_info.pop("scores")
+
+        if not inference:
+            all_keys = [f"weights/weights({p[0]}, {p[1]})" for p in pairs_weights]
+        else:
+            all_keys = [f"scores/scores({p},)" for p in range(locations_)]
+
+    else:
+        if not inference:
+            all_keys = ["weights"]
+        else:
+            all_keys = ["scores"]
+
+    return input_info, all_keys, out_info
 
 def _count_nodes(graph, counts):
     for k, node in graph.nodes.items():
@@ -1258,8 +1483,12 @@ def fft_datagen(x_shape):
     inp_info = {}
     out_info = {}
 
+    # inp_info['x'] = np.random.randint(0, 10, x_shape).astype(np.float32)
     inp_info['x'] = np.random.randint(0, 10, x_shape).astype(np.float32)
+    # inp_info['x2'] = inp_info['x1'].copy()
+    # inp_info['X'] = np.zeros(x_shape).astype(np.float32)
 
+    # out_info['X'] = np.abs(np.fft.fft(inp_info['x']))
     out_info['X'] = np.abs(np.fft.fft(inp_info['x']))
     n = np.arange(0, x_shape[0])
     M = np.exp(-2j * np.pi * (n * n.reshape(-1, 1)/x_shape[0]))
@@ -1284,10 +1513,17 @@ def unwound_fft(x_shape, coarse=False):
         X = pm.output("X", shape=(N,))
         M_real = pm.state("M_real", shape=(N, N))
         M_imag = pm.state("M_imag", shape=(N, N))
-        M_real_dot = (pm.sum([n2], M_real[n1, n2] * x[n2])**2).set_name("M_real_dot")
-        M_imag_dot = (pm.sum([n2], M_imag[n1, n2] * x[n2])**2).set_name("M_imag_dot")
+        p_real = M_real[n1, n2] * x[n2]
+        p_imag = M_imag[n1, n2] * x[n2]
+        # M_real_dot = (pm.sum([n2], M_real[n1, n2] * x[n2])**2).set_name("M_real_dot")
+        # M_imag_dot = (pm.sum([n2], M_imag[n1, n2] * x[n2])**2).set_name("M_imag_dot")
 
+        # M_real_dot = pm.sum([n2], p_real[n1, n2] * p_real[n1, n2])
+        # M_imag_dot = pm.sum([n2], p_imag[n1, n2] * p_imag[n1, n2])
+        M_imag_dot = pm.sum([n2], pm.square(p_imag[n1, n2]))
+        M_real_dot = pm.sum([n2], pm.square(p_real[n1, n2]))
         X[n1] = pm.sqrt(M_real_dot[n1] + M_imag_dot[n1])
+        # X[n1] = (M_real_dot[n1] + M_imag_dot[n1])
 
     if coarse:
         in_info, keys, out_info = fft_datagen(x_shape)
@@ -1744,17 +1980,19 @@ def fft(m_=3, coarse=False):
 
 def np_fft(input_info):
     out_info = {}
-    out_info["fft_x"] = np.fft.fft(input_info["x"])
+    out_info["X"] = np.fft.fft(input_info["x"])
     return out_info
 
 def fft_data_gen(m, lowered=False):
     input_info = {}
     input_info["x"] = np.random.randint(-5, 5, m)
+    input_info["X"] = np.zeros(m)
     out_info = np_fft(input_info)
     if lowered:
         all_keys = []
         for p in range(m):
             input_info[f"x/x({p},)"] = input_info["x"][p]
+            input_info[f"X/X({p},)"] = input_info["X"][p]
         input_info.pop("x")
     else:
         all_keys = "x"
@@ -2251,3 +2489,4 @@ def pm_tiny_yolo(coarse=False, debug=False):
         new_graph = shape_val_pass(graph)
         in_info, keys, out_info = np_lenet(lowered=True)
         return new_graph, in_info, out_info, keys
+

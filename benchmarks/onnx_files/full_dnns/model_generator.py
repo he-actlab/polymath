@@ -2,7 +2,6 @@ import argparse
 from onnxsim import simplify
 import polymath as pm
 import onnx
-import tf2onnx
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -13,8 +12,7 @@ from torchvision import models
 from torch.utils.data import DataLoader
 import io
 from onnxsim import simplify
-from onnx import optimizer
-import tensorflow.compat.v1 as tf
+
 
 def contains_cl(args):
     for t in args:
@@ -208,6 +206,7 @@ def convert_torch_model(input_var, model, model_name, optimize_model, training_m
                       f,  # where to save the model (can be a file or file-like object)
                       export_params=True,  # store the trained parameter weights inside the model file
                       do_constant_folding=True,  # whether to execute constant folding for optimization
+                      keep_initializers_as_inputs=True,
                       training=mode,
                       input_names=['input'],  # the model's input names
                       output_names=['output'])

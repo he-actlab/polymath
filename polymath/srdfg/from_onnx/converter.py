@@ -89,9 +89,9 @@ def generate_srdfg(onnx_graph):
             node_info[i.name] = pm.input(name=i.name, shape=get_value_info_shape(i, mgdfg), graph=mgdfg)
 
     for v in onnx_graph.value_info:
-        assert v.name not in node_info
-
-        if v.name in initializers:
+        if v.name in node_info:
+            continue
+        elif v.name in initializers:
             node_info[v.name] = pm.variable(initializers[v.name], name=v.name, shape=get_value_info_shape(v, mgdfg), graph=mgdfg)
         else:
 
@@ -124,9 +124,21 @@ def convert_node(onnx_node, mgdfg, node_info, state_vars):
                            f"Nodes: {list(mgdfg.nodes.keys())}")
 
         args.append(mgdfg.nodes[i])
-
-    assert len(onnx_node.output) == 1 and onnx_node.output[0] in node_info
-    o_name = state_vars[onnx_node.output[0]] if onnx_node.output[0] in state_vars else onnx_node.output[0]
+    num_outputs = 0
+    outnode = None
+    for o in onnx_node.output:
+        if o in node_info:
+            num_outputs += 1
+            outnode = o
+    if num_outputs != 1:
+        raise RuntimeError(f"Length of outputs for node {onnx_node.name} is not equal to 1:\n"
+                           f"Output: {onnx_node.output}")
+    # elif onnx_node.output[0] not in node_info:
+    #     raise RuntimeError(f"Could not find output for {onnx_node.name} in node info:\n"
+    #                        f"Output: {onnx_node.output}")
+    assert outnode is not None
+    o_name = state_vars[outnode] if outnode in state_vars else outnode
+    # o_name = state_vars[onnx_node.output[0]] if onnx_node.output[0] in state_vars else onnx_node.output[0]
     if isinstance(node_info[o_name], dict):
 
 
