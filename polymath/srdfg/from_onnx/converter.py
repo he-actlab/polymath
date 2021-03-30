@@ -306,3 +306,9 @@ def add_value_info_for_constants(model : onnx.ModelProto):
 
 
     return add_const_value_infos_to_graph(model.graph)
+
+
+ONNX_OP_NAMES = ['max_pool', 'lrn', 'conv', 'conv_bias', 'global_avg_pool', 'dropout', 'elem_tanh',
+                'softmax', 'elem_cast', 'elem_sigmoid', 'batch_norm', 'batch_flatten', 'avg_pool2d',
+                'leaky_relu', 'relu', 'dense_sigmoid', 'dense', 'avg_pool', 'gemm', 'elem_add', 'elem_sub',
+                 'elem_mul', 'dropout', 'coarse_flatten']

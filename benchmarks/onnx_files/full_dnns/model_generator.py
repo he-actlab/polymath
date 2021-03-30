@@ -172,29 +172,44 @@ def create_lenet(optimize_model, training_mode, convert_data_format, to_polymath
     convert_torch_model(input_var, model, "lenet", optimize_model, training_mode, to_polymath, convert_data_format=convert_data_format)
 
 
-def create_resnet18(optimize_model, training_mode, convert_data_format, to_polymath):
+def create_resnet18(optimize_model, training_mode, convert_data_format, to_polymath, batch_size=1):
     model = models.resnet18(pretrained=not training_mode)
-    input_var = torch.randn(1, 3, 224, 224)
+    input_var = torch.randn(batch_size, 3, 224, 224)
+    model_name = "resnet18"
+    if batch_size != 1:
+        model_name = f"{model_name}_batch{batch_size}"
     if not training_mode:
         output = model(input_var)
         model.eval()
+    else:
+        model_name = f"{model_name}_train"
     if convert_data_format:
         input_var = input_var.contiguous(memory_format=torch.channels_last)
         model = model.to(memory_format=torch.channels_last)
         out = model(input_var)
-    convert_torch_model(input_var, model, "resnet18", optimize_model, training_mode, to_polymath, convert_data_format=convert_data_format)
+    convert_torch_model(input_var, model, model_name, optimize_model, training_mode, to_polymath, convert_data_format=convert_data_format)
 
-def create_resnet50(optimize_model, training_mode, convert_data_format, to_polymath):
+def create_resnet50(optimize_model, training_mode, convert_data_format, to_polymath, batch_size=1):
     model = models.resnet50(pretrained=not training_mode)
-    input_var = torch.randn(1, 3, 224, 224)
+    input_var = torch.randn(batch_size, 3, 224, 224)
+    model_name = "resnet50"
+
+    if batch_size != 1:
+        model_name = f"{model_name}_batch{batch_size}"
+
     if not training_mode:
         output = model(input_var)
         model.eval()
+    else:
+        model_name = f"{model_name}_train"
+
+
+
     if convert_data_format:
         input_var = input_var.contiguous(memory_format=torch.channels_last)
         model = model.to(memory_format=torch.channels_last)
         out = model(input_var)
-    convert_torch_model(input_var, model, "resnet50", optimize_model, training_mode, to_polymath, convert_data_format=convert_data_format)
+    convert_torch_model(input_var, model, model_name, optimize_model, training_mode, to_polymath, convert_data_format=convert_data_format)
 
 
 def convert_torch_model(input_var, model, model_name, optimize_model, training_mode, to_polymath,
@@ -248,6 +263,8 @@ if __name__ == "__main__":
     argparser.add_argument('-t', '--training_mode', type=str2bool, nargs='?', default=False,
                            const=True, help='Whether or not the model is in training mode')
 
+    argparser.add_argument('-bs', '--batch_size', type=int, default=1, help='The batch size for the model')
+
     argparser.add_argument('-df', '--data_format_convert', type=str2bool, nargs='?', default=False,
                            const=True, help='Whether or not the model is in training mode')
 
@@ -258,9 +275,11 @@ if __name__ == "__main__":
     if args.benchmark == "lenet":
         create_lenet(args.optimize_model, args.training_mode, args.data_format_convert, args.to_polymath)
     elif args.benchmark == "resnet18":
-        create_resnet18(args.optimize_model, args.training_mode, args.data_format_convert, args.to_polymath)
+        create_resnet18(args.optimize_model, args.training_mode, args.data_format_convert, args.to_polymath,
+                        batch_size=args.batch_size)
     elif args.benchmark == "resnet50":
-        create_resnet50(args.optimize_model, args.training_mode, args.data_format_convert, args.to_polymath)
+        create_resnet50(args.optimize_model, args.training_mode, args.data_format_convert, args.to_polymath,
+                        batch_size=args.batch_size)
     else:
         raise RuntimeError(f"Invalid benchmark supplied. Options are one of:\n"
                            f"\"lenet\", \"resnet18\".")

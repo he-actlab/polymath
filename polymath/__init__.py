@@ -31,9 +31,10 @@ from polymath.srdfg.templates.math import elem_mul, elem_sub, reduce_sum, matmul
 from polymath.srdfg.templates.tensor_transformations import coarse_flatten, elem_gather, transpose, onnx_reshape, \
     onnx_squeeze, onnx_identity, onnx_resize, onnx_unsqueeze
 
-from polymath.srdfg.from_onnx.converter import from_onnx, get_attributes, get_value_info_shape
+from polymath.srdfg.from_onnx.converter import from_onnx, get_attributes, get_value_info_shape, ONNX_OP_NAMES
 
 from polymath.srdfg.passes import register_pass, Pass
+from polymath.srdfg.passes.dnn_passes import UpdateBatchSize, CollectDNNShapes
 from polymath.srdfg.passes.compiler_passes import NormalizeGraph, Lower, CountNodes, CountOpTypes
 from polymath.codegen.tabla.tabla_translate import generate_tabla
 
