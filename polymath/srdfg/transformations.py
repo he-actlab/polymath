@@ -176,8 +176,72 @@ class gather(Transformation):
     def axis(self):
         return self.kwargs['axis']
 
+
+class gather_elements(Transformation):
+    def __init__(self, input_node, indices, axis=1, shape=None, **kwargs):
+        if shape:
+            new_shape = shape
+        else:
+            new_shape = list(input_node.shape)
+            new_shape.pop(axis)
+            curr_axis = axis
+            for i in indices.shape:
+                new_shape.insert(curr_axis, i)
+                curr_axis += 1
+        new_domain = Domain(tuple(new_shape))
+        super(gather_elements, self).__init__(_gather_elements, input_node, indices, domain=new_domain, axis=axis, shape=new_shape, **kwargs)
+
+    def compute_shape(self):
+        assert all([not isinstance(s, Node) for s in self.args[0].shape])
+        assert all([not isinstance(s, Node) for s in self.args[1].shape])
+        new_shape = list(self.args[0].shape)
+        new_shape[self.axis].pop()
+        curr_axis = self.axis
+        for i in self.args[1].shape:
+            new_shape[curr_axis].insert(curr_axis, i)
+            curr_axis += 1
+        return tuple(new_shape)
+
+    def _evaluate(self, val, indices, **kwargs):
+        if "target" in kwargs:
+            kwargs.pop("target")
+        if "domain" in kwargs:
+            kwargs.pop("domain")
+
+        val = self.target(val, indices, self.axis)
+
+        if not self.is_shape_finalized():
+            self.shape = val.shape
+        return val
+
+    @property
+    def axis(self):
+        return self.kwargs['axis']
+
+class reshape(Transformation):
+    def __init__(self, input_node, shape=None, **kwargs):
+        assert shape is not None
+
+        new_domain = Domain(tuple(shape))
+        super(reshape, self).__init__(_reshape, input_node, shape=shape, domain=new_domain, **kwargs)
+
+    def _evaluate(self, val, **kwargs):
+        if "target" in kwargs:
+            kwargs.pop("target")
+        if "domain" in kwargs:
+            kwargs.pop("domain")
+
+        val = self.target(val, self.shape)
+        return val
+
 def _gather(value, indices, axis=0):
     return np.take(value, indices, axis=axis)
+
+def _gather_elements(value, indices, axis=0):
+    return np.take_along_axis(value, indices, axis=axis)
+
+def _reshape(value, shape):
+    return np.reshape(value, shape)
 
 def _unsqueeze(value, axis=0):
     return np.expand_dims(value, axis=axis)

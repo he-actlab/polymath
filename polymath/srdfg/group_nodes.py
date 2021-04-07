@@ -79,7 +79,8 @@ class GroupNode(Node):
         if not hasattr(input_res, "__len__"):
             value = input_res * np.prod([len(bound) for bound in bounds])
         elif self.target.__name__ in self.builtin_np:
-            value = self.target(input_res.reshape(self.args[1].domain.computed_set_shape), axis=sum_axes)
+            reshaped = input_res.reshape(self.args[1].domain.computed_set_shape)
+            value = self.target(reshaped, axis=sum_axes)
         else:
             value = self.target(input_res.reshape(self.args[1].domain.computed_set_shape), axis=sum_axes, initial=self.initial)
 

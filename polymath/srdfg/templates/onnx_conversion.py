@@ -250,6 +250,12 @@ def get_gather(data, indices, axis=0, name=None, shape=None, out=None):
     pm.elem_gather(data, indices, out, axis=axis)
     return out
 
+def get_cross_entropy_loss(scores, labels, ignore_index=-100, reduction="mean", name=None, shape=None, out=None):
+    if not out:
+        out = pm.output(shape=shape, name=name)
+    pm.cross_entropy_loss(scores, labels, out, reduction=reduction)
+    return out
+
 def get_gemm(a, b , c=None, shape=None, name=None, alpha=None,
              beta=None,
              transA=None,
@@ -322,4 +328,5 @@ NODE_NAMES = {"SVMClassifier": pm.svm_classifier_train,
               "Unsqueeze": pm.onnx_unsqueeze,
               "Squeeze": pm.onnx_squeeze,
               "Resize": pm.onnx_resize,
+              "SoftmaxCrossEntropyLoss": get_cross_entropy_loss
               }

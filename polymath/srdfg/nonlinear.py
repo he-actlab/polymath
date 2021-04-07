@@ -107,6 +107,14 @@ class log2(NonLinear):
     def __init__(self, input_node, **kwargs):
         super(log2, self).__init__(_log2, input_node, **kwargs)
 
+class log10(NonLinear):
+    def __init__(self, input_node, **kwargs):
+        super(log10, self).__init__(_log10, input_node, **kwargs)
+
+class log(NonLinear):
+    def __init__(self, input_node, **kwargs):
+        super(log, self).__init__(_log, input_node, **kwargs)
+
 class exp(NonLinear):
     def __init__(self, input_node, **kwargs):
         super(exp, self).__init__(_exp, input_node, **kwargs)
@@ -154,8 +162,14 @@ class cast(NonLinear):
             self.shape = val.shape
         return val
 
+def _log(value):
+    return np.log(value)
+
 def _log2(value):
     return np.log2(value)
+
+def _log10(value):
+    return np.log10(value)
 
 def _sigmoid(value):
     return 1 / (1 + np.exp(-value))

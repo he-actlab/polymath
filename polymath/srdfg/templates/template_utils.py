@@ -1,5 +1,5 @@
 import polymath as pm
-
+import numpy as np
 
 def format_idx(x, reverse=True):
     if reverse:
@@ -196,3 +196,201 @@ def _get_elem_indices(node_a, node_b, node_c, zero_indices=True):
                                    f"{node_a.name}: {node_a.shape}\n"
                                    f"{node_b.name}: {node_b.shape}\n")
     return format_idx(a_idx, reverse), format_idx(b_idx, reverse), format_idx(out_idx, reverse)
+
+def dilate(var: pm.placeholder, strides, name=None):
+    n = len(var.shape)
+    assert len(strides) == n
+    out_shape = ()
+    nz_indices = ()
+    shape_idx = ()
+
+    for i in range(n):
+        out_shape += ((var.shape[i] - 1) * strides[i] + 1,)
+        nz_indices += (pm.index(0, out_shape[i] - 1, stride=strides[i]),)
+        shape_idx += (pm.index(0, out_shape[i] - 1),)
+
+    padded = pm.temp(name=name, shape=out_shape)
+    padded[shape_idx] = 0
+    padded[(shape_idx[0])] = 0
+
+def get_pad_tuple(pad_size):
+    if isinstance(pad_size, (tuple, list)):
+        if len(pad_size) == 2:
+            pad_h = pad_size[0] * 2
+            pad_w = pad_size[1] * 2
+        elif len(pad_size) == 4:
+            return pad_size[0], pad_size[2], pad_size[1], pad_size[3]
+        else:
+            raise ValueError("Size of padding can only be 2 or 4")
+    else:
+        assert isinstance(pad_size, int)
+        pad_h = pad_w = pad_size * 2
+
+    pad_top = (pad_h + 1) // 2
+    pad_left = (pad_w + 1) // 2
+    return pad_top, pad_left, pad_h - pad_top, pad_w - pad_left
+
+def pad_node(data: pm.Node, padded_out: pm.Node, pad_size, pad_val=0):
+    assert len(data.shape) == 4
+    p_top, p_left, p_bottom, p_right = get_pad_tuple(pad_size)
+
+    oh = data.shape[2] + p_top + p_bottom
+    ow = data.shape[3] + p_left + p_right
+
+    padded_shape = (data.shape[0], data.shape[1], oh, ow)
+    if padded_out.is_shape_finalized() and padded_out.shape != (1,):
+        assert padded_shape == padded_out.shape, f"Unequal shapes for padding:\n" \
+                                                 f"Target shape: {padded_shape}\n" \
+                                                 f"Set shape: {padded_out.shape}"
+    padded_out.set_shape(padded_shape)
+    n_idx = pm.index(0, data.shape[0]-1)
+    c_idx = pm.index(0, data.shape[1]-1)
+    oh_idx = pm.index(0, oh-1)
+    ih_idx = pm.index(0, data.shape[2]-1)
+    ow_idx = pm.index(0, ow-1)
+    iw_idx = pm.index(0, data.shape[3] - 1)
+    padded_out[(n_idx, c_idx, oh_idx, ow_idx)] = pad_val
+    padded_out[(n_idx, c_idx, ih_idx + p_top, iw_idx + p_left)] = data[(n_idx, c_idx, ih_idx, iw_idx)]
+    return padded_out
+
+def reshape_node(data: pm.Node, reshaped_out: pm.Node, shape: tuple, dim_combinations):
+    assert np.prod(data.shape) == np.prod(shape)
+    assert len(dim_combinations) == len(shape)
+    src_indices = []
+    dst_indices = []
+
+    for s in data.shape:
+        idx = pm.index(0, s-1)
+        src_indices.append(idx)
+
+    # STEP 0: idx3*1 + 0
+    # STEP 1: idx3 + shape[3]*
+    for dc in reversed(dim_combinations):
+        idx = 0
+        idx_offset = 1
+        add_dim = 0
+        for d in reversed(dc):
+            idx = src_indices[d]*idx_offset + add_dim
+            idx_offset = data.shape[d]
+
+def _get_indices_for_dim(x, dim):
+    assert len(x.shape) < dim
+    idx = pm.index(0, x.shape[dim] - 1)
+    return idx
+
+
+def _dim_explicit(a_shp, dim):
+    if dim is None:
+        return dim
+
+    if dim < 0:
+        dim = len(a_shp) + dim
+    return dim
+
+
+def _get_conv_shape_1axis(
+    image_shape, kernel_shape, border_mode, subsample, dilation=1
+):
+    """This function compute the output shape of convolution operation.
+    Copied and simplified from theano (2020/11/08):
+    https://github.com/Theano/Theano/blob/master/theano/tensor/nnet/abstract_conv.py
+    Parameters
+    ----------
+    image_shape: int
+        Corresponds to the input image shape on a given axis.
+    kernel_shape: int
+        Corresponds to the kernel shape on a given axis.
+    border_mode: string or int. If it is a string, it must be
+        'valid' or 'full'.
+    subsample: int. It must correspond to the subsampling on the
+        considered axis.
+    dilation: int. It must correspond to the dilation on the
+        considered axis.
+    Returns
+    -------
+    out_shp: int corresponding to the output image shape on the
+        considered axis.
+    """
+    # Implicit dilated kernel shape
+    dil_kernel_shape = (kernel_shape - 1) * dilation + 1
+    if border_mode == "full":
+        pad_l = pad_r = dil_kernel_shape - 1
+    elif border_mode == "valid":
+        pad_l = pad_r = 0
+    else:
+        assert border_mode >= 0
+        pad_l = pad_r = border_mode
+
+    # In case of symbolic shape, we want to build the smallest graph
+    # (image_shape + 2 * pad - dil_kernel_shape) // subsample + 1
+    out_shp = image_shape - dil_kernel_shape
+    if pad_l != 0:
+        out_shp += pad_l
+    if pad_r != 0:
+        out_shp += pad_r
+    if subsample != 1:
+        out_shp = out_shp // subsample
+    out_shp = out_shp + 1
+
+    return out_shp
+
+def _get_conv_output_shape(
+    image_shape, kernel_shape, border_mode, subsample, filter_dilation=(0, 0)
+):
+    """This function compute the output shape of convolution operation.
+    Copied and simplified from Theano (2020/11/08):
+    https://github.com/Theano/Theano/blob/master/theano/tensor/nnet/abstract_conv.py
+    Parameters
+    ----------
+    image_shape: tuple of int corresponding to the input
+        image shape. Its four (or five) element must correspond respectively
+        to: batch size, number of input channels, height and width (and
+        possibly depth) of the image. None where undefined.
+    kernel_shape: tuple of int corresponding to the
+        kernel shape. For a normal convolution, its four (for 2D convolution)
+        or five (for 3D convolution) elements must correspond respectively to :
+        number of output channels, number of input channels, height and width
+        (and possibly depth) of the kernel.
+        For an unshared 2D convolution, its six channels must correspond to :
+        number of output channels, height and width of the output, number of
+        input channels, height and width of the kernel.
+        None where undefined.
+    border_mode: string, or tuple of int. If it is a string, it must be 'valid'
+        or 'full'. If it is a tuple, its two (or three) elements respectively
+        correspond to the padding on height and width (and possibly depth)
+        axis.
+    subsample: tuple of int. Its two or three elements
+        respectively correspond to the subsampling on height and width (and
+        possibly depth) axis.
+    filter_dilation: tuple of int. Its two or three
+        elements correspond respectively to the dilation on height and width axis.
+    Returns
+    -------
+    output_shape: tuple of int corresponding to the output image shape. Its
+        four element must correspond respectively to: batch size, number of
+        output channels, height and width of the image.
+    """
+    bsize, imshp = image_shape[0], image_shape[2:]
+
+    convdim = len(image_shape) - 2
+    nkern, kshp = kernel_shape[0], kernel_shape[-convdim:]
+
+    if isinstance(border_mode, tuple):
+        out_shp = tuple(
+            _get_conv_shape_1axis(
+                imshp[i],
+                kshp[i],
+                border_mode[i],
+                subsample[i],
+                filter_dilation[i],
+            )
+            for i in range(len(subsample))
+        )
+    else:
+        out_shp = tuple(
+            _get_conv_shape_1axis(
+                imshp[i], kshp[i], border_mode, subsample[i], filter_dilation[i]
+            )
+            for i in range(len(subsample))
+        )
+    return (bsize, nkern) + out_shp

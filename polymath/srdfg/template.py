@@ -1,6 +1,7 @@
 import polymath as pm
 from polymath.srdfg.base import _noop_callback
 import inspect
+CONTEXT_TEMPLATE_TYPES = (pm.state, pm.output, pm.temp, pm.write)
 
 class Template(pm.Node):
 
@@ -37,7 +38,7 @@ class Template(pm.Node):
             # if not isinstance(a, (pm.placeholder, pm.parameter, pm.slice_op)):
             #     raise TypeError(f"Argument {a} for node {self.name} is invalid.")
             self.graph_map[arg] = arg.graph
-            if isinstance(arg, (pm.state, pm.output)):
+            if isinstance(arg, CONTEXT_TEMPLATE_TYPES):
                 self.graph_map[arg.current_value()] = arg.current_value().graph
                 arg.current_value().graph = self
                 self.nodes[arg.current_value().name] = arg.current_value()
@@ -59,7 +60,7 @@ class Template(pm.Node):
 
     def reset_arg(self, arg):
         if isinstance(arg, pm.Node) and arg.name in self.nodes:
-            if isinstance(arg, (pm.state, pm.output)):
+            if isinstance(arg, CONTEXT_TEMPLATE_TYPES):
                 self.graph_map[arg].nodes[arg.current_value().name] = arg.current_value()
                 arg.current_value().graph = self.graph_map[arg]
             arg.graph = self.graph_map[arg]
@@ -101,7 +102,8 @@ class Template(pm.Node):
 
 
     def evaluate_arg(self, values, context, arg):
-        if isinstance(arg, (pm.state, pm.output, pm.temp)):
+        # if isinstance(arg, (pm.state, pm.output, pm.temp)):
+        if isinstance(arg, CONTEXT_TEMPLATE_TYPES):
             write_name = self.get_write_name(arg)
             context[arg] = self.nodes[write_name].evaluate(context)
             values.append(context[arg])

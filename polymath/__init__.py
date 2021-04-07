@@ -12,9 +12,11 @@ from polymath.srdfg.nodes import variable, predicate, assert_, str_format, ident
     placeholder, temp, parameter, slice_op, input, state, output, write
 from polymath.srdfg.index import index, index_op
 from polymath.srdfg.group_nodes import GroupNode, sum, prod, max, min, argmin, argmax, bitreverse
-from polymath.srdfg.nonlinear import NonLinear, sigmoid, log2, exp, abs, sqrt, ceil, floor, cast, tanh, square
+from polymath.srdfg.nonlinear import NonLinear, sigmoid, log2, log10, exp, abs, sqrt, ceil, \
+    floor, cast, tanh, square, log
 from polymath.srdfg.template import Template
-from polymath.srdfg.transformations import Transformation, unsqueeze, squeeze, flatten, gather
+from polymath.srdfg.transformations import Transformation, unsqueeze, squeeze, flatten, gather, \
+    reshape, gather_elements
 from polymath.srdfg.util import Profiler, visualize, lower_graph, is_iterable
 from polymath.srdfg.serialization.serialize import pb_store, pb_load
 
@@ -23,11 +25,15 @@ from polymath.srdfg.templates.data_analytics import linear_regressor_train,\
 
 from polymath.srdfg.templates.dnn import conv_bias, dense, relu, avg_pool2d,\
     batch_flatten, softmax, relu1d, dense_sigmoid, batch_norm,\
-    global_avg_pool, conv, max_pool, dropout, leaky_relu, avg_pool, lrn, elem_tanh, elem_sigmoid, elem_cast
+    global_avg_pool, conv, max_pool, dropout, leaky_relu, avg_pool, lrn, \
+    elem_tanh, elem_sigmoid, elem_cast, conv_transpose, cross_entropy_loss, log_softmax, \
+    nll_loss
+
+from polymath.srdfg.templates.optimizers import sgd
 
 
-from polymath.srdfg.templates.math import elem_mul, elem_sub, reduce_sum, matmul, gemm, elem_add, elem_greater, \
-    lvmatmul, rvmatmul
+from polymath.srdfg.templates.math import elem_mul, elem_sub, reduce_sum, matmul, gemm, \
+    elem_add, elem_greater, lvmatmul, rvmatmul, gemm_no_bias
 from polymath.srdfg.templates.tensor_transformations import coarse_flatten, elem_gather, transpose, onnx_reshape, \
     onnx_squeeze, onnx_identity, onnx_resize, onnx_unsqueeze
 
@@ -36,6 +42,7 @@ from polymath.srdfg.from_onnx.converter import from_onnx, get_attributes, get_va
 from polymath.srdfg.passes import register_pass, Pass
 from polymath.srdfg.passes.dnn_passes import UpdateBatchSize, CollectDNNShapes
 from polymath.srdfg.passes.compiler_passes import NormalizeGraph, Lower, CountNodes, CountOpTypes
+from polymath.srdfg.passes.autodiff import AutoDiffGraph
 from polymath.codegen.tabla.tabla_translate import generate_tabla
 
 try:

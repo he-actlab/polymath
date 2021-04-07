@@ -6,7 +6,13 @@ import numpy as np
 from polymath.srdfg.templates.onnx_conversion import NODE_NAMES
 import polymath as pm
 
-def from_onnx(filepath, infer_shapes=True, use_filename=True):
+# TODO: Dynamically create this list to make sure it is valid
+ONNX_OP_NAMES = ['max_pool', 'lrn', 'conv', 'conv_bias', 'global_avg_pool', 'dropout', 'elem_tanh',
+                'softmax', 'elem_cast', 'elem_sigmoid', 'batch_norm', 'batch_flatten', 'avg_pool2d',
+                'leaky_relu', 'relu', 'dense_sigmoid', 'dense', 'avg_pool', 'gemm', 'elem_add', 'elem_sub',
+                 'elem_mul', 'dropout', 'coarse_flatten', 'cross_entropy_loss']
+
+def from_onnx(filepath, infer_shapes=True, use_filename=True, lower=False):
     onnx_proto, graph_name = load_onnx_proto(filepath)
     attr = get_model_attributes(onnx_proto)
     if infer_shapes:
@@ -21,6 +27,11 @@ def from_onnx(filepath, infer_shapes=True, use_filename=True):
     if use_filename:
         graph_name = filepath.split("/")[-1].split(".")[0]
         graph.set_name(graph_name)
+
+    if lower:
+        lower_pass = pm.Lower(ONNX_OP_NAMES)
+        graph = lower_pass(graph)
+
     return graph
 
 def load_onnx_proto(filepath):
@@ -308,7 +319,3 @@ def add_value_info_for_constants(model : onnx.ModelProto):
     return add_const_value_infos_to_graph(model.graph)
 
 
-ONNX_OP_NAMES = ['max_pool', 'lrn', 'conv', 'conv_bias', 'global_avg_pool', 'dropout', 'elem_tanh',
-                'softmax', 'elem_cast', 'elem_sigmoid', 'batch_norm', 'batch_flatten', 'avg_pool2d',
-                'leaky_relu', 'relu', 'dense_sigmoid', 'dense', 'avg_pool', 'gemm', 'elem_add', 'elem_sub',
-                 'elem_mul', 'dropout', 'coarse_flatten']

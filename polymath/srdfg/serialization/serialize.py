@@ -359,7 +359,8 @@ def _serialize_node(node_instance):
                 new_arg.bs.extend(arg)
             else:
                 raise TypeError(f"Cannot find serializable method for argument {arg} with "
-                                f"type {type(arg)} in node {node_instance.name} - {node_instance.op_name}")
+                                f"type {type(arg)} in node {node_instance.name} - {node_instance.op_name}\n"
+                                f"All args: {node_instance.args}")
 
         else:
             raise TypeError(f"Cannot find serializable method for argument {arg} with type {type(arg)}")

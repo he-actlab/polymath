@@ -1,9 +1,98 @@
 import polymath as pm
-from .template_utils import _get_indices, _get_single_node_indices
+from .template_utils import _get_indices, _get_single_node_indices, _get_elem_indices, pad_node, _dim_explicit
 from polymath.srdfg.util import squeeze_shape
 from numbers import Integral
 import numpy as np
 import functools
+
+class cross_entropy_loss(pm.Template):
+    def define_graph(self, z, y, loss, reduction="mean"):
+        a = pm.temp(name=f"temp_{y.name}", shape=z.shape)
+
+        i = pm.index(0, z.shape[1]-1, name="i")
+        indices = [pm.index(0, s - 1, name=f"{z.name}[{i}]") for i, s in enumerate(z.shape)]
+        indices[1] = i
+        indices = tuple(indices)
+        maxes = pm.max([i], z[indices], name="maxes")
+        lse_stable = pm.log(pm.sum([i], pm.exp((z[indices] - maxes[indices[0]]))), name="lse_stable")
+        a[indices] = z[indices] - maxes[indices[0]] - lse_stable[indices[0]]
+        # assert len(z.shape) == 2
+        # assert len(y.shape) == 1
+        gathered = pm.gather_elements(a, pm.reshape(y, shape=(a.shape[0], 1), name="reshaped1"), axis=1, shape=(y.shape[0],), name="gathered_elem")
+        reshaped = pm.reshape(-1*gathered, shape=(y.shape[0],), name="other_reshape")
+        idx = (pm.index(0, a.shape[0] - 1),)
+        if reduction == "none":
+            loss.set_shape(reshaped.shape)
+            loss[idx] = reshaped[idx]
+        elif reduction == "mean":
+            loss.set_shape((1,))
+            denom = 1
+            for s in reshaped.shape:
+                denom = denom*s
+            loss[0] = pm.sum([idx[0]], reshaped[idx], name="test_sum_name")/denom
+        elif reduction == "sum":
+            loss.set_shape((1,))
+            loss[0] = pm.sum([idx[0]], reshaped[idx])
+
+
+
+        # TODO: Get this working
+        # pm.log_softmax(z, a, axis=1)
+        # pm.nll_loss(a, y, loss, reduction=reduction)
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1])
+
+    @property
+    def outputs(self):
+        return (self.args[2],)
+
+
+class nll_loss(pm.Template):
+    def define_graph(self, logs, targets, out, reduction="mean"):
+        gathered = pm.gather_elements(logs, pm.reshape(targets, shape=(logs.shape[0], 1)), axis=1)
+        reshaped = pm.reshape(-1*gathered, shape=(logs.shape[0],))
+        idx = (pm.index(0, logs.shape[0] - 1),)
+        if reduction == "none":
+            out.set_shape(reshaped.shape)
+            out[idx] = reshaped[idx]
+        elif reduction == "mean":
+            out.set_shape((1,))
+            denom = 1
+            for s in reshaped.shape:
+                denom = denom*s
+            out[0] = pm.sum([idx[0]], reshaped[idx])/denom
+        elif reduction == "sum":
+            out.set_shape((1,))
+            out[0] = pm.sum([idx[0]], reshaped[idx])
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1])
+
+    @property
+    def outputs(self):
+        return (self.args[2],)
+
+class log_softmax(pm.Template):
+    def define_graph(self, data, out, axis=0):
+        out.set_shape(data.shape)
+        i = pm.index(0, data.shape[axis]-1, name="i")
+        indices = [pm.index(0, s - 1, name=f"{data.name}[{i}]") for i, s in enumerate(data.shape)]
+        indices[axis] = i
+        indices = tuple(indices)
+        maxes = pm.max([i], data[indices], name="maxes")
+        lse_stable = pm.log(pm.sum([i], pm.exp((data[indices] - maxes[indices[0]]))), name="lse_stable")
+        out[indices] = data[indices] - maxes[indices[0]] - lse_stable[indices[0]]
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1])
+
+    @property
+    def outputs(self):
+        return (self.args[2],)
 
 class avg_pool(pm.Template):
     def define_graph(self, data, out, kh, kw, stride=(1,1), pad=(0,0)):
@@ -165,6 +254,56 @@ class conv_bias(pm.Template):
     def outputs(self):
         return (self.args[3],)
 
+# TODO: Make flexible for different conv shapes
+class conv_transpose(pm.Template):
+    def define_graph(self, data, wgt, out, stride=1, pad=0, out_pad=0):
+
+        n, c, h, w = data.shape
+        dim_in, dim_out, kh, kw = wgt.shape
+        sh, sw = stride - 1, stride - 1
+
+        y = pm.temp(name=f"{data.name}_reshaped", shape=(n*c, h*w, 1, 1))
+        n_idx = pm.index(0, n-1)
+        c_idx = pm.index(0, c-1)
+        h_idx = pm.index(0, h-1)
+        w_idx = pm.index(0, w-1)
+        y[(n_idx*c + c_idx), (h_idx*w + w_idx), 0, 0] = data[n_idx, c_idx, h_idx, w_idx]
+        y1 = pm.temp(name=f"{data.name}_pad")
+        y1 = pad_node(y, y1, (0, sw, 0, sh))
+
+        y2 = pm.temp(name=f"{data.name}_reshaped2", shape=(n * c, h, w, 1 + sh, 1 + sw))
+        nc_idx = pm.index(0, n*c - 1)
+        sh_idx = pm.index(0, sh)
+        sw_idx = pm.index(0, sw)
+        y2[nc_idx, h_idx, w_idx, sh_idx, sw_idx] = y1[nc_idx, (h_idx*w + w_idx), sh_idx, sw_idx]
+
+        y3 = pm.temp(name=f"{data.name}_permuted", shape=(n * c, h, 1 + sh, w, 1 + sw))
+        y3[nc_idx, h_idx, sh_idx, w_idx, sw_idx] = y2[nc_idx, h_idx, w_idx, sh_idx, sw_idx ]
+
+        y4 = pm.temp(name=f"{data.name}_reshaped3", shape=(n, c, h * (1 + sh), w * (1 + sw)))
+        y4[n_idx, c_idx, h_idx*stride + sh_idx, w_idx*stride + sw_idx] = y3[(n_idx*c + c_idx), h_idx, sh_idx, w_idx, sw_idx]
+        ph, pw = kh - pad - 1, kw - pad - 1
+
+        w_perm = pm.temp(name="w_perm_flip", shape=(wgt.shape[1], wgt.shape[0], wgt.shape[3], wgt.shape[2]))
+        oc_idx = pm.index(0, wgt.shape[0]-1)
+        ic_idx = pm.index(0, wgt.shape[1]-1)
+        kh_idx = pm.index(0, kh-1)
+        kw_idx = pm.index(0, kw-1)
+        w_perm[ic_idx, oc_idx, kh - kh_idx - 1, kw - kw_idx - 1] = wgt[oc_idx, ic_idx, kh_idx, kw_idx]
+
+        y5 = pm.temp(name=f"{data.name}_pad2")
+        y5 = pad_node(y4, y5, (pw, pw - sw, ph, ph - sh))
+        pm.conv(y5, w_perm, out, stride=1, pad=0)
+
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1])
+
+    @property
+    def outputs(self):
+        return (self.args[3],)
+
 class avg_pool2d(pm.Template):
     def define_graph(self, inp, out, kh, kw, stride=1, pad=0):
         oh = ((inp.shape[2] + 2 * pad - kh) // stride + 1)
@@ -205,9 +344,9 @@ class batch_flatten(pm.Template):
         p = data.shape[3]
 
         i = pm.index(0, data.shape[0]-1, name="i")
-        j = pm.index(0, data.shape[1]-1, name="j")
-        k = pm.index(0, data.shape[2]-1, name="k")
-        l = pm.index(0, data.shape[3]-1, name="l")
+        j = pm.index(0, m-1, name="j")
+        k = pm.index(0, n-1, name="k")
+        l = pm.index(0, p-1, name="l")
         out[((i*m + j)*n + k)*p + l] = data[i, j, k, l]
 
     @property
@@ -366,7 +505,7 @@ class conv(pm.Template):
 
         padded = pm.temp(name="padded", shape=p_shape)
         padded[tuple(p_indices + [ihp_, iwp_])] = 0
-        padded[tuple(p_indices + [iy + pad, ix + pad])] = data[tuple(p_indices + [ iy, ix])]
+        padded[tuple(p_indices + [iy + pad, ix + pad])] = data[tuple(p_indices + [iy, ix])]
         out[tuple(o_indices + [y, x])] = pm.sum([dy, dx, k], (padded[tuple(p_indices + [dy + stride*y, dx + stride*x])] * w[c, k, dy, dx]))
 
     @property

@@ -18,6 +18,9 @@ class index(Node):  # pylint: disable=C0103,W0223
             domain = Domain(tuple([self]), dom_set=tuple([self]))
             self.kwargs['domain'] = domain
 
+        if 'stride' not in kwargs:
+            self.kwargs['stride'] = 1
+
 
     def as_shape(self):
         return self.ubound - self.lbound + 1
@@ -40,13 +43,17 @@ class index(Node):  # pylint: disable=C0103,W0223
         _, u = self.args
         return u
 
+    @property
+    def stride(self):
+        return self.kwargs['stride']
+
     def _evaluate(self, lbound, ubound, **kwargs):
         if isinstance(self.lbound, index) or is_iterable(self.lbound):
             lbound = len(lbound) - 1
 
         if isinstance(self.ubound, index) or is_iterable(self.ubound):
             ubound = len(ubound) - 1
-        value = np.asarray([i for i in range(int(lbound), int(ubound) + 1)])
+        value = np.asarray([i for i in range(int(lbound), int(ubound) + 1, self.stride)])
         return value
 
     def set_scalar_subgraph(self, _):

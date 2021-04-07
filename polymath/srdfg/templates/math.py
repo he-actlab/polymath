@@ -8,8 +8,8 @@ import functools
 
 class reduce_sum(pm.Template):
     def define_graph(self, data, out, axes=(0,), keepdims=True):
-        indices = _get_single_node_indices(data)
-        # indices = tuple([pm.index(0, s - 1) for s in data.shape])
+        # indices = _get_single_node_indices(data)
+        indices = tuple([pm.index(0, s - 1) for s in data.shape])
         sum_idx = tuple([indices[i] for i in axes])
         out_idx = tuple([indices[i] for i in axes if i not in axes])
         out[out_idx] = pm.sum([sum_idx], data[indices])
@@ -106,11 +106,37 @@ class gemm(pm.Template):
         i = pm.index(0, a.shape[0] - 1)
         j = pm.index(0, b.shape[0] - 1)
         k = pm.index(0, b.shape[1] - 1)
-        y[i, k] = pm.sum([j], a[i, j]*b[j, k]) + c[i, k]
+        if transA:
+            y[i, k] = pm.sum([j], a[j, i]*b[j, k]) + c[i, k]
+        elif transB:
+            y[i, k] = pm.sum([j], a[i, j]*b[k, j]) + c[i, k]
+        else:
+            y[i, k] = pm.sum([j], a[i, j]*b[j, k]) + c[i, k]
 
     @property
     def inputs(self):
         return (self.args[0], self.args[1], self.args[2])
+
+    @property
+    def outputs(self):
+        return (self.args[3],)
+
+class gemm_no_bias(pm.Template):
+    def define_graph(self, a, b, y, alpha=1.0, beta=0.0, transA=False, transB=False):
+
+        i = pm.index(0, a.shape[0] - 1)
+        j = pm.index(0, b.shape[0] - 1)
+        k = pm.index(0, b.shape[1] - 1)
+        if transA:
+            y[i, k] = pm.sum([j], a[j, i]*b[j, k])
+        elif transB:
+            y[i, k] = pm.sum([j], a[i, j]*b[k, j])
+        else:
+            y[i, k] = pm.sum([j], a[i, j]*b[j, k])
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1])
 
     @property
     def outputs(self):
