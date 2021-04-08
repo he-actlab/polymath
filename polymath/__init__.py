@@ -30,6 +30,7 @@ from polymath.srdfg.templates.dnn import conv_bias, dense, relu, avg_pool2d,\
     nll_loss
 
 from polymath.srdfg.templates.optimizers import sgd
+from polymath.srdfg.templates.gradient_defs import gemm_grad, gemm_grad_no_bias
 
 
 from polymath.srdfg.templates.math import elem_mul, elem_sub, reduce_sum, matmul, gemm, \

@@ -1,5 +1,6 @@
 import polymath as pm
 import numpy as np
+import pytest
 
 def test_unsqueeze():
     with pm.Node(name="indexop") as graph:
@@ -96,3 +97,19 @@ def test_gather1():
     pm_y = graph("res", {"input": x, "indices": idx})
     np_y = np.take(x, idx, axis=axis)
     np.testing.assert_allclose(np_y, pm_y)
+
+@pytest.mark.parametrize('in_shape, out_shape',[
+    ((5, 100,), (1, 500,)),
+    ((5, 100,), (5, 25, 4)),
+])
+def test_reshape(in_shape, out_shape):
+    x = np.zeros(in_shape).astype(np.float32)
+
+    with pm.Node(name="reshape_op") as graph:
+        data = pm.input(name="input", shape=x.shape)
+        out = pm.reshape(data, shape=out_shape, name="res")
+
+    pm_y = graph("res", {"input": x})
+    np_y = np.reshape(x, out_shape)
+    np.testing.assert_allclose(np_y, pm_y)
+    assert np_y.shape == pm_y.shape

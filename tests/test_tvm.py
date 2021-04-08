@@ -7,7 +7,6 @@ import pytest
 import pprint
 import numpy as np
 import copy
-import onnxruntime as rt
 import tvm
 
 import pickle

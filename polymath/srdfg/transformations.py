@@ -36,6 +36,46 @@ class Transformation(Node):
         return "<transformation '%s' target=%s>"% \
                (self.name, self.op_name)
 
+    def __getitem__(self, key):
+
+        if isinstance(key, (tuple, list, np.ndarray)) and len(key) == 0:
+            return self
+        elif self.is_shape_finalized() and len(self.nodes) > 0:
+            if isinstance(key, (int, Node)):
+                key = tuple([key])
+            if len(key) != len(self.shape):
+                raise KeyError(f"Invalid key shape for {self.name}:\n"
+                               f"Shape: {self.shape}\n"
+                               f"Key: {key}")
+
+            name = f"{self.name}{key}"
+            if name not in self.nodes.keys():
+                raise KeyError(f"{name} not in {self.name} keys:\n"
+                               f"Node keys: {list(self.nodes.keys())}")
+            ret = self.nodes[name]
+            return ret
+        else:
+            name = []
+            if isinstance(key, Node):
+                name.append(key.name)
+            elif hasattr(key, "__len__") and not isinstance(key, str):
+                for k in key:
+                    if isinstance(k, Node):
+                        name.append(k.name)
+                    else:
+                        name.append(str(k))
+            else:
+                name.append(key)
+            name = self.var.name + "[" + "][".join(name) + "]"
+            if name in self.graph.nodes:
+                return self.graph.nodes[name]
+            elif isinstance(key, (list)):
+                return var_index(self, key, name=name, graph=self.graph)
+            elif isinstance(key, tuple):
+                return var_index(self, list(key), name=name, graph=self.graph)
+            else:
+                return var_index(self, [key], name=name, graph=self.graph)
+
 class unsqueeze(Transformation):
     def __init__(self, input_node, axis=0, shape=None, **kwargs):
         if shape:

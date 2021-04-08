@@ -335,6 +335,10 @@ def _serialize_node(node_instance):
             new_arg.type = pb.Attribute.Type.BOOL
             new_arg.b = arg
         elif isinstance(arg, Iterable):
+            # TODO: Fix this to be more generic
+
+            if isinstance(arg, list) and len(arg) == 1 and isinstance(arg[0], tuple):
+                arg = arg[0]
             if all(isinstance(a, Node) for a in arg):
                 new_arg.type = pb.Attribute.Type.NODES
                 new_arg.ss.extend([_to_bytes_or_false(a.name) for a in arg])

@@ -6,7 +6,7 @@ import numpy as np
 import functools
 
 class sgd(pm.Template):
-    def define_graph(self, param, grad, lr, momentum=0.9, weight_decay=0.0, dampening=0.0, nesterov=False):
+    def define_graph(self, param, grad, lr=0.01, momentum=0.9, weight_decay=0.0, dampening=0.0, nesterov=False):
         data_idx, grad_idx, indices = _get_elem_indices(param, grad, param)
 
         if momentum != 0:

@@ -12,7 +12,7 @@ OUTPATH = f"{BASE_PATH}/outputs"
 
 
 def test_single_dim():
-    with pm.Node(name="elem") as graph:
+    with pm.Node(name="elem5") as graph:
         m = pm.parameter(name="m")
         x = pm.input("x", shape=m)
         w = pm.state("w", shape=m)
@@ -38,7 +38,7 @@ def test_single_dim():
     assert fine_grained_eval == np_result[1]
 
 
-    pb_path = f"{OUTPATH}/{graph.name}.pb"
+    pb_path = f"{OUTPATH}/{graph.name}.srdfg"
     pm.pb_store(lowered_graph, OUTPATH)
     loaded_node = pm.pb_load(pb_path)
     input_info = {f"w/w({i},)": w_[i] for i in range(len(w_))}
@@ -59,7 +59,7 @@ def non_class_pass(node, ctx):
     return node
 
 def test_multi_dim():
-    with pm.Node(name="elem") as graph:
+    with pm.Node(name="elem4") as graph:
         m = pm.parameter(name="m")
         n = pm.parameter(name="n")
         x = pm.input("x", shape=(m,n))
@@ -90,7 +90,7 @@ def test_multi_dim():
     assert fine_grained_eval == np_result[2,3]
 
 def test_single_dim_op_slice():
-    with pm.Node(name="elem") as graph:
+    with pm.Node(name="elem3") as graph:
         m = pm.parameter(name="m")
         x = pm.input("x", shape=m)
         w = pm.state("w", shape=m)
@@ -119,7 +119,7 @@ def test_single_dim_op_slice():
     assert fine_grained_eval == np_result[2]
 
 def test_multi_dim_op_slice():
-    with pm.Node(name="elem") as graph:
+    with pm.Node(name="elem2") as graph:
         m = pm.parameter(name="m")
         n = pm.parameter(name="n")
         mu = pm.parameter(name="mu", default=2.0)
@@ -151,7 +151,7 @@ def test_multi_dim_op_slice():
     assert fine_grained_eval == np_result[2, 1]
 
 def test_lower_group_op():
-    with pm.Node(name="linear_reg") as graph:
+    with pm.Node(name="linear_reg1") as graph:
         m = pm.parameter(name="m")
         x = pm.input("x", shape=(m))
         y = pm.input("y")
@@ -178,18 +178,20 @@ def test_lower_group_op():
     fine_grained_eval = lowered_graph("h/h(4,)", input_info)
     assert fine_grained_eval == np_result
 
-    pb_path = f"{OUTPATH}/linear_reg.pb"
+    pb_path = f"{OUTPATH}/linear_reg1.srdfg"
+
     pm.pb_store(lowered_graph, OUTPATH)
     loaded_node = pm.pb_load(pb_path)    #
     input_info = {f"w/w({i},)": w_[i] for i in range(len(w_))}
     input_info.update({f"x/x({i},)": x_[i] for i in range(len(x_))})
+
     loaded_res = loaded_node("h/h(4,)", input_info)
 
     assert loaded_node.func_hash() == lowered_graph.func_hash()
     assert loaded_res == np_result
 #
 def test_single_dim_norm():
-    with pm.Node(name="elem") as graph:
+    with pm.Node(name="elem1") as graph:
         m = pm.parameter("m")
         x = pm.input("x", shape=m)
         w = pm.state("w", shape=m)
@@ -214,7 +216,7 @@ def test_single_dim_norm():
 
     assert fine_grained_eval == np_result[1]
 
-    pb_path = f"{OUTPATH}/{graph.name}.pb"
+    pb_path = f"{OUTPATH}/{graph.name}.srdfg"
     pm.pb_store(lowered_graph, OUTPATH)
     loaded_node = pm.pb_load(pb_path)
     input_info = {f"w/w({i},)": w_[i] for i in range(len(w_))}
@@ -314,7 +316,7 @@ def test_linear(m_):
 ])
 def test_sigmoid(m_):
 
-    with pm.Node(name="logistic") as graph:
+    with pm.Node(name="logistic1") as graph:
         m = pm.parameter(name="m")
         n = pm.parameter(name="n")
         x = pm.input("x", shape=(m))
@@ -324,11 +326,11 @@ def test_sigmoid(m_):
     x_ = np.random.randint(0, 10, m_)
     w_ = np.random.randint(0, 10, m_)
     input_dict = {"x": x_, "w": w_}
-    np_res = sigmoid(np.sum(x_*w_))
+    np_res = int(sigmoid(np.sum(x_*w_)))
     shape_dict = {"m": m_}
 
     coarse_eval = graph("out", x=x_, w=w_)
-    assert np_res == coarse_eval
+    np.testing.assert_allclose(np_res, coarse_eval)
     lowered = set_shape_and_lower(graph, shape_dict)
 
 

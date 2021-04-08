@@ -1559,6 +1559,23 @@ def max_pool(x_shape, coarse=False, debug_matrix=False):
         in_info, keys, out_info = global_avg_pool_datagen(x_shape, lowered=True)
         return new_graph, in_info, out_info, keys
 
+def conv_transpose(x_shape, w_shape, stride=1, pad=0, coarse=False, debug_matrix=False):
+    with pm.Node(name="conv_transpose") as graph:
+        # n = pm.parameter(name="n")
+        # c = pm.parameter(name="ic")
+        # ih = pm.parameter(name="ih")
+        # iw = pm.parameter(name="iw")
+        # nf = pm.parameter(name="nf")
+        # kh = pm.parameter(name="kh")
+        # kw = pm.parameter(name="kw")
+        x = pm.input(name="data", shape=x_shape)
+        w = pm.state(name="w", shape=w_shape)
+        # b = pm.state(name="bias", shape=(nf))
+        # stride = pm.parameter(name="stride")
+        # pad = pm.parameter(name="pad")
+        out = pm.output(name="out")
+        pm.conv_transpose(x, w, out, stride, pad, name="conv_transpose_op")
+
 def max_pool_datagen(x_shape, lowered=False):
     input_info = {}
     input_info['x'] = np.random.randint(-3,3, x_shape)
@@ -2490,3 +2507,288 @@ def pm_tiny_yolo(coarse=False, debug=False):
         in_info, keys, out_info = np_lenet(lowered=True)
         return new_graph, in_info, out_info, keys
 
+
+def dilate_python(input_np, strides, dilation_value=0.0):
+    """Dilate operation.
+    Parameters
+    ----------
+    input_np : numpy.ndarray
+        n-D, can be any layout.
+    strides : list / tuple of n ints
+        Dilation stride on each dimension, 1 means no dilation.
+    dilation_value : int/float, optional
+        Value used to dilate the input.
+    Returns
+    -------
+    output_np : numpy.ndarray
+        n-D, the same layout as Input.
+    """
+    n = len(input_np.shape)
+    assert len(strides) == n, "Input dimension and strides size dismatch : %d vs %d" % (
+        n,
+        len(strides),
+    )
+    output_size = ()
+    no_zero = ()
+    for i in range(n):
+        output_size += ((input_np.shape[i] - 1) * strides[i] + 1,)
+        no_zero += ((range(0, output_size[i], strides[i])),)
+    output_np = np.ones(shape=output_size)
+    output_np = dilation_value * output_np
+    output_np[np.ix_(*no_zero)] = input_np
+
+    return output_np
+
+
+
+def get_pad_tuple(padding, kernel):
+    """Common code to get the pad option
+    Parameters
+    ----------
+    padding : int or str
+        Padding size, or ['VALID', 'SAME']
+    kernel : tuple of int
+        Conv kernel size
+    Returns
+    -------
+    pad_top : int
+        Padding size on top
+    pad_left : int
+        Padding size on left
+    pad_down : int
+        Padding size on down.
+    pad_right : int
+        Padding size on right.
+    """
+    # compute the padding size
+    if isinstance(padding, (tuple, list)):
+        if len(padding) == 2:
+            pad_h = padding[0] * 2
+            pad_w = padding[1] * 2
+        elif len(padding) == 4:
+            return padding[0], padding[1], padding[2], padding[3]
+        else:
+            raise ValueError("Size of padding can only be 2 or 4")
+    elif isinstance(padding, int):
+        pad_h = pad_w = padding * 2
+    elif padding == "VALID":
+        pad_h = 0
+        pad_w = 0
+    elif padding == "SAME":
+        pad_h = kernel[0] - 1
+        pad_w = kernel[1] - 1
+    else:
+        raise ValueError("Unknown padding option %s" % padding)
+    pad_top = (pad_h + 1) // 2
+    pad_left = (pad_w + 1) // 2
+    return pad_top, pad_left, pad_h - pad_top, pad_w - pad_left
+
+def stable_softmax(X):
+    exps = np.exp(X - np.max(X))
+    return exps / np.sum(exps)
+
+def cross_entropy_loss(X, y):
+    """
+    X is the output from fully connected layer (num_examples x num_classes)
+    y is labels (num_examples x 1)
+    	Note that y is not one-hot encoded vector.
+    	It can be computed as y.argmax(axis=1) from one-hot encoded vectors of labels if required.
+    """
+    m = y.shape[0]
+    p = softmax(X)
+    # We use multidimensional array indexing to extract
+    # softmax probability of the correct label for each sample.
+    # Refer to https://docs.scipy.org/doc/numpy/user/basics.indexing.html#indexing-multi-dimensional-arrays for understanding multidimensional array indexing.
+    log_likelihood = -np.log(p[range(m), y])
+    loss = np.sum(log_likelihood) / m
+    return loss
+
+def softmax(X):
+    exps = np.exp(X)
+    return exps / np.sum(exps)
+
+def _dim_explicit(a_shp, dim):
+    if dim is None:
+        return dim
+
+    if dim < 0:
+        dim = len(a_shp) + dim
+    return dim
+
+
+def log_softmax(self, dim=1, dtype=None):
+    """Map of 'log_softmax' pytorch method."""
+    x = self
+    dim = _dim_explicit(x.shape, dim)
+    maxes = np.max(x, axis=dim, keepdims=True)
+    lse_stable = np.log(np.sum(np.exp(x - maxes), axis=dim, keepdims=True))
+    out = x - maxes - lse_stable
+    return out
+
+
+def nll_loss(logs, targets, reduction="mean"):
+    """Map of 'nll_loss' pytorch method."""
+    out = -np.reshape(
+        np.take_along_axis(logs, np.reshape(targets, (logs.shape[0], 1)).astype(np.int64), axis=1),
+        (logs.shape[0],),
+    )
+
+    if reduction == "none":
+        out = out
+    elif reduction == "mean":
+        out = np.mean(out)
+    elif reduction == "sum":
+        out = np.sum(out)
+    return out
+
+def torch_ce_loss(x, y):
+    a = log_softmax(x, 1)
+    b = nll_loss(a, y, reduction="mean")
+    return b
+
+
+def delta_cross_entropy(X,y):
+    """
+    X is the output from fully connected layer (num_examples x num_classes)
+    y is labels (num_examples x 1)
+    	Note that y is not one-hot encoded vector.
+    	It can be computed as y.argmax(axis=1) from one-hot encoded vectors of labels if required.
+    """
+    m = y.shape[0]
+    grad = softmax(X)
+    grad[range(m),y] -= 1
+    grad = grad/m
+    return grad
+
+def get_pad_tuple3d(padding, kernel):
+    """Common code to get the pad option
+    Parameters
+    ----------
+    padding : int or str
+        Padding size, or ['VALID', 'SAME']
+    kernel : tuple of int
+        Conv kernel size
+    Returns
+    -------
+    pad_front : int
+        Padding size on front.
+    pad_top : int
+        Padding size on top
+    pad_left : int
+        Padding size on left
+    pad_back : int
+        Padding size on back.
+    pad_down : int
+        Padding size on down.
+    pad_right : int
+        Padding size on right.
+    """
+    # compute the padding size
+    if isinstance(padding, (tuple, list)):
+        if len(padding) == 3:
+            pad_d = padding[0] * 2
+            pad_h = padding[1] * 2
+            pad_w = padding[2] * 2
+        elif len(padding) == 6:
+            return padding[0], padding[1], padding[2], padding[3], padding[4], padding[5]
+        else:
+            raise ValueError("Size of padding can only be 3 or 6")
+    elif isinstance(padding, int):
+        pad_d = pad_w = pad_h = padding * 2
+    elif padding == "VALID":
+        pad_h = 0
+        pad_w = 0
+        pad_d = 0
+    elif padding == "SAME":
+        pad_h = kernel[0] - 1
+        pad_w = kernel[1] - 1
+        pad_d = kernel[2] - 1
+    else:
+        raise ValueError("Unknown padding option %s" % padding)
+    pad_top = (pad_h + 1) // 2
+    pad_left = (pad_w + 1) // 2
+    pad_front = (pad_d + 1) // 2
+    return pad_front, pad_top, pad_left, pad_d - pad_front, pad_h - pad_top, pad_w - pad_left
+
+
+def get_pad_tuple1d(padding, kernel):
+    """Common code to get the pad option
+    Parameters
+    ----------
+    padding : int or str
+        Padding size, or ['VALID', 'SAME']
+    kernel : tuple of int
+        Conv kernel size
+    Returns
+    -------
+    pad_left : int
+        Padding size on left
+    pad_right : int
+        Padding size on right.
+    """
+    # compute the padding size
+    if isinstance(padding, (tuple, list)):
+        if len(padding) == 1:
+            pad_w = padding[0] * 2
+        elif len(padding) == 2:
+            return padding[0], padding[1]
+        else:
+            raise ValueError("Size of padding can only be 2 or 4")
+    elif isinstance(padding, int):
+        pad_w = padding * 2
+    elif padding == "VALID":
+        pad_w = 0
+    elif padding == "SAME":
+        pad_w = kernel[0] - 1
+    else:
+        raise ValueError("Unknown padding option %s" % padding)
+    pad_left = (pad_w + 1) // 2
+    return pad_left, pad_w - pad_left
+
+
+def _grad_input_padding(input_size, out_channel, stride, padding, groups, kernel_size, dilation):
+    batch, in_channel, in_h, in_w = input_size
+    h_out, w_out = conv_output_shape((in_h, in_w), kernel_size, stride, padding, dilation)
+    grad_output_size = (batch, out_channel, h_out, w_out)
+    input_size = list(input_size)
+    k = len(grad_output_size) - 2
+
+    if len(input_size) == k + 2:
+        input_size = input_size[-k:]
+    if len(input_size) != k:
+        raise ValueError("input_size must have {} elements (got {})"
+                         .format(k + 2, len(input_size)))
+
+    def dim_size(d):
+        return ((grad_output_size[d + 2] - 1) * stride[d] - 2 * padding[d] + 1
+                + dilation[d] * (kernel_size[d] - 1))
+    min_sizes = [dim_size(d) for d in range(k)]
+    return tuple(input_size[d] - min_sizes[d] for d in range(k))
+
+
+
+def conv_output_shape(h_w, kernel_size=1, stride=1, pad=0, dilation=1, ceil_mode=False):
+    from math import floor, ceil
+    import torch
+    if isinstance(kernel_size, torch.Size):
+        assert len(kernel_size) == 2
+        kernel_size = (kernel_size[0], kernel_size[1])
+    elif type(kernel_size) is not tuple:
+        kernel_size = (kernel_size, kernel_size)
+    pad = _make_tuple(pad)
+    dilation = _make_tuple(dilation)
+    stride = _make_tuple(stride)
+    if ceil_mode:
+        h = ceil( ((h_w[0] + (2 * pad[0]) - ( dilation[0] * (kernel_size[0] - 1) ) - 1 )/ stride[0]) + 1)
+        w = ceil( ((h_w[1] + (2 * pad[1]) - ( dilation[1] * (kernel_size[1] - 1) ) - 1 )/ stride[1]) + 1)
+    else:
+        h = floor( ((h_w[0] + (2 * pad[0]) - ( dilation[0] * (kernel_size[0] - 1) ) - 1 )/ stride[0]) + 1)
+        w = floor( ((h_w[1] + (2 * pad[1]) - ( dilation[1] * (kernel_size[1] - 1) ) - 1 )/ stride[1]) + 1)
+    return h, w
+
+def _make_tuple(value):
+    if isinstance(value, int):
+        return (value, value)
+    else:
+        assert isinstance(value, tuple) and len(value) == 2
+        return value

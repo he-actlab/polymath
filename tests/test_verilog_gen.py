@@ -23,7 +23,7 @@ def test_linear_reg():
     cwd = Path(f"{__file__}").parent
     base_path = f"{cwd}/pmlang_examples"
     full_path = f"{base_path}/outputs"
-    pb_path = f"{full_path}/{graph.name}.pb"
+    pb_path = f"{full_path}/{graph.name}.srdfg"
 
     pm.pb_store(lowered_graph, full_path)
 
@@ -59,7 +59,7 @@ def test_reco():
     cwd = Path(f"{__file__}").parent
     base_path = f"{cwd}/pmlang_examples"
     full_path = f"{base_path}/outputs"
-    pb_path = f"{full_path}/{graph.name}.pb"
+    pb_path = f"{full_path}/{graph.name}.srdfg"
 
     pm.pb_store(lowered_graph, full_path)
 

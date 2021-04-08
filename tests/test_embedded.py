@@ -1,16 +1,11 @@
-import os
 import pickle
 import random
-import tempfile
 import threading
 
 import pytest
 import polymath as pm
 import numpy as np
-from pathlib import Path
-from polymath.srdfg.util import _node_hash, _dif_hash, node_hash
-import pprint
-from .util import conv3d
+
 
 def numpy_helper(vals):
     w1 = vals["w1"]
@@ -670,4 +665,18 @@ def test_linear_embedded():
     graph_res = graph("w-mu*g", {"x": x, "y": y, "w": w})
     actual_res = w - ((np.sum(x*w) - y)*x)*1.0
     np.testing.assert_allclose(graph_res, actual_res)
+
+@pytest.mark.parametrize('lbound, ubound, stride', [
+    (0, 223, 2),
+    (0, 223, 1),
+])
+def test_strided_index(lbound, ubound, stride):
+
+    with pm.Node(name="strided") as graph:
+        idx = pm.index(lbound, ubound-1, stride=stride, name="i")
+
+    ref = np.arange(lbound, ubound, stride)
+    res = graph("i", {})
+
+    np.testing.assert_allclose(ref, res)
 

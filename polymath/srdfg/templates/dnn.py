@@ -14,7 +14,8 @@ class cross_entropy_loss(pm.Template):
         indices[1] = i
         indices = tuple(indices)
         maxes = pm.max([i], z[indices], name="maxes")
-        lse_stable = pm.log(pm.sum([i], pm.exp((z[indices] - maxes[indices[0]]))), name="lse_stable")
+        exp_val = pm.exp((z[indices] - maxes[indices[0]]))
+        lse_stable = pm.log(pm.sum([i], exp_val[indices], name="testing_lse"), name="lse_stable")
         a[indices] = z[indices] - maxes[indices[0]] - lse_stable[indices[0]]
         # assert len(z.shape) == 2
         # assert len(y.shape) == 1

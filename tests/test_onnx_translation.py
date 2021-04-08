@@ -237,14 +237,14 @@ def test_translate_dense(x_shape, w_shape):
     tinput_info = copy.deepcopy(input_info)
     res0 = graph("y", tinput_info)
 
-    np.testing.assert_allclose(res0, out_info["y"])
+    np.testing.assert_allclose(res0, out_info["y"].astype(np.int32))
 
     graph, input_info, out_info, keys = dense(x_shape, w_shape, coarse=False, debug_matrix=True)
 
     lower_pass = pm.Lower({})
     lowered_graph = lower_pass(graph)
     res = lowered_graph(keys, input_info)
-    np.testing.assert_allclose(np.asarray(res).reshape(out_info["y"].shape), out_info["y"])
+    np.testing.assert_allclose(np.asarray(res).reshape(out_info["y"].shape), out_info["y"].astype(np.int32))
 
 
 @pytest.mark.parametrize('x1_shape, w1_shape, w2_shape', [
@@ -256,14 +256,14 @@ def test_translate_multi_dense(x1_shape, w1_shape, w2_shape):
 
     tinput_info = copy.deepcopy(input_info)
     res0 = graph(keys, tinput_info)
-    np.testing.assert_allclose(res0, out_info["y"])
+    np.testing.assert_allclose(res0, out_info["y"].astype(res0.dtype))
 
     graph, input_info, out_info, keys = two_layer_dense(x1_shape, w1_shape, w2_shape, coarse=False, debug_matrix=True)
 
     lower_pass = pm.Lower({})
     lowered_graph = lower_pass(graph)
     res = lowered_graph(keys, input_info)
-    np.testing.assert_allclose(np.asarray(res).reshape(out_info["y"].shape), out_info["y"])
+    np.testing.assert_allclose(np.asarray(res).reshape(out_info["y"].shape), out_info["y"].astype(res[0].dtype))
 
 @pytest.mark.parametrize('data_shape, kernel_shape, stride', [
     ((1, 6, 28, 28), (2, 2), 2),
@@ -442,7 +442,7 @@ def test_lenet():
     full_path = f"{BENCH_DIR}/full_dnns"
 
     filepath = f"{full_path}/{filename}"
-    pb_path = f"{full_path}/lenet.pb"
+    pb_path = f"{full_path}/lenet.srdfg"
 
     assert Path(filepath).exists()
     graph = pm.from_onnx(filepath)
@@ -456,12 +456,24 @@ def test_lenet():
 
 
 def test_resnet18():
-    filename = f"resnet18v1.onnx"
+    filename = f"resnet18.onnx"
     filepath = f"{BENCH_DIR}/full_dnns/{filename}"
     assert Path(filepath).exists()
     graph = pm.from_onnx(filepath)
     full_path = f"{BENCH_DIR}/full_dnns"
-    pb_path = f"{full_path}/resnet18v1.pb"
+    pb_path = f"{full_path}/resnet18.srdfg"
+    pm.pb_store(graph, full_path)
+
+    node = pm.pb_load(pb_path, verbose=True)
+    assert len(node.nodes) == len(graph.nodes)
+
+def test_resnet18_train():
+    filename = f"resnet18_train.onnx"
+    filepath = f"{BENCH_DIR}/full_dnns/{filename}"
+    assert Path(filepath).exists()
+    graph = pm.from_onnx(filepath)
+    full_path = f"{BENCH_DIR}/full_dnns"
+    pb_path = f"{full_path}/resnet18_train.srdfg"
     pm.pb_store(graph, full_path)
 
     node = pm.pb_load(pb_path, verbose=True)
