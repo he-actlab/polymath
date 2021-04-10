@@ -1,15 +1,19 @@
 import polymath as pm
 from polymath.srdfg.base import _noop_callback
 import inspect
-CONTEXT_TEMPLATE_TYPES = (pm.state, pm.output, pm.temp, pm.write)
+# CONTEXT_TEMPLATE_TYPES = (pm.state, pm.output, pm.temp, pm.write)
+CONTEXT_TEMPLATE_TYPES = (pm.state, pm.output, pm.temp)
 
 class Template(pm.Node):
 
     def __init__(self, *args, **kwargs):
         #TODO: Add check for define graph signature to make sure it doesnt have certain keys
         # Also, need to make sure that popping keys off doesn't break things
-
         op_name = self.__class__.__name__
+        if 'skip_definition' in kwargs and kwargs['skip_definition']:
+            skip_definition = kwargs.pop('skip_definition')
+        else:
+            skip_definition = False
         super(Template, self).__init__(*args, op_name=op_name, **kwargs)
         self.flow_map = {}
         self.graph_map = {}
@@ -25,8 +29,8 @@ class Template(pm.Node):
             temp_kwargs["name"] = kwargs.pop("name")
 
         self.args, self.kwargs = self.get_template_kwargs(*args, **kwargs)
-
         self.initialize_signature()
+        # if not skip_definition:
         with self:
            self.define_graph(*self.args, **self.kwargs)
 

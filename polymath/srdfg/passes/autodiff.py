@@ -33,10 +33,13 @@ class AutoDiffGraph(Pass):
 
     def package_pass(self, node, ctx):
         node.name = f"{node.name}_training"
+
+
         with node:
             out_loss = pm.output(name=f"{self.tape[0].outputs[0].name}_loss")
             target = pm.input(name="target", shape=self.tape[0].outputs[0].shape[0])
             self.loss_func(self.tape[0].outputs[0], target, out_loss)
+
         self.grad_map[self.tape[0].outputs[0].name] = out_loss
         while self.tape:
             n = self.tape.pop()
@@ -50,83 +53,92 @@ class AutoDiffGraph(Pass):
             pm.conv_transpose()
     
     def elem_add_grad(self, node):
-        pass
+        grad = self.grad_map[node.outputs[0].name]
+
+        a_grad = pm.output(name=f"{node.inputs[0].name}_grad", shape=node.inputs[0].shape)
+        b_grad = pm.output(name=f"{node.inputs[1].name}_grad", shape=node.inputs[1].shape)
+        pm.elem_add_grad(node.inputs[0], node.inputs[1], grad, a_grad, b_grad)
+        self.grad_map[node.inputs[0].name] = a_grad
+        self.grad_map[node.inputs[1].name] = b_grad
+
     
     def conv_grad(self, node):
-        node_output_grad = self.grad_map[node.outputs[0].name]
+        grad = self.grad_map[node.outputs[0].name]
+
         conv_inp_grad = pm.output(name=f"{node.inputs[0].name}_grad", shape=node.inputs[0].shape)
         conv_weight_grad = pm.output(name=f"{node.inputs[1].name}_grad", shape=node.inputs[1].shape)
-        batch, in_channel, in_h, in_w = node.inputs[0].shape
-        _, _, grad_h, grad_w = node_output_grad.shape
-        stride_h, stride_w = node.stride
-        out_channel, _, filter_h, filter_w = node.inputs[1].shape
-        fpad_top, fpad_left, fpad_bottom, fpad_right = node.pad, node.pad, node.pad, node.pad
-        out_h = (grad_h - 1) * stride_h - fpad_top - fpad_bottom + filter_h
-        out_w = (grad_w - 1) * stride_w - fpad_left - fpad_right + filter_w
-        output_padding = (in_h - out_h, in_w - out_w)
+
         if len(node.inputs) > 2:
             conv_bias_grad = pm.output(name=f"{node.inputs[2].name}_grad", shape=node.inputs[2].shape)
+            pm.conv_grad(node.inputs[0], node.inputs[1], node.inputs[2], grad,
+                         conv_inp_grad, conv_weight_grad, conv_bias_grad,
+                         self.optimizer_name, self.optimizer_kwargs,
+                         stride=node.kwargs['stride'],
+                         pad=node.kwargs['pad'])
 
-        # with node.graph:
-        # Input grad
-        pm.conv_transpose(node_output_grad, node.inputs[0], conv_inp_grad, stride=node.stride,
-                          pad=node.pad,
-                          out_pad=output_padding[0])
-        # Weight grad
-        pm.gemm_no_bias(node_output_grad, node.inputs[0], conv_inp_grad, transA=True)
-
-        # Weight update
-        self.optimizer(node.inputs[1], conv_weight_grad, **self.optimizer_kwargs)
-
-        # Bias grad
-        if len(node.inputs) > 2:
-            pm.reduce_sum(node_output_grad, conv_bias_grad)
-            self.optimizer(node.inputs[2], conv_bias_grad, **self.optimizer_kwargs)
+        else:
+            pm.conv_grad_no_bias(node.inputs[0], node.inputs[1], grad, conv_inp_grad, conv_weight_grad,
+                                 self.optimizer_name, self.optimizer_kwargs)
+        self.grad_map[node.inputs[0].name] = conv_inp_grad
 
     def batch_norm_grad(self, node):
-        pass
-    
+        grad = self.grad_map[node.outputs[0].name]
+        bn_inp_grad = pm.output(name=f"{node.inputs[0].name}_grad", shape=node.inputs[0].shape)
+        bn_scale_grad = pm.output(name=f"{node.inputs[1].name}_grad", shape=node.inputs[1].shape)
+        bn_bias_grad = pm.output(name=f"{node.inputs[2].name}_grad", shape=node.inputs[2].shape)
+        inp = node.inputs[0]
+        scale = node.inputs[1]
+        bias = node.inputs[2]
+        mean = node.inputs[3]
+        var = node.inputs[4]
+        pm.batchnorm_grad(inp, scale, bias, mean, var, grad, bn_inp_grad, bn_scale_grad, bn_bias_grad,
+                          self.optimizer_name, self.optimizer_kwargs)
+        self.grad_map[node.inputs[0].name] = bn_inp_grad
+
+
     def relu_grad(self, node):
-        pass
+        grad = self.grad_map[node.outputs[0].name]
+        relu_grad = pm.output(name=f"{node.inputs[0].name}_grad", shape=node.inputs[0].shape)
+        pm.relu_grad(node.inputs[0], grad, relu_grad)
+        self.grad_map[node.inputs[0].name] = relu_grad
 
     def gemm_grad(self, node):
-        node_output_grad = self.grad_map[node.outputs[0].name]
+        grad = self.grad_map[node.outputs[0].name]
+
         gemm_inp_grad = pm.output(name=f"{node.inputs[0].name}_grad", shape=node.inputs[0].shape)
         gemm_weight_grad = pm.output(name=f"{node.inputs[1].name}_grad", shape=node.inputs[1].shape)
 
-        #
         if len(node.inputs) > 2:
             gemm_bias_grad = pm.output(name=f"{node.inputs[2].name}_grad", shape=node.inputs[2].shape)
-            pm.gemm_grad(node.inputs[0], node.inputs[1], node.inputs[2], node_output_grad,
+            pm.gemm_grad(node.inputs[0], node.inputs[1], node.inputs[2], grad,
                          gemm_inp_grad, gemm_weight_grad, gemm_bias_grad,
                          self.optimizer_name, self.optimizer_kwargs)
+
         else:
-            pm.gemm_grad_no_bias(node.inputs[0], node.inputs[1], node_output_grad, gemm_inp_grad, gemm_weight_grad,
+            pm.gemm_grad_no_bias(node.inputs[0], node.inputs[1], grad, gemm_inp_grad, gemm_weight_grad,
                                  self.optimizer_name, self.optimizer_kwargs)
-        #
-        # # with node.graph:
-        # # Input grad
-        # pm.gemm_no_bias(node_output_grad, node.inputs[1], gemm_weight_grad)
-        # # Weight grad
-        # pm.gemm_no_bias(node_output_grad, node.inputs[0], gemm_inp_grad, transA=True)
-        #
-        # # Weight update
-        # self.optimizer(node.inputs[1], gemm_weight_grad, *self.optimizer_args, **self.optimizer_kwargs)
-        #
-        # # Bias grad
-        # if len(node.inputs) > 2:
-        #     pm.reduce_sum(node_output_grad, gemm_bias_grad)
-        #     self.optimizer(node.inputs[2], gemm_bias_grad, *self.optimizer_args, **self.optimizer_kwargs)
-        #
-    
+        self.grad_map[node.inputs[0].name] = gemm_inp_grad
+
     def max_pool_grad(self, node):
-        pass
+        grad = self.grad_map[node.outputs[0].name]
+        max_pool_grad = pm.output(name=f"{node.inputs[0].name}_grad", shape=node.inputs[0].shape)
+        pm.max_pool_grad(node.inputs[0], grad, max_pool_grad, node.kernel_size[0], node.kernel_size[1],
+                         node.stride, node.pad)
+        self.grad_map[node.inputs[0].name] = max_pool_grad
     
     def global_avg_pool_grad(self, node):
-        pass
+        grad = self.grad_map[node.outputs[0].name]
+        global_average_pool_grad = pm.output(name=f"{node.inputs[0].name}_grad", shape=node.inputs[0].shape)
+        pm.global_average_pool_grad(node.inputs[0], grad, global_average_pool_grad)
+        self.grad_map[node.inputs[0].name] = global_average_pool_grad
     
     def flatten_grad(self, node):
-        pass
+        grad = self.grad_map[node.outputs[0].name]
+        flatten_inp_grad = pm.output(name=f"{node.inputs[0].name}_grad", shape=node.inputs[0].shape)
+        pm.flatten_grad(node.inputs[0], grad, flatten_inp_grad)
+        self.grad_map[node.inputs[0].name] = flatten_inp_grad
+
+
 
     GRAD_FUNCS['conv'] = conv_grad
     GRAD_FUNCS['conv_bias'] = conv_bias_grad

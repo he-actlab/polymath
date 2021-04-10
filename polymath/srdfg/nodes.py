@@ -229,7 +229,15 @@ class state(placeholder):
         key = _flatten_iterable(key)
         name = f"{self.name}{self.write_count}"
         prev_name = f"{self.name}{self.write_count - 1}" if self.write_count > 0 else self.name
-        x = write(value, list(key), self.graph.nodes[prev_name], name=name, alias=self.name, graph=self.graph)
+        ## HOTFIX FOR SERIALIZATION
+        # if prev_name not in self.graph.nodes:
+        #     prev_node = self.find_node(prev_name)
+        # else:
+        #     prev_node = self.graph.nodes[prev_name]
+        ## END HOTFIX
+        prev_node = self.graph.nodes[prev_name]
+
+        x = write(value, list(key), prev_node, name=name, alias=self.name, graph=self.graph)
         self.write_count += 1
 
     def __getitem__(self, key):
@@ -251,7 +259,20 @@ class state(placeholder):
 
     # TODO: Need to freeze the graph after exiting scope
     def current_value(self):
-        return self if self.write_count == 0 or len(Node._graph_stack) == 1 else self.graph.nodes[f"{self.name}{self.write_count - 1}"]
+        if self.write_count == 0 or len(Node._graph_stack) == 1:
+            return self
+        elif f"{self.name}{self.write_count - 1}" not in self.graph.nodes:
+            name = f"{self.name}{self.write_count - 1}"
+            ### HOTFIX, NEED TO REMOVE THIS
+            # return self.find_node(name)
+            ## END HOTFIX
+            raise RuntimeError(f"Unable to find node {name} in graph {self.graph} for node {self.name}."
+                               f"All Nodes: {list(self.graph.nodes.keys())}")
+            # END HOTFIX
+        else:
+            return self.graph.nodes[f"{self.name}{self.write_count - 1}"]
+
+        # return self if self.write_count == 0 or len(Node._graph_stack) == 1 else self.graph.nodes[f"{self.name}{self.write_count - 1}"]
 
     def evaluate(self, context, callback=None):
         callback = callback or _noop_callback

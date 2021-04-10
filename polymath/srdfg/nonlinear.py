@@ -136,6 +136,10 @@ class sqrt(NonLinear):
     def __init__(self, input_node, **kwargs):
         super(sqrt, self).__init__(_sqrt, input_node, **kwargs)
 
+class rsqrt(NonLinear):
+    def __init__(self, input_node, **kwargs):
+        super(rsqrt, self).__init__(_rsqrt, input_node, **kwargs)
+
 class square(NonLinear):
     def __init__(self, input_node, **kwargs):
         super(square, self).__init__(_square, input_node, **kwargs)
@@ -185,6 +189,9 @@ def _abs(value):
 
 def _sqrt(value):
     return np.sqrt(value)
+
+def _rsqrt(value):
+    return 1 / np.sqrt(value)
 
 def _square(value):
     return np.square(value)

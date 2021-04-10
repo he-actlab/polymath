@@ -13,7 +13,7 @@ from polymath.srdfg.nodes import variable, predicate, assert_, str_format, ident
 from polymath.srdfg.index import index, index_op
 from polymath.srdfg.group_nodes import GroupNode, sum, prod, max, min, argmin, argmax, bitreverse
 from polymath.srdfg.nonlinear import NonLinear, sigmoid, log2, log10, exp, abs, sqrt, ceil, \
-    floor, cast, tanh, square, log
+    floor, cast, tanh, square, log, rsqrt
 from polymath.srdfg.template import Template
 from polymath.srdfg.transformations import Transformation, unsqueeze, squeeze, flatten, gather, \
     reshape, gather_elements
@@ -27,10 +27,11 @@ from polymath.srdfg.templates.dnn import conv_bias, dense, relu, avg_pool2d,\
     batch_flatten, softmax, relu1d, dense_sigmoid, batch_norm,\
     global_avg_pool, conv, max_pool, dropout, leaky_relu, avg_pool, lrn, \
     elem_tanh, elem_sigmoid, elem_cast, conv_transpose, cross_entropy_loss, log_softmax, \
-    nll_loss
+    nll_loss, conv_transpose_bias
 
 from polymath.srdfg.templates.optimizers import sgd
-from polymath.srdfg.templates.gradient_defs import gemm_grad, gemm_grad_no_bias
+from polymath.srdfg.templates.gradient_defs import gemm_grad, gemm_grad_no_bias, conv_grad, conv_grad_no_bias, \
+    flatten_grad, elem_add_grad, relu_grad, batchnorm_grad, global_average_pool_grad, max_pool_grad
 
 
 from polymath.srdfg.templates.math import elem_mul, elem_sub, reduce_sum, matmul, gemm, \

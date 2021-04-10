@@ -112,7 +112,11 @@ class squeeze(Transformation):
             for i, a in enumerate(new_shape):
                 if a == 1:
                     new_shape.pop(i)
-        new_domain = Domain(tuple(new_shape))
+
+        if 'domain' in kwargs:
+            new_domain = kwargs.pop('domain')
+        else:
+            new_domain = Domain(tuple(new_shape))
         super(squeeze, self).__init__(_squeeze, input_node, domain=new_domain, axis=axis, shape=new_shape, **kwargs)
 
     def compute_shape(self):
@@ -151,7 +155,10 @@ class flatten(Transformation):
             for i in input_node.shape[axis:]:
                 dim1 = dim1*i
             new_shape = (dim0, dim1)
-        new_domain = Domain(tuple(new_shape))
+        if 'domain' in kwargs:
+            new_domain = kwargs.pop('domain')
+        else:
+            new_domain = Domain(tuple(new_shape))
         super(flatten, self).__init__(_flatten, input_node, domain=new_domain, axis=axis, shape=new_shape, **kwargs)
 
     def compute_shape(self):
@@ -186,7 +193,10 @@ class gather(Transformation):
             for i in indices.shape:
                 new_shape.insert(curr_axis, i)
                 curr_axis += 1
-        new_domain = Domain(tuple(new_shape))
+        if 'domain' in kwargs:
+            new_domain = kwargs.pop('domain')
+        else:
+            new_domain = Domain(tuple(new_shape))
         super(gather, self).__init__(_gather, input_node, indices, domain=new_domain, axis=axis, shape=new_shape, **kwargs)
 
     def compute_shape(self):
@@ -228,7 +238,10 @@ class gather_elements(Transformation):
             for i in indices.shape:
                 new_shape.insert(curr_axis, i)
                 curr_axis += 1
-        new_domain = Domain(tuple(new_shape))
+        if 'domain' in kwargs:
+            new_domain = kwargs.pop('domain')
+        else:
+            new_domain = Domain(tuple(new_shape))
         super(gather_elements, self).__init__(_gather_elements, input_node, indices, domain=new_domain, axis=axis, shape=new_shape, **kwargs)
 
     def compute_shape(self):
@@ -259,11 +272,14 @@ class gather_elements(Transformation):
         return self.kwargs['axis']
 
 class reshape(Transformation):
-    def __init__(self, input_node, shape=None, **kwargs):
-        assert shape is not None
+    def __init__(self, input_node, new_shape, **kwargs):
 
-        new_domain = Domain(tuple(shape))
-        super(reshape, self).__init__(_reshape, input_node, shape=shape, domain=new_domain, **kwargs)
+        assert new_shape is not None
+        if 'domain' in kwargs:
+            new_domain = kwargs.pop('domain')
+        else:
+            new_domain = Domain(tuple(new_shape))
+        super(reshape, self).__init__(_reshape, input_node, new_shape, domain=new_domain, shape=new_shape, **kwargs)
 
     def _evaluate(self, val, **kwargs):
         if "target" in kwargs:

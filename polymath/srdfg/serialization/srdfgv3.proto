@@ -18,7 +18,8 @@ message Node {
     repeated Attribute args = 6;
     map<string, Attribute> kwargs = 7;
     string module = 8;
-    Node graph = 9;
+    int64 uuid = 9;
+    int64 graph_id = 10;
 }
 
 message Attribute {
@@ -62,6 +63,7 @@ message Attribute {
         NODES = 34;
         DOM = 35;
         DOMS = 36;
+        MAP = 37;
     };
     float f = 2;
     int32 i32 = 3;
@@ -83,8 +85,8 @@ message Attribute {
     repeated Node ns = 20;
     repeated numproto.protobuf.NDArray ndas = 21;
     repeated Domain doms = 22;
-    Type type = 23;
-
+    map<string, Attribute> mapping = 23;
+    Type type = 24;
 }
 message Domain {
     repeated Attribute domains = 1;

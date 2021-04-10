@@ -19,8 +19,10 @@ class cross_entropy_loss(pm.Template):
         a[indices] = z[indices] - maxes[indices[0]] - lse_stable[indices[0]]
         # assert len(z.shape) == 2
         # assert len(y.shape) == 1
-        gathered = pm.gather_elements(a, pm.reshape(y, shape=(a.shape[0], 1), name="reshaped1"), axis=1, shape=(y.shape[0],), name="gathered_elem")
-        reshaped = pm.reshape(-1*gathered, shape=(y.shape[0],), name="other_reshape")
+        # gathered = pm.gather_elements(a, pm.reshape(y, shape=(a.shape[0], 1), name="reshaped1"), axis=1, shape=(y.shape[0],), name="gathered_elem")
+        gathered = pm.gather_elements(a, pm.reshape(y, (a.shape[0], 1), name="reshaped1"), axis=1, shape=(y.shape[0],), name="gathered_elem")
+        # reshaped = pm.reshape(-1*gathered, shape=(y.shape[0],), name="other_reshape")
+        reshaped = pm.reshape(-1*gathered, (y.shape[0],), name="other_reshape")
         idx = (pm.index(0, a.shape[0] - 1),)
         if reduction == "none":
             loss.set_shape(reshaped.shape)
@@ -52,8 +54,10 @@ class cross_entropy_loss(pm.Template):
 
 class nll_loss(pm.Template):
     def define_graph(self, logs, targets, out, reduction="mean"):
-        gathered = pm.gather_elements(logs, pm.reshape(targets, shape=(logs.shape[0], 1)), axis=1)
-        reshaped = pm.reshape(-1*gathered, shape=(logs.shape[0],))
+        # gathered = pm.gather_elements(logs, pm.reshape(targets, shape=(logs.shape[0], 1)), axis=1)
+        gathered = pm.gather_elements(logs, pm.reshape(targets, (logs.shape[0], 1)), axis=1)
+        # reshaped = pm.reshape(-1*gathered, shape=(logs.shape[0],))
+        reshaped = pm.reshape(-1*gathered, (logs.shape[0],))
         idx = (pm.index(0, logs.shape[0] - 1),)
         if reduction == "none":
             out.set_shape(reshaped.shape)
@@ -256,6 +260,54 @@ class conv_bias(pm.Template):
         return (self.args[3],)
 
 # TODO: Make flexible for different conv shapes
+class conv_transpose_bias(pm.Template):
+    def define_graph(self, data, wgt, bias, out, stride=1, pad=0, out_pad=0):
+
+        n, c, h, w = data.shape
+        dim_in, dim_out, kh, kw = wgt.shape
+        sh, sw = stride - 1, stride - 1
+
+        y = pm.temp(name=f"{data.name}_reshaped", shape=(n*c, h*w, 1, 1))
+        n_idx = pm.index(0, n-1)
+        c_idx = pm.index(0, c-1)
+        h_idx = pm.index(0, h-1)
+        w_idx = pm.index(0, w-1)
+        y[(n_idx*c + c_idx), (h_idx*w + w_idx), 0, 0] = data[n_idx, c_idx, h_idx, w_idx]
+        y1 = pm.temp(name=f"{data.name}_pad")
+        y1 = pad_node(y, y1, (0, sw, 0, sh))
+
+        y2 = pm.temp(name=f"{data.name}_reshaped2", shape=(n * c, h, w, 1 + sh, 1 + sw))
+        nc_idx = pm.index(0, n*c - 1)
+        sh_idx = pm.index(0, sh)
+        sw_idx = pm.index(0, sw)
+        y2[nc_idx, h_idx, w_idx, sh_idx, sw_idx] = y1[nc_idx, (h_idx*w + w_idx), sh_idx, sw_idx]
+
+        y3 = pm.temp(name=f"{data.name}_permuted", shape=(n * c, h, 1 + sh, w, 1 + sw))
+        y3[nc_idx, h_idx, sh_idx, w_idx, sw_idx] = y2[nc_idx, h_idx, w_idx, sh_idx, sw_idx ]
+
+        y4 = pm.temp(name=f"{data.name}_reshaped3", shape=(n, c, h * (1 + sh), w * (1 + sw)))
+        y4[n_idx, c_idx, h_idx*stride + sh_idx, w_idx*stride + sw_idx] = y3[(n_idx*c + c_idx), h_idx, sh_idx, w_idx, sw_idx]
+        ph, pw = kh - pad - 1, kw - pad - 1
+
+        w_perm = pm.temp(name="w_perm_flip", shape=(wgt.shape[1], wgt.shape[0], wgt.shape[3], wgt.shape[2]))
+        oc_idx = pm.index(0, wgt.shape[0]-1)
+        ic_idx = pm.index(0, wgt.shape[1]-1)
+        kh_idx = pm.index(0, kh-1)
+        kw_idx = pm.index(0, kw-1)
+        w_perm[ic_idx, oc_idx, kh - kh_idx - 1, kw - kw_idx - 1] = wgt[oc_idx, ic_idx, kh_idx, kw_idx]
+
+        y5 = pm.temp(name=f"{data.name}_pad2")
+        y5 = pad_node(y4, y5, (pw, pw - sw, ph, ph - sh))
+        pm.conv_bias(y5, w_perm, bias, out, stride=1, pad=0)
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1])
+
+    @property
+    def outputs(self):
+        return (self.args[3],)
+
 class conv_transpose(pm.Template):
     def define_graph(self, data, wgt, out, stride=1, pad=0, out_pad=0):
 
@@ -295,7 +347,6 @@ class conv_transpose(pm.Template):
         y5 = pm.temp(name=f"{data.name}_pad2")
         y5 = pad_node(y4, y5, (pw, pw - sw, ph, ph - sh))
         pm.conv(y5, w_perm, out, stride=1, pad=0)
-
 
     @property
     def inputs(self):
@@ -593,7 +644,7 @@ class max_pool(pm.Template):
 
     @property
     def stride(self):
-        return self.args[4]
+        return self.kwargs['stride']
 
     @property
     def kernel_size(self):
@@ -601,4 +652,4 @@ class max_pool(pm.Template):
 
     @property
     def pad(self):
-        return self.args[4]
+        return self.kwargs['pad']

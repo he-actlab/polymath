@@ -20,7 +20,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   syntax='proto3',
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_pb=b'\n\rsrdfgv3.proto\x12\x05srdfg\x1a\rndarray.proto\"\xec\x02\n\x04Node\x12\x1a\n\x05nodes\x18\x01 \x03(\x0b\x32\x0b.srdfg.Node\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x0f\n\x07op_name\x18\x03 \x01(\t\x12 \n\x05shape\x18\x04 \x03(\x0b\x32\x11.srdfg.Node.Shape\x12\x14\n\x0c\x64\x65pendencies\x18\x05 \x03(\t\x12\x1e\n\x04\x61rgs\x18\x06 \x03(\x0b\x32\x10.srdfg.Attribute\x12\'\n\x06kwargs\x18\x07 \x03(\x0b\x32\x17.srdfg.Node.KwargsEntry\x12\x0e\n\x06module\x18\x08 \x01(\t\x12\x1a\n\x05graph\x18\t \x01(\x0b\x32\x0b.srdfg.Node\x1a;\n\x05Shape\x12\x15\n\x0bshape_const\x18\x01 \x01(\x05H\x00\x12\x12\n\x08shape_id\x18\x02 \x01(\tH\x00\x42\x07\n\x05value\x1a?\n\x0bKwargsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x1f\n\x05value\x18\x02 \x01(\x0b\x32\x10.srdfg.Attribute:\x02\x38\x01\"\xec\x06\n\tAttribute\x12\t\n\x01\x66\x18\x02 \x01(\x02\x12\x0b\n\x03i32\x18\x03 \x01(\x05\x12\x0b\n\x03i64\x18\x05 \x01(\x03\x12\t\n\x01s\x18\x06 \x01(\x0c\x12\t\n\x01\x64\x18\x07 \x01(\x01\x12\x0c\n\x04ui64\x18\x08 \x01(\x04\x12\t\n\x01\x62\x18\t \x01(\x08\x12\x16\n\x01n\x18\n \x01(\x0b\x32\x0b.srdfg.Node\x12\'\n\x03nda\x18\x0b \x01(\x0b\x32\x1a.numproto.protobuf.NDArray\x12\x1a\n\x03\x64om\x18\x0c \x01(\x0b\x32\r.srdfg.Domain\x12\n\n\x02\x66s\x18\r \x03(\x02\x12\x0c\n\x04i32s\x18\x0e \x03(\x05\x12\x0c\n\x04i64s\x18\x0f \x03(\x03\x12\n\n\x02ss\x18\x10 \x03(\x0c\x12\n\n\x02\x64s\x18\x11 \x03(\x01\x12\r\n\x05ui64s\x18\x12 \x03(\x04\x12\n\n\x02\x62s\x18\x13 \x03(\x08\x12\x17\n\x02ns\x18\x14 \x03(\x0b\x32\x0b.srdfg.Node\x12(\n\x04ndas\x18\x15 \x03(\x0b\x32\x1a.numproto.protobuf.NDArray\x12\x1b\n\x04\x64oms\x18\x16 \x03(\x0b\x32\r.srdfg.Domain\x12#\n\x04type\x18\x17 \x01(\x0e\x32\x15.srdfg.Attribute.Type\"\xcd\x03\n\x04Type\x12\r\n\tUNDEFINED\x10\x00\x12\t\n\x05\x46LOAT\x10\x01\x12\t\n\x05UINT8\x10\x02\x12\x08\n\x04INT8\x10\x03\x12\n\n\x06UINT16\x10\x04\x12\t\n\x05INT16\x10\x05\x12\t\n\x05INT32\x10\x06\x12\t\n\x05INT64\x10\x07\x12\n\n\x06STRING\x10\x08\x12\x08\n\x04\x42OOL\x10\t\x12\x0b\n\x07\x46LOAT16\x10\n\x12\n\n\x06\x44OUBLE\x10\x0b\x12\n\n\x06UINT32\x10\x0c\x12\n\n\x06UINT64\x10\r\x12\r\n\tCOMPLEX64\x10\x0e\x12\x0e\n\nCOMPLEX128\x10\x0f\x12\x0b\n\x07NDARRAY\x10\x10\x12\x08\n\x04NODE\x10\x11\x12\n\n\x06\x46LOATS\x10\x12\x12\n\n\x06UINT8S\x10\x13\x12\t\n\x05INT8S\x10\x14\x12\x0b\n\x07UINT16S\x10\x15\x12\n\n\x06INT16S\x10\x16\x12\n\n\x06INT32S\x10\x17\x12\n\n\x06INT64S\x10\x18\x12\x0b\n\x07STRINGS\x10\x19\x12\t\n\x05\x42OOLS\x10\x1a\x12\x0c\n\x08\x46LOAT16S\x10\x1b\x12\x0b\n\x07\x44OUBLES\x10\x1c\x12\x0b\n\x07UINT32S\x10\x1d\x12\x0b\n\x07UINT64S\x10\x1e\x12\x0e\n\nCOMPLEX64S\x10\x1f\x12\x0f\n\x0b\x43OMPLEX128S\x10 \x12\x0c\n\x08NDARRAYS\x10!\x12\t\n\x05NODES\x10\"\x12\x07\n\x03\x44OM\x10#\x12\x08\n\x04\x44OMS\x10$\"+\n\x06\x44omain\x12!\n\x07\x64omains\x18\x01 \x03(\x0b\x32\x10.srdfg.Attributeb\x06proto3'
+  serialized_pb=b'\n\rsrdfgv3.proto\x12\x05srdfg\x1a\rndarray.proto\"\xf0\x02\n\x04Node\x12\x1a\n\x05nodes\x18\x01 \x03(\x0b\x32\x0b.srdfg.Node\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x0f\n\x07op_name\x18\x03 \x01(\t\x12 \n\x05shape\x18\x04 \x03(\x0b\x32\x11.srdfg.Node.Shape\x12\x14\n\x0c\x64\x65pendencies\x18\x05 \x03(\t\x12\x1e\n\x04\x61rgs\x18\x06 \x03(\x0b\x32\x10.srdfg.Attribute\x12\'\n\x06kwargs\x18\x07 \x03(\x0b\x32\x17.srdfg.Node.KwargsEntry\x12\x0e\n\x06module\x18\x08 \x01(\t\x12\x0c\n\x04uuid\x18\t \x01(\x03\x12\x10\n\x08graph_id\x18\n \x01(\x03\x1a;\n\x05Shape\x12\x15\n\x0bshape_const\x18\x01 \x01(\x05H\x00\x12\x12\n\x08shape_id\x18\x02 \x01(\tH\x00\x42\x07\n\x05value\x1a?\n\x0bKwargsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x1f\n\x05value\x18\x02 \x01(\x0b\x32\x10.srdfg.Attribute:\x02\x38\x01\"\xe7\x07\n\tAttribute\x12\t\n\x01\x66\x18\x02 \x01(\x02\x12\x0b\n\x03i32\x18\x03 \x01(\x05\x12\x0b\n\x03i64\x18\x05 \x01(\x03\x12\t\n\x01s\x18\x06 \x01(\x0c\x12\t\n\x01\x64\x18\x07 \x01(\x01\x12\x0c\n\x04ui64\x18\x08 \x01(\x04\x12\t\n\x01\x62\x18\t \x01(\x08\x12\x16\n\x01n\x18\n \x01(\x0b\x32\x0b.srdfg.Node\x12\'\n\x03nda\x18\x0b \x01(\x0b\x32\x1a.numproto.protobuf.NDArray\x12\x1a\n\x03\x64om\x18\x0c \x01(\x0b\x32\r.srdfg.Domain\x12\n\n\x02\x66s\x18\r \x03(\x02\x12\x0c\n\x04i32s\x18\x0e \x03(\x05\x12\x0c\n\x04i64s\x18\x0f \x03(\x03\x12\n\n\x02ss\x18\x10 \x03(\x0c\x12\n\n\x02\x64s\x18\x11 \x03(\x01\x12\r\n\x05ui64s\x18\x12 \x03(\x04\x12\n\n\x02\x62s\x18\x13 \x03(\x08\x12\x17\n\x02ns\x18\x14 \x03(\x0b\x32\x0b.srdfg.Node\x12(\n\x04ndas\x18\x15 \x03(\x0b\x32\x1a.numproto.protobuf.NDArray\x12\x1b\n\x04\x64oms\x18\x16 \x03(\x0b\x32\r.srdfg.Domain\x12.\n\x07mapping\x18\x17 \x03(\x0b\x32\x1d.srdfg.Attribute.MappingEntry\x12#\n\x04type\x18\x18 \x01(\x0e\x32\x15.srdfg.Attribute.Type\x1a@\n\x0cMappingEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x1f\n\x05value\x18\x02 \x01(\x0b\x32\x10.srdfg.Attribute:\x02\x38\x01\"\xd6\x03\n\x04Type\x12\r\n\tUNDEFINED\x10\x00\x12\t\n\x05\x46LOAT\x10\x01\x12\t\n\x05UINT8\x10\x02\x12\x08\n\x04INT8\x10\x03\x12\n\n\x06UINT16\x10\x04\x12\t\n\x05INT16\x10\x05\x12\t\n\x05INT32\x10\x06\x12\t\n\x05INT64\x10\x07\x12\n\n\x06STRING\x10\x08\x12\x08\n\x04\x42OOL\x10\t\x12\x0b\n\x07\x46LOAT16\x10\n\x12\n\n\x06\x44OUBLE\x10\x0b\x12\n\n\x06UINT32\x10\x0c\x12\n\n\x06UINT64\x10\r\x12\r\n\tCOMPLEX64\x10\x0e\x12\x0e\n\nCOMPLEX128\x10\x0f\x12\x0b\n\x07NDARRAY\x10\x10\x12\x08\n\x04NODE\x10\x11\x12\n\n\x06\x46LOATS\x10\x12\x12\n\n\x06UINT8S\x10\x13\x12\t\n\x05INT8S\x10\x14\x12\x0b\n\x07UINT16S\x10\x15\x12\n\n\x06INT16S\x10\x16\x12\n\n\x06INT32S\x10\x17\x12\n\n\x06INT64S\x10\x18\x12\x0b\n\x07STRINGS\x10\x19\x12\t\n\x05\x42OOLS\x10\x1a\x12\x0c\n\x08\x46LOAT16S\x10\x1b\x12\x0b\n\x07\x44OUBLES\x10\x1c\x12\x0b\n\x07UINT32S\x10\x1d\x12\x0b\n\x07UINT64S\x10\x1e\x12\x0e\n\nCOMPLEX64S\x10\x1f\x12\x0f\n\x0b\x43OMPLEX128S\x10 \x12\x0c\n\x08NDARRAYS\x10!\x12\t\n\x05NODES\x10\"\x12\x07\n\x03\x44OM\x10#\x12\x08\n\x04\x44OMS\x10$\x12\x07\n\x03MAP\x10%\"+\n\x06\x44omain\x12!\n\x07\x64omains\x18\x01 \x03(\x0b\x32\x10.srdfg.Attributeb\x06proto3'
   ,
   dependencies=[ndarray__pb2.DESCRIPTOR,])
 
@@ -218,11 +218,16 @@ _ATTRIBUTE_TYPE = _descriptor.EnumDescriptor(
       serialized_options=None,
       type=None,
       create_key=_descriptor._internal_create_key),
+    _descriptor.EnumValueDescriptor(
+      name='MAP', index=37, number=37,
+      serialized_options=None,
+      type=None,
+      create_key=_descriptor._internal_create_key),
   ],
   containing_type=None,
   serialized_options=None,
-  serialized_start=822,
-  serialized_end=1283,
+  serialized_start=940,
+  serialized_end=1410,
 )
 _sym_db.RegisterEnumDescriptor(_ATTRIBUTE_TYPE)
 
@@ -266,8 +271,8 @@ _NODE_SHAPE = _descriptor.Descriptor(
       create_key=_descriptor._internal_create_key,
     fields=[]),
   ],
-  serialized_start=280,
-  serialized_end=339,
+  serialized_start=284,
+  serialized_end=343,
 )
 
 _NODE_KWARGSENTRY = _descriptor.Descriptor(
@@ -304,8 +309,8 @@ _NODE_KWARGSENTRY = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=341,
-  serialized_end=404,
+  serialized_start=345,
+  serialized_end=408,
 )
 
 _NODE = _descriptor.Descriptor(
@@ -373,9 +378,16 @@ _NODE = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
     _descriptor.FieldDescriptor(
-      name='graph', full_name='srdfg.Node.graph', index=8,
-      number=9, type=11, cpp_type=10, label=1,
-      has_default_value=False, default_value=None,
+      name='uuid', full_name='srdfg.Node.uuid', index=8,
+      number=9, type=3, cpp_type=2, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='graph_id', full_name='srdfg.Node.graph_id', index=9,
+      number=10, type=3, cpp_type=2, label=1,
+      has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
@@ -392,9 +404,47 @@ _NODE = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=40,
-  serialized_end=404,
+  serialized_end=408,
 )
 
+
+_ATTRIBUTE_MAPPINGENTRY = _descriptor.Descriptor(
+  name='MappingEntry',
+  full_name='srdfg.Attribute.MappingEntry',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  create_key=_descriptor._internal_create_key,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='key', full_name='srdfg.Attribute.MappingEntry.key', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='value', full_name='srdfg.Attribute.MappingEntry.value', index=1,
+      number=2, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=b'8\001',
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=873,
+  serialized_end=937,
+)
 
 _ATTRIBUTE = _descriptor.Descriptor(
   name='Attribute',
@@ -545,8 +595,15 @@ _ATTRIBUTE = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
     _descriptor.FieldDescriptor(
-      name='type', full_name='srdfg.Attribute.type', index=20,
-      number=23, type=14, cpp_type=8, label=1,
+      name='mapping', full_name='srdfg.Attribute.mapping', index=20,
+      number=23, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='type', full_name='srdfg.Attribute.type', index=21,
+      number=24, type=14, cpp_type=8, label=1,
       has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
@@ -554,7 +611,7 @@ _ATTRIBUTE = _descriptor.Descriptor(
   ],
   extensions=[
   ],
-  nested_types=[],
+  nested_types=[_ATTRIBUTE_MAPPINGENTRY, ],
   enum_types=[
     _ATTRIBUTE_TYPE,
   ],
@@ -564,8 +621,8 @@ _ATTRIBUTE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=407,
-  serialized_end=1283,
+  serialized_start=411,
+  serialized_end=1410,
 )
 
 
@@ -596,8 +653,8 @@ _DOMAIN = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1285,
-  serialized_end=1328,
+  serialized_start=1412,
+  serialized_end=1455,
 )
 
 _NODE_SHAPE.containing_type = _NODE
@@ -613,13 +670,15 @@ _NODE.fields_by_name['nodes'].message_type = _NODE
 _NODE.fields_by_name['shape'].message_type = _NODE_SHAPE
 _NODE.fields_by_name['args'].message_type = _ATTRIBUTE
 _NODE.fields_by_name['kwargs'].message_type = _NODE_KWARGSENTRY
-_NODE.fields_by_name['graph'].message_type = _NODE
+_ATTRIBUTE_MAPPINGENTRY.fields_by_name['value'].message_type = _ATTRIBUTE
+_ATTRIBUTE_MAPPINGENTRY.containing_type = _ATTRIBUTE
 _ATTRIBUTE.fields_by_name['n'].message_type = _NODE
 _ATTRIBUTE.fields_by_name['nda'].message_type = ndarray__pb2._NDARRAY
 _ATTRIBUTE.fields_by_name['dom'].message_type = _DOMAIN
 _ATTRIBUTE.fields_by_name['ns'].message_type = _NODE
 _ATTRIBUTE.fields_by_name['ndas'].message_type = ndarray__pb2._NDARRAY
 _ATTRIBUTE.fields_by_name['doms'].message_type = _DOMAIN
+_ATTRIBUTE.fields_by_name['mapping'].message_type = _ATTRIBUTE_MAPPINGENTRY
 _ATTRIBUTE.fields_by_name['type'].enum_type = _ATTRIBUTE_TYPE
 _ATTRIBUTE_TYPE.containing_type = _ATTRIBUTE
 _DOMAIN.fields_by_name['domains'].message_type = _ATTRIBUTE
@@ -652,11 +711,19 @@ _sym_db.RegisterMessage(Node.Shape)
 _sym_db.RegisterMessage(Node.KwargsEntry)
 
 Attribute = _reflection.GeneratedProtocolMessageType('Attribute', (_message.Message,), {
+
+  'MappingEntry' : _reflection.GeneratedProtocolMessageType('MappingEntry', (_message.Message,), {
+    'DESCRIPTOR' : _ATTRIBUTE_MAPPINGENTRY,
+    '__module__' : 'srdfgv3_pb2'
+    # @@protoc_insertion_point(class_scope:srdfg.Attribute.MappingEntry)
+    })
+  ,
   'DESCRIPTOR' : _ATTRIBUTE,
   '__module__' : 'srdfgv3_pb2'
   # @@protoc_insertion_point(class_scope:srdfg.Attribute)
   })
 _sym_db.RegisterMessage(Attribute)
+_sym_db.RegisterMessage(Attribute.MappingEntry)
 
 Domain = _reflection.GeneratedProtocolMessageType('Domain', (_message.Message,), {
   'DESCRIPTOR' : _DOMAIN,
@@ -667,4 +734,5 @@ _sym_db.RegisterMessage(Domain)
 
 
 _NODE_KWARGSENTRY._options = None
+_ATTRIBUTE_MAPPINGENTRY._options = None
 # @@protoc_insertion_point(module_scope)

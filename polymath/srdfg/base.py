@@ -577,6 +577,14 @@ class Node(object):
         """
         return node_hash(self)
 
+    def find_node(self, name):
+        g = self.graph
+        while g is not None and name not in g.nodes:
+            g = g.graph
+        if name in g.nodes:
+            return g.nodes[name]
+        raise RuntimeError(f"Cannot find {name} in graph nodes. Graph: {self.graph}")
+
     def __len__(self):
         #TODO: Update this to check for finalzied shape
         if self.shape == UNSET_SHAPE:
