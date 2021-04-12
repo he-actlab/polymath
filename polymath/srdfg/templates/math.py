@@ -11,8 +11,16 @@ class reduce_sum(pm.Template):
         # indices = _get_single_node_indices(data)
         indices = tuple([pm.index(0, s - 1) for s in data.shape])
         sum_idx = tuple([indices[i] for i in axes])
-        out_idx = tuple([indices[i] for i in axes if i not in axes])
+        out_idx = tuple([indices[i] for i in range(len(indices)) if i not in axes])
         out[out_idx] = pm.sum([sum_idx], data[indices])
+
+    @property
+    def inputs(self):
+        return self.args[0]
+
+    @property
+    def outputs(self):
+        return self.args[1]
 
 class elem_greater(pm.Template):
     def define_graph(self, a, b, out):

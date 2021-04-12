@@ -213,27 +213,53 @@ def dilate(var: pm.placeholder, strides, name=None):
     padded[shape_idx] = 0
     padded[(shape_idx[0])] = 0
 
-def get_pad_tuple(pad_size):
-    if isinstance(pad_size, (tuple, list)):
-        if len(pad_size) == 2:
-            pad_h = pad_size[0] * 2
-            pad_w = pad_size[1] * 2
-        elif len(pad_size) == 4:
-            return pad_size[0], pad_size[2], pad_size[1], pad_size[3]
-        else:
-            raise ValueError("Size of padding can only be 2 or 4")
-    else:
-        assert isinstance(pad_size, int)
-        pad_h = pad_w = pad_size * 2
+# def get_pad_tuple(pad_size):
+#     if isinstance(pad_size, (tuple, list)):
+#         if len(pad_size) == 2:
+#             pad_h = pad_size[0] * 2
+#             pad_w = pad_size[1] * 2
+#         elif len(pad_size) == 4:
+#             return pad_size[0], pad_size[2], pad_size[1], pad_size[3]
+#         else:
+#             raise ValueError("Size of padding can only be 2 or 4")
+#     else:
+#         assert isinstance(pad_size, int)
+#         pad_h = pad_w = pad_size * 2
+#
+#     pad_top = (pad_h + 1) // 2
+#     pad_left = (pad_w + 1) // 2
+#     return pad_top, pad_left, pad_h - pad_top, pad_w - pad_left
 
+
+def get_pad_tuple(padding, kernel):
+    """Common code to get the pad option
+    Parameters
+    ----------
+    padding : int or str
+        Padding size, or ['VALID', 'SAME']
+    kernel : tuple of int
+        Conv kernel size
+    Returns
+    -------
+    pad_top : int
+        Padding size on top
+    pad_left : int
+        Padding size on left
+    pad_down : int
+        Padding size on down.
+    pad_right : int
+        Padding size on right.
+    """
+    # pad_h = pad_w = padding * 2
+    pad_h = padding[0] * 2
+    pad_w = padding[1] * 2
     pad_top = (pad_h + 1) // 2
     pad_left = (pad_w + 1) // 2
     return pad_top, pad_left, pad_h - pad_top, pad_w - pad_left
 
-def pad_node(data: pm.Node, padded_out: pm.Node, pad_size, pad_val=0):
+def pad_node(data: pm.Node, padded_out: pm.Node, pad_size, kernel, pad_val=0):
     assert len(data.shape) == 4
-    p_top, p_left, p_bottom, p_right = get_pad_tuple(pad_size)
-
+    p_top, p_left, p_bottom, p_right = get_pad_tuple(pad_size, kernel)
     oh = data.shape[2] + p_top + p_bottom
     ow = data.shape[3] + p_left + p_right
 

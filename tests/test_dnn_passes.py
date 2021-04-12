@@ -1,13 +1,12 @@
 from polymath.srdfg.passes import register_pass, Pass, pass_registry
 from polymath import UpdateBatchSize, CollectDNNShapes
 import polymath as pm
-from polymath.srdfg.templates.template_utils import dilate, _get_conv_output_shape
 import numpy as np
 import torch
 from torch.nn import functional as F
 from itertools import product
 from .util import get_pad_tuple, dilate_python, _grad_input_padding, \
-    cross_entropy_loss, delta_cross_entropy, torch_ce_loss, log_softmax, nll_loss
+    cross_entropy_loss, delta_cross_entropy, torch_ce_loss, log_softmax, nll_loss, batchnorm2d_backward
 import pytest
 from pathlib import Path
 
@@ -73,19 +72,21 @@ def test_conv2d_transpose_shapes(inp_shape, wgt_shape, stride, pad):
     np.testing.assert_allclose(tres, torch_res.numpy())
 
 @pytest.mark.parametrize('filename',[
-    f"{ONNX_LAYERS}/resnet18_gemm.onnx",
+    # f"{ONNX_LAYERS}/resnet18_globalaveragepool.onnx",
+    # f"{ONNX_LAYERS}/resnet18_gemm.onnx",
+    # f"{ONNX_LAYERS}/resnet18_flatten.onnx",
+    # f"{ONNX_LAYERS}/resnet18_conv.onnx",
+    # f"{ONNX_LAYERS}/resnet18_conv_bias.onnx",
+    # f"{ONNX_LAYERS}/resnet18_relu.onnx",
+    f"{ONNX_DNNS}/resnet18_train.onnx",
 ])
 def test_layer_autodiff(filename):
 
     graph = pm.from_onnx(filename, lower=False)
-    autodiff_pass = pm.AutoDiffGraph("cross_entropy", "sgd", {"lr": 0.01})
-    train_graph = autodiff_pass(graph)
-    pm.pb_store(train_graph, f"{BENCH_DIR}")
-    pm.pb_load(f"{BENCH_DIR}/{train_graph.name}.srdfg")
-
-    # for name, node in train_graph.nodes.items():
-    #     print(f"{node.op_name} - {name}")
-
+    train_graph = pm.create_training_graph(graph)
+    for name, node in train_graph.nodes.items():
+        if not isinstance(node, (pm.write, pm.placeholder)):
+            print(f"{node.op_name} - {name}")
 
 @pytest.mark.parametrize('shape',[
     (3, 100,),
@@ -159,7 +160,46 @@ def test_loss(shape):
 def test_autodiff():
     resnet18_path = f"{ONNX_DNNS}/resnet18.onnx"
     resnet18_graph = pm.from_onnx(resnet18_path)
-    #
-    # autodiff_pass = pm.AutoDiffGraph()
-    # autodiff_graph = autodiff_pass(resnet18_graph)
+
+def test_bnorm():
+    shape = (1, 16, 32, 32)
+    grad = torch.rand(shape)
+    x = torch.rand(shape)
+    scale = torch.rand((shape[1],))
+    bias = torch.rand((shape[1],))
+    mean = torch.rand((shape[1],))
+    var = torch.rand((shape[1],))
+    torch_res = batchnorm2d_backward(grad, x, scale, bias)
+
+    grad = grad.numpy()
+    x = x.numpy()
+    scale = scale.numpy()
+    bias = bias.numpy()
+    mean = mean.numpy()
+    var = var.numpy()
+    optimizer = "sgd"
+    optimizer_kwargs = {"lr": 0.01}
+    pm_x = pm.input(name="x", shape=shape)
+    pm_grad = pm.input(name="grad", shape=shape)
+    pm_scale = pm.input(name="scale", shape=scale.shape)
+    pm_bias = pm.input(name="bias", shape=scale.shape)
+    pm_mean = pm.input(name="mean", shape=scale.shape)
+    pm_var = pm.input(name="var", shape=scale.shape)
+    pm_x_grad = pm.output(name="x_grad", shape=shape)
+    pm_scale_grad = pm.output(name="scale_grad", shape=scale.shape)
+    pm_b_grad = pm.output(name="bias_grad", shape=bias.shape)
+
+    inp_map = {
+        'x': x,
+        'grad': grad,
+        'scale': scale,
+        'bias': bias,
+        'mean': mean,
+        'var': var,
+    }
+    graph = pm.batchnorm_grad(pm_x, pm_scale, pm_bias, pm_mean, pm_var, pm_grad, pm_x_grad, pm_scale_grad, pm_b_grad,
+                      optimizer, optimizer_kwargs)
+    rtol, atol = 1.3e-3, 1e-3
+    gout = graph("bias_grad", inp_map)
+    np.testing.assert_allclose(gout, torch_res.numpy().reshape(gout.shape), rtol=rtol, atol=atol)
 

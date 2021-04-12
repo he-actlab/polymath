@@ -5,6 +5,7 @@ from itertools import product
 from collections import defaultdict
 import pprint
 import onnx
+import torch
 from onnx import helper, numpy_helper, mapping
 from onnx import AttributeProto, TensorProto, GraphProto
 import json
@@ -2646,6 +2647,35 @@ def torch_ce_loss(x, y):
     b = nll_loss(a, y, reduction="mean")
     return b
 
+
+def batchnorm2d_backward(grad_y, x, weight, bias):
+    # scale = weight[None, :, None, None]
+    scale = weight.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
+
+    # offset = bias[None, :, None, None]
+    eps = 1e-5
+    reduces_axis = (0, 2, 3)
+    mean_grad_y = grad_y.mean(axis=reduces_axis, keepdims=True)
+    mean_x = x.mean(dim=reduces_axis, keepdims=True)
+
+    sqr_err = (x - mean_x)**2
+    var_x = sqr_err.mean(keepdims=True, dim=reduces_axis)
+    grad_y_offset = grad_y - mean_grad_y
+    x_offset = x - mean_x
+    #
+    mean = torch.mean(grad_y*x_offset, keepdim=True, dim=reduces_axis)
+    rsqrt_var = torch.rsqrt(var_x + eps)
+    coeff = scale * rsqrt_var
+    grad_sub = torch.reciprocal(var_x + eps) * mean * x_offset
+    grad_x = coeff * (
+        grad_y_offset - grad_sub)
+    #
+    grad_scale = rsqrt_var * torch.sum(
+        grad_y * x_offset, dim=reduces_axis, keepdim=True)
+
+    grad_scale = grad_scale.squeeze()
+    grad_offset = torch.sum(grad_y, dim=reduces_axis)
+    return grad_offset
 
 def delta_cross_entropy(X,y):
     """

@@ -1,5 +1,6 @@
 import polymath as pm
-from .template_utils import _get_indices, _get_single_node_indices, _get_elem_indices, pad_node, _dim_explicit
+from .template_utils import _get_indices, _get_single_node_indices, _get_elem_indices, pad_node, \
+    _dim_explicit, get_pad_tuple
 from polymath.srdfg.util import squeeze_shape
 from numbers import Integral
 import numpy as np
@@ -36,7 +37,6 @@ class cross_entropy_loss(pm.Template):
         elif reduction == "sum":
             loss.set_shape((1,))
             loss[0] = pm.sum([idx[0]], reshaped[idx])
-
 
 
         # TODO: Get this working
@@ -218,9 +218,33 @@ class relu1d(pm.Template):
         return (self.args[1],)
 
 class conv_bias(pm.Template):
-    def define_graph(self, data, w, bias, out, stride=1, pad=0):
-        oh = ((data.shape[-2] + 2 * pad - w.shape[-2]) // stride + 1)
-        ow = ((data.shape[-1] + 2 * pad - w.shape[-1]) // stride + 1)
+    def define_graph(self, data, w, bias, out, stride=1, pad=0, dilation=1):
+        if not isinstance(stride, (tuple, list)):
+            stride_h = stride_w = stride
+        else:
+            stride_h, stride_w = stride
+
+        if not isinstance(stride, (tuple, list)):
+            dilation_h = dilation_w = dilation
+        else:
+            dilation_h, dilation_w = dilation
+
+        if not isinstance(stride, (tuple, list)):
+            pad = (pad, pad)
+
+        batch, in_channel, in_height, in_width = data.shape
+        num_filter, channel, kernel_h, kernel_w = w.shape
+        # compute the output shape
+        dilated_kernel_h = (kernel_h - 1) * dilation_h + 1
+        dilated_kernel_w = (kernel_w - 1) * dilation_w + 1
+        pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
+            pad, (dilated_kernel_h, dilated_kernel_w)
+        )
+        out_channel = num_filter
+        oh = (in_height - dilated_kernel_h + pad_top + pad_down) // stride_h + 1
+        ow = (in_width - dilated_kernel_w + pad_left + pad_right) // stride_w + 1
+        pad_before = [0, 0, pad_top, pad_left]
+        pad_after = [0, 0, pad_down, pad_right]
         c = pm.index(0, w.shape[0] - 1, name="c")
         y = pm.index(0, oh - 1, name="y_")
         x = pm.index(0, ow - 1, name="x_")
@@ -229,8 +253,8 @@ class conv_bias(pm.Template):
         iy = pm.index(0, data.shape[-2] - 1, name="iy")
         ix = pm.index(0, data.shape[-1] - 1, name="ix")
         k = pm.index(0, data.shape[-3] - 1, name="k")
-        ihp = (data.shape[-2] + pad * 2)
-        iwp = data.shape[-1] + pad * 2
+        ihp = data.shape[-2] + pad_top + pad_down
+        iwp = data.shape[-1] + pad_left + pad_right
         ihp_ = pm.index(0, ihp - 1, name="ihp")
         iwp_ = pm.index(0, iwp - 1, name="iwp")
         if len(data.shape) > 3:
@@ -239,7 +263,6 @@ class conv_bias(pm.Template):
             p_indices = (b, k,)
             p_shape = (data.shape[0], data.shape[1], ihp, iwp)
             out.set_shape((data.shape[0], w.shape[0], oh, ow))
-
         else:
             o_indices = (c,)
             p_indices = (k,)
@@ -247,9 +270,10 @@ class conv_bias(pm.Template):
             out.set_shape((w.shape[0], oh, ow))
         padded = pm.temp(name="padded", shape=p_shape)
         padded[p_indices + (ihp_, iwp_)] = 0
-        padded[p_indices + (iy + pad, ix + pad)] = data[p_indices + (iy, ix)]
+        padded[p_indices + (iy + pad_top, ix + pad_left)] = data[p_indices + (iy, ix)]
 
-        out[o_indices + (y, x)] = pm.sum([dy, dx, k], (padded[p_indices + (dy + stride*y, dx + stride*x)] * w[c, k, dy, dx])) + bias[c]
+        # out[o_indices + (y, x)] = pm.sum([dy, dx, k], (padded[p_indices + (dy + stride*y, dx + stride*x)] * w[c, k, dy, dx])) + bias[c]
+        out[o_indices + (y, x)] = pm.sum([dy, dx, k], (padded[p_indices + (dy*dilation_h + stride*y, dx*dilation_w + stride*x)] * w[c, k, dy, dx])) + bias[c]
 
     @property
     def inputs(self):
@@ -274,7 +298,7 @@ class conv_transpose_bias(pm.Template):
         w_idx = pm.index(0, w-1)
         y[(n_idx*c + c_idx), (h_idx*w + w_idx), 0, 0] = data[n_idx, c_idx, h_idx, w_idx]
         y1 = pm.temp(name=f"{data.name}_pad")
-        y1 = pad_node(y, y1, (0, sw, 0, sh))
+        y1 = pad_node(y, y1, (0, sw, 0, sh), (kh, kw))
 
         y2 = pm.temp(name=f"{data.name}_reshaped2", shape=(n * c, h, w, 1 + sh, 1 + sw))
         nc_idx = pm.index(0, n*c - 1)
@@ -297,8 +321,8 @@ class conv_transpose_bias(pm.Template):
         w_perm[ic_idx, oc_idx, kh - kh_idx - 1, kw - kw_idx - 1] = wgt[oc_idx, ic_idx, kh_idx, kw_idx]
 
         y5 = pm.temp(name=f"{data.name}_pad2")
-        y5 = pad_node(y4, y5, (pw, pw - sw, ph, ph - sh))
-        pm.conv_bias(y5, w_perm, bias, out, stride=1, pad=0)
+        y5 = pad_node(y4, y5, (pw, pw - sw + out_pad, ph, ph - sh + out_pad), (kh, kw))
+        pm.conv_bias(y5, w_perm, bias, out, stride=1, pad=out_pad)
 
     @property
     def inputs(self):
@@ -322,7 +346,7 @@ class conv_transpose(pm.Template):
         w_idx = pm.index(0, w-1)
         y[(n_idx*c + c_idx), (h_idx*w + w_idx), 0, 0] = data[n_idx, c_idx, h_idx, w_idx]
         y1 = pm.temp(name=f"{data.name}_pad")
-        y1 = pad_node(y, y1, (0, sw, 0, sh))
+        y1 = pad_node(y, y1, (0, sw, 0, sh), (kh, kw))
 
         y2 = pm.temp(name=f"{data.name}_reshaped2", shape=(n * c, h, w, 1 + sh, 1 + sw))
         nc_idx = pm.index(0, n*c - 1)
@@ -345,7 +369,10 @@ class conv_transpose(pm.Template):
         w_perm[ic_idx, oc_idx, kh - kh_idx - 1, kw - kw_idx - 1] = wgt[oc_idx, ic_idx, kh_idx, kw_idx]
 
         y5 = pm.temp(name=f"{data.name}_pad2")
-        y5 = pad_node(y4, y5, (pw, pw - sw, ph, ph - sh))
+
+
+        y5 = pad_node(y4, y5, (pw, pw - sw + out_pad, ph, ph - sh + out_pad), (kh, kw))
+
         pm.conv(y5, w_perm, out, stride=1, pad=0)
 
     @property
@@ -526,39 +553,60 @@ class global_avg_pool(pm.Template):
         return (self.args[1],)
 
 class conv(pm.Template):
-    def define_graph(self, data, w, out, stride=1, pad=0):
-        oh = ((data.shape[-2] + 2 * pad - w.shape[-2]) // stride + 1)
-        ow = ((data.shape[-1] + 2 * pad - w.shape[-1]) // stride + 1)
+    def define_graph(self, data, w, out, stride=1, pad=0, dilation=1):
+        if not isinstance(stride, (tuple, list)):
+            stride_h = stride_w = stride
+        else:
+            stride_h, stride_w = stride
+
+        if not isinstance(stride, (tuple, list)):
+            dilation_h = dilation_w = dilation
+        else:
+            dilation_h, dilation_w = dilation
+
+        if not isinstance(stride, (tuple, list)):
+            pad = (pad, pad)
+
+        batch, in_channel, in_height, in_width = data.shape
+        num_filter, channel, kernel_h, kernel_w = w.shape
+        # compute the output shape
+        dilated_kernel_h = (kernel_h - 1) * dilation_h + 1
+        dilated_kernel_w = (kernel_w - 1) * dilation_w + 1
+        pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
+            pad, (dilated_kernel_h, dilated_kernel_w)
+        )
+        oh = (in_height - dilated_kernel_h + pad_top + pad_down) // stride_h + 1
+        ow = (in_width - dilated_kernel_w + pad_left + pad_right) // stride_w + 1
         c = pm.index(0, w.shape[0] - 1, name="c")
-        y = pm.index(0, oh - 1)
-        x = pm.index(0, ow - 1)
-        dy = pm.index(0, w.shape[2]-1, name="dy")
-        dx = pm.index(0, w.shape[3]-1, name="dx")
-        iy = pm.index(0, data.shape[-2]-1, name="iy")
-        ix = pm.index(0, data.shape[-1]-1, name="ix")
-        k = pm.index(0, data.shape[-3]-1, name="k")
-        ihp = (data.shape[-2] + pad*2)
-        iwp = data.shape[-1] + pad*2
-        ihp_ = pm.index(0, ihp-1, name="ihp")
-        iwp_ = pm.index(0, iwp-1, name="iwp")
-        # im2col
+        y = pm.index(0, oh - 1, name="y_")
+        x = pm.index(0, ow - 1, name="x_")
+        dy = pm.index(0, w.shape[2] - 1, name="dy")
+        dx = pm.index(0, w.shape[3] - 1, name="dx")
+        iy = pm.index(0, data.shape[-2] - 1, name="iy")
+        ix = pm.index(0, data.shape[-1] - 1, name="ix")
+        k = pm.index(0, data.shape[-3] - 1, name="k")
+        ihp = data.shape[-2] + pad_top + pad_down
+        iwp = data.shape[-1] + pad_left + pad_right
+        ihp_ = pm.index(0, ihp - 1, name="ihp")
+        iwp_ = pm.index(0, iwp - 1, name="iwp")
         if len(data.shape) > 3:
-            b = pm.index(0, data.shape[0]-1, name="b")
-            o_indices = [b,c]
-            p_indices = [b, k,]
+            b = pm.index(0, data.shape[0] - 1, name="b")
+            o_indices = (b, c)
+            p_indices = (b, k,)
             p_shape = (data.shape[0], data.shape[1], ihp, iwp)
             out.set_shape((data.shape[0], w.shape[0], oh, ow))
-
         else:
-            o_indices = [c]
-            p_indices = [k]
+            o_indices = (c,)
+            p_indices = (k,)
             p_shape = (data.shape[0], ihp, iwp)
             out.set_shape((w.shape[0], oh, ow))
-
         padded = pm.temp(name="padded", shape=p_shape)
-        padded[tuple(p_indices + [ihp_, iwp_])] = 0
-        padded[tuple(p_indices + [iy + pad, ix + pad])] = data[tuple(p_indices + [iy, ix])]
-        out[tuple(o_indices + [y, x])] = pm.sum([dy, dx, k], (padded[tuple(p_indices + [dy + stride*y, dx + stride*x])] * w[c, k, dy, dx]))
+        padded[p_indices + (ihp_, iwp_)] = 0
+        padded[p_indices + (iy + pad_top, ix + pad_left)] = data[p_indices + (iy, ix)]
+
+        out[o_indices + (y, x)] = pm.sum([dy, dx, k], (
+                    padded[p_indices + (dy * dilation_h + stride * y, dx * dilation_w + stride * x)] * w[
+                c, k, dy, dx]))
 
     @property
     def inputs(self):

@@ -9,8 +9,8 @@ import polymath as pm
 # TODO: Dynamically create this list to make sure it is valid
 ONNX_OP_NAMES = ['max_pool', 'lrn', 'conv', 'conv_bias', 'global_avg_pool', 'dropout', 'elem_tanh',
                 'softmax', 'elem_cast', 'elem_sigmoid', 'batch_norm', 'batch_flatten', 'avg_pool2d',
-                'leaky_relu', 'relu', 'dense_sigmoid', 'dense', 'avg_pool', 'gemm', 'elem_add', 'elem_sub',
-                 'elem_mul', 'dropout', 'coarse_flatten', 'cross_entropy_loss']
+                'leaky_relu', 'relu', 'dense_sigmoid', 'dense', 'avg_pool', 'gemm', 'gemm_no_bias', 'elem_add', 'elem_sub',
+                 'elem_mul', 'dropout', 'coarse_flatten', 'cross_entropy_loss', 'reduce_sum']
 
 def from_onnx(filepath, infer_shapes=True, use_filename=True, lower=False):
     onnx_proto, graph_name = load_onnx_proto(filepath)

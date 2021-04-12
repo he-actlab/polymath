@@ -532,7 +532,6 @@ class Lower(Pass):
             self.top = node
         if node.op_name in self.supported_ops or (
                 isinstance(node, (func_op, pm.placeholder, pm.NonLinear, pm.write)) and len(node.nodes) == 0):
-
             assert node.name != self.top.name
             self.update_args(node)
             node.nodes = pm.Graph()
@@ -569,9 +568,10 @@ class Lower(Pass):
 
     def update_args(self, node):
         new_args = []
+
         for a in node.args:
             if isinstance(a, (pm.GroupNode)):
-                if len(a.domain) == 0:
+                if len(a.domain) == 0 and len(a.output_nodes) > 0:
                     new_args.append(a.output_nodes[-1])
                 else:
                     new_args.append(a)

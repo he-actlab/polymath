@@ -6,7 +6,7 @@ from collections import defaultdict
 NON_DNN_NODE_OPS = (pm.write, pm.placeholder, pm.index, pm.var_index,
                     pm.slice_op, pm.func_op, pm.GroupNode, pm.NonLinear)
 OPTIMIZERS = {'sgd': pm.sgd}
-LOSS_FUNCS = {'cross_entropy': pm.cross_entropy_loss}
+LOSS_FUNCS = {'cross_entropy': pm.cross_entropy_loss, 'test_loss_fn': pm.elem_sub}
 
 @register_pass
 class AutoDiffGraph(Pass):
@@ -34,23 +34,21 @@ class AutoDiffGraph(Pass):
     def package_pass(self, node, ctx):
         node.name = f"{node.name}_training"
 
+        final_node = self.tape[-1]
+        if final_node.op_name not in LOSS_FUNCS:
+            with node:
+                out_loss = pm.output(name=f"{final_node.outputs[0].name}_loss", shape=final_node.outputs[0].shape)
+                target = pm.input(name=f"target_{final_node.outputs[0].name}", shape=final_node.outputs[0].shape[0])
+                loss_node = self.loss_func(final_node.outputs[0], target, out_loss)
+                self.grad_map[out_loss.name] = out_loss
+                AutoDiffGraph.GRAD_FUNCS[loss_node.op_name](self, loss_node)
 
-        with node:
-            out_loss = pm.output(name=f"{self.tape[0].outputs[0].name}_loss")
-            target = pm.input(name="target", shape=self.tape[0].outputs[0].shape[0])
-            self.loss_func(self.tape[0].outputs[0], target, out_loss)
-
-        self.grad_map[self.tape[0].outputs[0].name] = out_loss
         while self.tape:
             n = self.tape.pop()
             assert n.graph is not None and n.op_name in AutoDiffGraph.GRAD_FUNCS
             with node:
                 AutoDiffGraph.GRAD_FUNCS[n.op_name](self, n)
         return node
-
-    def conv_bias_grad(self, node):
-        with node.graph:
-            pm.conv_transpose()
     
     def elem_add_grad(self, node):
         grad = self.grad_map[node.outputs[0].name]
@@ -64,9 +62,8 @@ class AutoDiffGraph(Pass):
     
     def conv_grad(self, node):
         grad = self.grad_map[node.outputs[0].name]
-
-        conv_inp_grad = pm.output(name=f"{node.inputs[0].name}_grad", shape=node.inputs[0].shape)
-        conv_weight_grad = pm.output(name=f"{node.inputs[1].name}_grad", shape=node.inputs[1].shape)
+        conv_inp_grad = pm.output(name=f"{node.inputs[0].name}_grad_{node.name}", shape=node.inputs[0].shape)
+        conv_weight_grad = pm.output(name=f"{node.inputs[1].name}_grad_{node.name}", shape=node.inputs[1].shape)
 
         if len(node.inputs) > 2:
             conv_bias_grad = pm.output(name=f"{node.inputs[2].name}_grad", shape=node.inputs[2].shape)
@@ -74,18 +71,21 @@ class AutoDiffGraph(Pass):
                          conv_inp_grad, conv_weight_grad, conv_bias_grad,
                          self.optimizer_name, self.optimizer_kwargs,
                          stride=node.kwargs['stride'],
-                         pad=node.kwargs['pad'])
+                         pad=node.kwargs['pad'],
+                         dilation=node.kwargs['dilation'])
 
         else:
             pm.conv_grad_no_bias(node.inputs[0], node.inputs[1], grad, conv_inp_grad, conv_weight_grad,
-                                 self.optimizer_name, self.optimizer_kwargs)
+                                 self.optimizer_name, self.optimizer_kwargs, stride=node.kwargs['stride'],
+                                 pad=node.kwargs['pad'], dilation=node.kwargs['dilation'])
+
         self.grad_map[node.inputs[0].name] = conv_inp_grad
 
     def batch_norm_grad(self, node):
         grad = self.grad_map[node.outputs[0].name]
         bn_inp_grad = pm.output(name=f"{node.inputs[0].name}_grad", shape=node.inputs[0].shape)
-        bn_scale_grad = pm.output(name=f"{node.inputs[1].name}_grad", shape=node.inputs[1].shape)
-        bn_bias_grad = pm.output(name=f"{node.inputs[2].name}_grad", shape=node.inputs[2].shape)
+        bn_scale_grad = pm.output(name=f"{node.inputs[1].name}_grad_{node.name}", shape=node.inputs[1].shape)
+        bn_bias_grad = pm.output(name=f"{node.inputs[2].name}_grad_{node.name}", shape=node.inputs[2].shape)
         inp = node.inputs[0]
         scale = node.inputs[1]
         bias = node.inputs[2]
@@ -138,10 +138,15 @@ class AutoDiffGraph(Pass):
         pm.flatten_grad(node.inputs[0], grad, flatten_inp_grad)
         self.grad_map[node.inputs[0].name] = flatten_inp_grad
 
+    def cross_entropy_grad(self, node):
+        grad = self.grad_map[node.outputs[0].name]
+        inp_grad = pm.output(name=f"{node.inputs[0].name}_grad", shape=node.inputs[0].shape)
+        pm.cross_entropy_loss_grad(node.inputs[0], node.inputs[1], grad, inp_grad)
+        self.grad_map[node.inputs[0].name] = inp_grad
 
 
     GRAD_FUNCS['conv'] = conv_grad
-    GRAD_FUNCS['conv_bias'] = conv_bias_grad
+    GRAD_FUNCS['conv_bias'] = conv_grad
     GRAD_FUNCS['relu'] = relu_grad
     GRAD_FUNCS['batch_norm'] = batch_norm_grad
     GRAD_FUNCS['max_pool'] = max_pool_grad
@@ -149,4 +154,12 @@ class AutoDiffGraph(Pass):
     GRAD_FUNCS['gemm'] = gemm_grad
     GRAD_FUNCS['elem_add'] = elem_add_grad
     GRAD_FUNCS['coarse_flatten'] = flatten_grad
+    GRAD_FUNCS['cross_entropy_loss'] = cross_entropy_grad
 
+
+def create_training_graph(graph, loss_func="cross_entropy", optimizer="sgd", **optimizer_kwargs):
+    autodiff_pass = pm.AutoDiffGraph(loss_func, optimizer, optimizer_kwargs)
+    train_graph = autodiff_pass(graph)
+    lower_pass = pm.Lower(pm.DNN_TRAINING_OPS)
+    lowered_train_graph = lower_pass(train_graph)
+    return lowered_train_graph

@@ -8,6 +8,7 @@ import tqdm
 import sys
 from pytools import ProcessTimer
 
+sys.setrecursionlimit(5000)
 
 KEY_ARGS = ["name", "shape", "graph", "dependencies", "op_name"]
 class Visitor(object):

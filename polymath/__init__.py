@@ -31,8 +31,10 @@ from polymath.srdfg.templates.dnn import conv_bias, dense, relu, avg_pool2d,\
 
 from polymath.srdfg.templates.optimizers import sgd
 from polymath.srdfg.templates.gradient_defs import gemm_grad, gemm_grad_no_bias, conv_grad, conv_grad_no_bias, \
-    flatten_grad, elem_add_grad, relu_grad, batchnorm_grad, global_average_pool_grad, max_pool_grad
+    flatten_grad, elem_add_grad, relu_grad, batchnorm_grad, global_average_pool_grad, max_pool_grad,\
+    cross_entropy_loss_grad
 
+from polymath.srdfg.templates.gradient_defs import AUTODIFF_OPS
 
 from polymath.srdfg.templates.math import elem_mul, elem_sub, reduce_sum, matmul, gemm, \
     elem_add, elem_greater, lvmatmul, rvmatmul, gemm_no_bias
@@ -40,12 +42,15 @@ from polymath.srdfg.templates.tensor_transformations import coarse_flatten, elem
     onnx_squeeze, onnx_identity, onnx_resize, onnx_unsqueeze
 
 from polymath.srdfg.from_onnx.converter import from_onnx, get_attributes, get_value_info_shape, ONNX_OP_NAMES
+DNN_TRAINING_OPS = AUTODIFF_OPS + ONNX_OP_NAMES
 
 from polymath.srdfg.passes import register_pass, Pass
 from polymath.srdfg.passes.dnn_passes import UpdateBatchSize, CollectDNNShapes
 from polymath.srdfg.passes.compiler_passes import NormalizeGraph, Lower, CountNodes, CountOpTypes
-from polymath.srdfg.passes.autodiff import AutoDiffGraph
+from polymath.srdfg.passes.autodiff import AutoDiffGraph, create_training_graph
 from polymath.codegen.tabla.tabla_translate import generate_tabla
+
+from polymath.tools.srdfg_helpers import print_graph_ops
 
 try:
     from polymath.codegen.dnnweavergen.dnnweaver_translate import generate_dnnweaver
