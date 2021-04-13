@@ -82,8 +82,12 @@ class UpdateLayout(Pass):
         return node
 
     def update_shape(self, node):
-        assert node.name not in self.updated_shapes
         new_shape = tuple([node.shape[self.layout_map[i]] for i in range(len(node.shape))])
+        if node.name in self.updated_shapes:
+            assert self.updated_shapes[node.name] == new_shape, f"Invalid shapes for {node.name}:\n" \
+                                                                f"Previous shape: {self.updated_shapes[node.name]}\n" \
+                                                                f"New shape: {node.shape}"
+
         self.updated_shapes[node.name] = new_shape
         node.shape = new_shape
         return node

@@ -130,7 +130,7 @@ class avg_pool(pm.Template):
             p_shape = (data.shape[0], ihp, iwp)
             out.set_shape((data.shape[0], oh, ow))
         o_indices = tuple(o_indices)
-        padded = pm.temp(name="padded", shape=p_shape)
+        padded = pm.temp(shape=p_shape)
         padded[o_indices + (ihp_, iwp_)] = 0
         padded[o_indices + (iy + pad[0], ix + pad[1])] = data[o_indices + (iy, ix)]
         out[o_indices + (y, x)] = pm.sum([m, n], padded[o_indices + (sx*y + m, sy*x + n)]) * (1/(kh*kw))
@@ -268,7 +268,7 @@ class conv_bias(pm.Template):
             p_indices = (k,)
             p_shape = (data.shape[0], ihp, iwp)
             out.set_shape((w.shape[0], oh, ow))
-        padded = pm.temp(name="padded", shape=p_shape)
+        padded = pm.temp(shape=p_shape)
         padded[p_indices + (ihp_, iwp_)] = 0
         padded[p_indices + (iy + pad_top, ix + pad_left)] = data[p_indices + (iy, ix)]
 
@@ -361,7 +361,7 @@ class conv_transpose(pm.Template):
         y4[n_idx, c_idx, h_idx*stride + sh_idx, w_idx*stride + sw_idx] = y3[(n_idx*c + c_idx), h_idx, sh_idx, w_idx, sw_idx]
         ph, pw = kh - pad - 1, kw - pad - 1
 
-        w_perm = pm.temp(name="w_perm_flip", shape=(wgt.shape[1], wgt.shape[0], wgt.shape[3], wgt.shape[2]))
+        w_perm = pm.temp(name=f"w_perm_flip_{wgt.name}", shape=(wgt.shape[1], wgt.shape[0], wgt.shape[3], wgt.shape[2]))
         oc_idx = pm.index(0, wgt.shape[0]-1)
         ic_idx = pm.index(0, wgt.shape[1]-1)
         kh_idx = pm.index(0, kh-1)
@@ -401,7 +401,7 @@ class avg_pool2d(pm.Template):
         iwp_ = pm.index(0, iwp-1, name="iwp")
         iy = pm.index(0, inp.shape[2]-1, name="iy")
         ix = pm.index(0, inp.shape[3]-1, name="ix")
-        padded = pm.temp(name="padded", shape=(inp.shape[0], inp.shape[1], ihp, iwp))
+        padded = pm.temp(shape=(inp.shape[0], inp.shape[1], ihp, iwp))
         padded[b, c, ihp_, iwp_] = 0
         padded[b, c, iy + pad, ix + pad] = inp[b, c, iy, ix]
         out[b, c, y, x] = ((1/(kh*kw)) * pm.sum([m, n], padded[b, c, stride*y + m, stride*x + n], name="apool_sum")).set_name("final")
@@ -600,7 +600,7 @@ class conv(pm.Template):
             p_indices = (k,)
             p_shape = (data.shape[0], ihp, iwp)
             out.set_shape((w.shape[0], oh, ow))
-        padded = pm.temp(name="padded", shape=p_shape)
+        padded = pm.temp(shape=p_shape)
         padded[p_indices + (ihp_, iwp_)] = 0
         padded[p_indices + (iy + pad_top, ix + pad_left)] = data[p_indices + (iy, ix)]
 
@@ -652,10 +652,10 @@ class max_pool(pm.Template):
         oh = ((data.shape[-2] + 2 * pad[0] - kh) // stride[0] + 1)
         ow = ((data.shape[-1] + 2 * pad[1] - kw) // stride[1] + 1)
 
-        y = pm.index(0, oh-1, name="y")
-        x = pm.index(0, ow-1, name="x")
-        m = pm.index(0, kh-1, name="m")
-        n = pm.index(0, kw-1, name="n_")
+        y = pm.index(0, oh-1)
+        x = pm.index(0, ow-1)
+        m = pm.index(0, kh-1)
+        n = pm.index(0, kw-1)
         ihp = (data.shape[-2] + pad[0] * 2)
         iwp = data.shape[-1] + pad[1] * 2
         ihp_ = pm.index(0, ihp-1, name="ihp")
@@ -677,7 +677,7 @@ class max_pool(pm.Template):
             p_shape = (data.shape[0], ihp, iwp)
             out.set_shape((data.shape[0], oh, ow))
 
-        padded = pm.temp(name="padded", shape=p_shape)
+        padded = pm.temp(shape=p_shape)
         padded[o_indices, ihp_, iwp_] = 0
         padded[o_indices, iy + pad[0], ix + pad[1]] = data[o_indices, iy, ix]
         out[o_indices, y, x] = pm.max([m, n], padded[o_indices, stride[0]*y + m, stride[1]*x + n])

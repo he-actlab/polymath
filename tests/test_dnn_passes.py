@@ -82,13 +82,14 @@ def test_conv2d_transpose_shapes(inp_shape, wgt_shape, stride, pad):
 ])
 def test_layer_autodiff(filename):
     graph = pm.from_onnx(filename)
+    # train_graph = graph
     train_graph = pm.create_training_graph(graph)
     layout_pass = pm.UpdateLayout('nchw', 'nhwc')
     train_graph = layout_pass(train_graph)
-    for name, node in train_graph.nodes.items():
-        if node.op_name in ['conv', 'conv_bias']:
-            print(f"{node.op_name} - {name}")
-            print(f"{node.inputs[1].name} - {node.inputs[1].shape}")
+    # for name, node in train_graph.nodes.items():
+    #     if node.op_name in ['conv', 'conv_bias']:
+    #         print(f"{node.op_name} - {name}")
+    #         print(f"{node.inputs[1].name} - {node.inputs[1].shape}")
 
 @pytest.mark.parametrize('shape',[
     (3, 100,),
