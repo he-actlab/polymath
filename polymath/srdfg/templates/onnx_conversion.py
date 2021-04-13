@@ -263,14 +263,18 @@ def get_gemm(a, b , c=None, shape=None, name=None, alpha=None,
              out=None):
     if not out:
         out = pm.output(shape=shape, name=name)
+    if transB:
+        assert len(b.shape) == 2
+        b.shape = (b.shape[1], b.shape[0])
+        transB = False
     if c:
-        pm.gemm(a, b, c, out, alpha=alpha, beta=beta, transA=transA, transB=transB)
+        pm.gemm(a, b, c, out, alpha=alpha, beta=beta, transA=transA, transB=transB, strict_shapes=True)
     else:
         t_c = pm.temp(shape=shape)
         i = pm.index(0, shape[0]-1)
         j = pm.index(0, shape[1]-1)
         t_c[i, j] = 0
-        pm.gemm(a, b, t_c, out, alpha=alpha, beta=beta, transA=transA, transB=transB)
+        pm.gemm(a, b, t_c, out, alpha=alpha, beta=beta, transA=transA, transB=transB, strict_shapes=True)
     return out
 
 

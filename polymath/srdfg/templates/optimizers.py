@@ -21,4 +21,4 @@ class sgd(pm.Template):
 
     @property
     def outputs(self):
-        return (self.args[1],)
+        return (self.args[0],)

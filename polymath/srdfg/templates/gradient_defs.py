@@ -33,19 +33,61 @@ class batchnorm_grad(pm.Template):
         OPTIMIZERS[optimizer](scale, scale_grad, **optimizer_kwargs)
         OPTIMIZERS[optimizer](b, b_grad, **optimizer_kwargs)
 
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1], self.args[2], self.args[3], self.args[4], self.args[5])
 
+    @property
+    def outputs(self):
+        return (self.args[6], self.args[7], self.args[8])
 
 class global_average_pool_grad(pm.Template):
     def define_graph(self, data, grad, data_grad):
         pass
 
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1])
+
+    @property
+    def outputs(self):
+        return (self.args[2],)
+
 class max_pool_grad(pm.Template):
     def define_graph(self, data, grad, data_grad, kh, kw, stride=(1, 1), pad=(0,0)):
-        pass
+        data_grad.set_shape(data.shape)
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1])
+
+    @property
+    def outputs(self):
+        return (self.args[2],)
+
+    @property
+    def stride(self):
+        return self.kwargs['stride']
+
+    @property
+    def kernel_size(self):
+        return (self.args[3], self.args[4])
+
+    @property
+    def pad(self):
+        return self.kwargs['pad']
 
 class flatten_grad(pm.Template):
     def define_graph(self, inp, grad, inp_grad):
         inp_grad.set_shape(inp.shape)
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1])
+
+    @property
+    def outputs(self):
+        return (self.args[2],)
 
 class elem_add_grad(pm.Template):
     def define_graph(self, a, b, grad, a_grad, b_grad):
@@ -53,11 +95,27 @@ class elem_add_grad(pm.Template):
         a_grad[indices] = a[a_idx] + grad[grad_idx]
         b_grad[indices] = b[a_idx] + grad[grad_idx]
 
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1], self.args[2])
+
+    @property
+    def outputs(self):
+        return (self.args[3], self.args[4])
+
 class relu_grad(pm.Template):
     def define_graph(self, x, grad, x_grad):
 
         x_idx, grad_idx, x_grad_idx = _get_elem_indices(x, grad, x_grad)
         x_grad[x_grad_idx] = grad[grad_idx] * (x[x_idx] >= 0)
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1])
+
+    @property
+    def outputs(self):
+        return (self.args[2],)
 
 class conv_grad_no_bias(pm.Template):
     def define_graph(self, inp, weight, grad, inp_grad, weight_grad, optimizer, optimizer_kwargs,
@@ -150,9 +208,24 @@ class conv_grad(pm.Template):
 
 class gemm_grad_no_bias(pm.Template):
     def define_graph(self, inp, weight, grad, inp_grad, weight_grad, optimizer, optimizer_kwargs):
-        pm.gemm_no_bias(grad, inp, inp_grad, transA=True)
-        pm.gemm_no_bias(grad, weight, weight_grad)
-        # Weight update
+        transA = False
+        transB = False
+        if grad.shape[1] != weight.shape[0]:
+            indices = tuple([pm.index(0, s - 1) for s in weight.shape])
+            weight_transposed = pm.temp(name=f"{weight.name}_transposed", shape=(weight.shape[1], weight.shape[0]))
+            weight_transposed[indices[1], indices[0]] = weight[indices]
+            pm.gemm_no_bias(grad, weight_transposed, inp_grad, transA=transA, transB=transB, strict_shapes=True)
+        else:
+            pm.gemm_no_bias(grad, weight, inp_grad, transA=transA, transB=transB, strict_shapes=True)
+
+        if grad.shape[0] != inp.shape[1]:
+            indices = tuple([pm.index(0, s - 1) for s in inp.shape])
+            inp_transposed = pm.temp(name=f"{inp.name}_transposed", shape=(inp.shape[1], inp.shape[0]))
+            inp_transposed[indices[1], indices[0]] = inp[indices]
+            pm.gemm_no_bias(inp_transposed, grad, weight_grad, transA=transA, transB=transB, strict_shapes=True)
+        else:
+            pm.gemm_no_bias(inp, grad, weight_grad, transA=transA, transB=transB, strict_shapes=True)
+
         OPTIMIZERS[optimizer](weight, weight_grad, **optimizer_kwargs)
 
     @property
@@ -166,15 +239,34 @@ class gemm_grad_no_bias(pm.Template):
 
 class gemm_grad(pm.Template):
     def define_graph(self, inp, weight, bias, grad, inp_grad, weight_grad, bias_grad, optimizer, optimizer_kwargs):
-        pm.gemm_no_bias(grad, inp, inp_grad, transA=True)
-        pm.gemm_no_bias(grad, weight, weight_grad)
+        transA = False
+        transB = False
+
+        if grad.shape[1] != weight.shape[0]:
+            indices = tuple([pm.index(0, s - 1) for s in weight.shape])
+            weight_transposed = pm.temp(name=f"{weight.name}_transposed", shape=(weight.shape[1], weight.shape[0]))
+            weight_transposed[indices[1], indices[0]] = weight[indices]
+            pm.gemm_no_bias(grad, weight_transposed, inp_grad, transA=transA, transB=transB, strict_shapes=True)
+        else:
+            pm.gemm_no_bias(grad, weight, inp_grad, transA=transA, transB=transB, strict_shapes=True)
+
+        if grad.shape[0] != inp.shape[1]:
+            indices = tuple([pm.index(0, s-1) for s in inp.shape])
+            inp_transposed = pm.temp(name=f"{inp.name}_transposed", shape=(inp.shape[1], inp.shape[0]))
+            inp_transposed[indices[1], indices[0]] = inp[indices]
+            pm.gemm_no_bias(inp_transposed, grad, weight_grad, transA=transA, transB=transB, strict_shapes=True)
+        else:
+            pm.gemm_no_bias(inp, grad, weight_grad, transA=transA, transB=transB, strict_shapes=True)
+
+
+
         # Weight update
+        assert weight_grad.shape == weight.shape
+
         OPTIMIZERS[optimizer](weight, weight_grad, **optimizer_kwargs)
-        # OPTIMIZERS[optimizer](weight, weight_grad)
 
         pm.reduce_sum(grad, bias_grad)
         OPTIMIZERS[optimizer](bias, bias_grad, **optimizer_kwargs)
-        # OPTIMIZERS[optimizer](bias, bias_grad)
 
     @property
     def inputs(self):
@@ -200,4 +292,4 @@ class cross_entropy_loss_grad(pm.Template):
         return (self.args[3],)
 
 AUTODIFF_OPS =  ['cross_entropy_loss_grad', 'sgd', 'relu_grad', 'max_pool_grad',
-                     'global_average_pool_grad', 'elem_add_grad', 'flatten_grad', 'batch_norm_grad']
+                     'global_average_pool_grad', 'elem_add_grad', 'flatten_grad', 'batchnorm_grad']

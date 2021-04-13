@@ -45,7 +45,7 @@ from polymath.srdfg.from_onnx.converter import from_onnx, get_attributes, get_va
 DNN_TRAINING_OPS = AUTODIFF_OPS + ONNX_OP_NAMES
 
 from polymath.srdfg.passes import register_pass, Pass
-from polymath.srdfg.passes.dnn_passes import UpdateBatchSize, CollectDNNShapes
+from polymath.srdfg.passes.dnn_passes import UpdateBatchSize, CollectDNNShapes, RenameMultiDimOps, UpdateLayout
 from polymath.srdfg.passes.compiler_passes import NormalizeGraph, Lower, CountNodes, CountOpTypes
 from polymath.srdfg.passes.autodiff import AutoDiffGraph, create_training_graph
 from polymath.codegen.tabla.tabla_translate import generate_tabla

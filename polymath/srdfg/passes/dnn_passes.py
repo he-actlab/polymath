@@ -43,6 +43,86 @@ class UpdateBatchSize(Pass):
         return node
 
 
+@register_pass
+class RenameMultiDimOps(Pass):
+    MULTI_DIM_OPS = ['sgd']
+    def __init__(self):
+        super(RenameMultiDimOps, self).__init__()
+
+    def apply_pass(self, node, ctx):
+        if node.op_name in RenameMultiDimOps.MULTI_DIM_OPS:
+            node = self.rename_op(node)
+        return node
+
+    def rename_op(self, node):
+        assert len(node.inputs) == 2 and node.inputs[0].shape == node.inputs[1].shape
+        op_name = f"{node.op_name}{str(len(node.inputs[0].shape))}d"
+        node._op_name = op_name
+        return node
+
+@register_pass
+class UpdateLayout(Pass):
+    UNIQUE_OPS = ['conv', 'conv_bias', 'global_average_pool_grad', 'max_pool_grad']
+    def __init__(self, current_layout, new_layout):
+        assert current_layout == 'nchw'
+        assert new_layout == 'nhwc'
+        self.layout_map = {}
+        self.layout_map[0] = 0
+        self.layout_map[1] = 3
+        self.layout_map[2] = 2
+        self.layout_map[3] = 1
+        self.updated_shapes = {}
+        super(UpdateLayout, self).__init__()
+
+    def apply_pass(self, node, ctx):
+        if isinstance(node, (pm.write, pm.placeholder, pm.temp)) and len(node.shape) == 4:
+            node = self.update_shape(node)
+        elif node.op_name in UpdateLayout.UNIQUE_OPS:
+            node = self.handle_unique_op(node)
+        return node
+
+    def update_shape(self, node):
+        assert node.name not in self.updated_shapes
+        new_shape = tuple([node.shape[self.layout_map[i]] for i in range(len(node.shape))])
+        self.updated_shapes[node.name] = new_shape
+        node.shape = new_shape
+        return node
+
+    def handle_unique_op(self, node):
+        if node.op_name in  ['conv', 'conv_bias']:
+            weight = node.inputs[1]
+            if weight.name in self.updated_shapes:
+                original_shape = self.get_original_shape(self.updated_shapes[weight.name])
+            else:
+                original_shape = weight.shape
+            weight.shape = (original_shape[2], original_shape[3], original_shape[0], original_shape[1])
+
+            activation = node.inputs[0]
+            if activation.name not in self.updated_shapes:
+                activation = self.update_shape(activation)
+        elif node.op_name in ['global_average_pool_grad', 'max_pool_grad']:
+            for i in node.inputs:
+                if isinstance(i, pm.Node) and len(i.shape) == 4:
+                    if i.name not in self.updated_shapes:
+                        i = self.update_shape(i)
+
+            for i in node.outputs:
+                if isinstance(i, pm.Node) and len(i.shape) == 4:
+                    if i.name not in self.updated_shapes:
+                        i = self.update_shape(i)
+
+        return node
+
+    def get_original_shape(self, new_shape):
+        rev_map = {v: k for k, v in self.layout_map.items()}
+        orig_shape = tuple([new_shape[rev_map[i]] for i in range(len(new_shape))])
+        return orig_shape
+
+
+
+
+
+
 def conv_bias_batch(node, batch_size):
     act = node.inputs[0]
     out = node.outputs[0]

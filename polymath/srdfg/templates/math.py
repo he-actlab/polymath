@@ -16,11 +16,11 @@ class reduce_sum(pm.Template):
 
     @property
     def inputs(self):
-        return self.args[0]
+        return (self.args[0],)
 
     @property
     def outputs(self):
-        return self.args[1]
+        return (self.args[1],)
 
 class elem_greater(pm.Template):
     def define_graph(self, a, b, out):
@@ -110,15 +110,27 @@ def rvmatmul(a, b, shape=None, name=None, **kwargs):
 
 
 class gemm(pm.Template):
-    def define_graph(self, a, b, c, y, alpha=1.0, beta=0.0, transA=None, transB=None):
-        i = pm.index(0, a.shape[0] - 1)
-        j = pm.index(0, b.shape[0] - 1)
-        k = pm.index(0, b.shape[1] - 1)
+    def define_graph(self, a, b, c, y, alpha=1.0, beta=0.0, transA=None, transB=None, strict_shapes=False):
+        if strict_shapes:
+            assert b.shape[0] == a.shape[1]
+            assert len(y.shape) == 0 or y.shape[0] == a.shape[0]
+            assert c.shape[0] == b.shape[1]
+            assert bool(transB) == bool(transA) and bool(transA) == False, f"Strict shape check failed: {transA} != {transB}"
+
         if transA:
+            i = pm.index(0, a.shape[1] - 1)
+            j = pm.index(0, b.shape[0] - 1)
+            k = pm.index(0, b.shape[1] - 1)
             y[i, k] = pm.sum([j], a[j, i]*b[j, k]) + c[i, k]
         elif transB:
+            i = pm.index(0, a.shape[0] - 1)
+            j = pm.index(0, b.shape[1] - 1)
+            k = pm.index(0, b.shape[0] - 1)
             y[i, k] = pm.sum([j], a[i, j]*b[k, j]) + c[i, k]
         else:
+            i = pm.index(0, a.shape[0] - 1)
+            j = pm.index(0, b.shape[0] - 1)
+            k = pm.index(0, b.shape[1] - 1)
             y[i, k] = pm.sum([j], a[i, j]*b[j, k]) + c[i, k]
 
     @property
@@ -130,16 +142,26 @@ class gemm(pm.Template):
         return (self.args[3],)
 
 class gemm_no_bias(pm.Template):
-    def define_graph(self, a, b, y, alpha=1.0, beta=0.0, transA=False, transB=False):
+    def define_graph(self, a, b, y, alpha=1.0, beta=0.0, transA=False, transB=False, strict_shapes=False):
+        if strict_shapes:
+            assert b.shape[0] == a.shape[1]
+            assert len(y.shape) == 0 or y.shape[0] == a.shape[0]
+            assert bool(transB) == bool(transA) and bool(transA) == False, f"Strict shape check failed: {transA} != {transB}"
 
-        i = pm.index(0, a.shape[0] - 1)
-        j = pm.index(0, b.shape[0] - 1)
-        k = pm.index(0, b.shape[1] - 1)
         if transA:
+            i = pm.index(0, a.shape[1] - 1)
+            j = pm.index(0, b.shape[0] - 1)
+            k = pm.index(0, b.shape[1] - 1)
             y[i, k] = pm.sum([j], a[j, i]*b[j, k])
         elif transB:
+            i = pm.index(0, a.shape[0] - 1)
+            j = pm.index(0, b.shape[1] - 1)
+            k = pm.index(0, b.shape[0] - 1)
             y[i, k] = pm.sum([j], a[i, j]*b[k, j])
         else:
+            i = pm.index(0, a.shape[0] - 1)
+            j = pm.index(0, b.shape[0] - 1)
+            k = pm.index(0, b.shape[1] - 1)
             y[i, k] = pm.sum([j], a[i, j]*b[j, k])
 
     @property
@@ -148,4 +170,4 @@ class gemm_no_bias(pm.Template):
 
     @property
     def outputs(self):
-        return (self.args[3],)
+        return (self.args[2],)

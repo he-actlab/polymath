@@ -117,6 +117,7 @@ class AutoDiffGraph(Pass):
         else:
             pm.gemm_grad_no_bias(node.inputs[0], node.inputs[1], grad, gemm_inp_grad, gemm_weight_grad,
                                  self.optimizer_name, self.optimizer_kwargs)
+
         self.grad_map[node.inputs[0].name] = gemm_inp_grad
 
     def max_pool_grad(self, node):

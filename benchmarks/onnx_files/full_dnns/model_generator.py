@@ -224,7 +224,9 @@ def convert_torch_model(input_var, model, model_name, optimize_model, training_m
                       keep_initializers_as_inputs=True,
                       training=mode,
                       input_names=['input'],  # the model's input names
-                      output_names=['output'])
+                      output_names=['output'],
+                      opset_version=12,
+                      enable_onnx_checker=True)
     model_proto = onnx.ModelProto.FromString(f.getvalue())
     onnx.checker.check_model(model_proto)
     add_value_info_for_constants(model_proto)
@@ -251,6 +253,9 @@ def str2bool(v):
         return False
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
+
+def visualize_training_graph(model):
+    pass
 
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser(description='ONNX Benchmark Generator')
