@@ -7,12 +7,43 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.datasets as datasets
 import torch.optim as optim
+import torchvision
 import torchvision.transforms as transforms
 from torchvision import models
 from torch.utils.data import DataLoader
 import io
 from onnxsim import simplify
+from collections import namedtuple
+Targets = namedtuple('Targets', ['boxes', 'masks', 'labels'])
 
+
+def get_image_from_url(url, size=None):
+    import requests
+    from PIL import Image
+    from io import BytesIO
+    from torchvision import transforms
+
+    data = requests.get(url)
+    image = Image.open(BytesIO(data.content)).convert("RGB")
+
+    if size is None:
+        size = (300, 200)
+    image = image.resize(size, Image.BILINEAR)
+
+    to_tensor = transforms.ToTensor()
+    return to_tensor(image)
+
+
+def get_test_images():
+    image_url = "http://farm3.staticflickr.com/2469/3915380994_2e611b1779_z.jpg"
+    image = get_image_from_url(url=image_url, size=(100, 320))
+
+    image_url2 = "https://pytorch.org/tutorials/_static/img/tv_tutorial/tv_image05.png"
+    image2 = get_image_from_url(url=image_url2, size=(250, 380))
+
+    images = [image]
+    test_images = [image2]
+    return images, test_images
 
 def contains_cl(args):
     for t in args:
@@ -35,6 +66,15 @@ def print_inputs(args, indent=''):
         else:
             print(indent, t)
 
+class TraceWrapper(torch.nn.Module):
+    def __init__(self, model):
+        super().__init__()
+        self.model = model
+
+    def forward(self, inp):
+        out = self.model(inp)
+        out = dict_to_tuple(out[0])
+        return out
 
 def check_wrapper(fn):
     name = fn.__name__
@@ -211,31 +251,84 @@ def create_resnet50(optimize_model, training_mode, convert_data_format, to_polym
         out = model(input_var)
     convert_torch_model(input_var, model, model_name, optimize_model, training_mode, to_polymath, convert_data_format=convert_data_format)
 
+def _make_empty_samples(N, C, H, W, training=False):
+
+    img, other = get_test_images()
+    t = Targets(boxes=torch.rand(0, 4), labels=torch.tensor([]).to(dtype=torch.int64),
+                masks=torch.rand(0, H, W))
+
+    return img, [t._asdict()]
+
+def create_maskrcnn(optimize_model, training_mode, convert_data_format, to_polymath, batch_size=1):
+    model = torchvision.models.detection.maskrcnn_resnet50_fpn(pretrained=not training_mode, min_size=200, max_size=300)
+
+    N, C, H, W = 1, 1, 300, 300
+    inputs = _make_empty_samples(N, C, H, W, training=training_mode)
+    model_name = "mask_rcnn"
+
+    if batch_size != 1:
+        model_name = f"{model_name}_batch{batch_size}"
+
+    if not training_mode:
+        # model = TraceWrapper(model)
+        model.eval()
+        input_var = inputs[0]
+        model(input_var)
+    else:
+        model_name = f"{model_name}_train"
+        model.train()
+        input_var = inputs
+
+    convert_torch_model(input_var, model, model_name, optimize_model, training_mode, to_polymath, convert_data_format=convert_data_format)
+
 
 def convert_torch_model(input_var, model, model_name, optimize_model, training_mode, to_polymath,
                         convert_data_format=False):
     f = io.BytesIO()
     mode = torch.onnx.TrainingMode.TRAINING if training_mode else torch.onnx.TrainingMode.EVAL
-    torch.onnx.export(model,  # model being run
-                      input_var,  # model input (or a tuple for multiple inputs)
-                      f,  # where to save the model (can be a file or file-like object)
-                      export_params=True,  # store the trained parameter weights inside the model file
-                      do_constant_folding=True,  # whether to execute constant folding for optimization
-                      keep_initializers_as_inputs=True,
-                      training=mode,
-                      input_names=['input'],  # the model's input names
-                      output_names=['output'],
-                      opset_version=12,
-                      enable_onnx_checker=True)
+    if 'mask_rcnn' not in model_name:
+        torch.onnx.export(model,  # model being run
+                          input_var,  # model input (or a tuple for multiple inputs)
+                          f,  # where to save the model (can be a file or file-like object)
+                          export_params=True,  # store the trained parameter weights inside the model file
+                          do_constant_folding=True,  # whether to execute constant folding for optimization
+                          keep_initializers_as_inputs=True,
+                          training=mode,
+                          input_names=['input'],  # the model's input names
+                          output_names=['output'],
+                          opset_version=12)
+    else:
+        input_var = [(input_var,)]
+        if isinstance(input_var[0][-1], dict):
+            input_var = input_var[0] + ({},)
+        else:
+            input_var = input_var[0]
+        # dynamic_axes = {"images_tensors": [0, 1, 2], "boxes": [0, 1], "labels": [0],
+        #                                 "scores": [0], "masks": [0, 1, 2]}
+        dynamic_axes = None
+        model_name = f"{model_name}_aten"
+        torch.onnx.export(model,  # model being run
+                          input_var,  # model input (or a tuple for multiple inputs)
+                          f,  # where to save the model (can be a file or file-like object)
+                          export_params=True,  # store the trained parameter weights inside the model file
+                          do_constant_folding=True,  # whether to execute constant folding for optimization
+                          keep_initializers_as_inputs=True,
+                          training=mode,
+                          operator_export_type=torch.onnx.OperatorExportTypes.ONNX_ATEN,
+                          input_names=["images_tensors"],
+                          output_names=["boxes", "labels", "scores", "masks"],
+                          dynamic_axes=dynamic_axes,
+                          opset_version=11)
     model_proto = onnx.ModelProto.FromString(f.getvalue())
     onnx.checker.check_model(model_proto)
-    add_value_info_for_constants(model_proto)
-    model_proto = onnx.shape_inference.infer_shapes(model_proto)
+    # if dynamic_axes is None:
+    #     add_value_info_for_constants(model_proto)
+    #     model_proto = onnx.shape_inference.infer_shapes(model_proto)
     filepath = f"./{model_name}.onnx"
     # model_proto = optimizer.optimize(model_proto, ['eliminate_identity'])
-    if optimize_model:
-        model_proto, check = simplify(model_proto)
-        assert check
+    # if optimize_model and dynamic_axes is None:
+    #     model_proto, check = simplify(model_proto)
+    #     assert check
     with open(filepath, "wb") as f:
         f.write(model_proto.SerializeToString())
 
@@ -284,6 +377,9 @@ if __name__ == "__main__":
                         batch_size=args.batch_size)
     elif args.benchmark == "resnet50":
         create_resnet50(args.optimize_model, args.training_mode, args.data_format_convert, args.to_polymath,
+                        batch_size=args.batch_size)
+    elif args.benchmark == "maskrcnn":
+        create_maskrcnn(args.optimize_model, args.training_mode, args.data_format_convert, args.to_polymath,
                         batch_size=args.batch_size)
     else:
         raise RuntimeError(f"Invalid benchmark supplied. Options are one of:\n"

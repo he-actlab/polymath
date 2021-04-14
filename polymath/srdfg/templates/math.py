@@ -22,12 +22,165 @@ class reduce_sum(pm.Template):
     def outputs(self):
         return (self.args[1],)
 
+class reduce_prod(pm.Template):
+    def define_graph(self, data, out, axes=(0,), keepdims=True):
+        indices = tuple([pm.index(0, s - 1) for s in data.shape])
+        sum_idx = tuple([indices[i] for i in axes])
+        out_idx = tuple([indices[i] for i in range(len(indices)) if i not in axes])
+        out[out_idx] = pm.prod([sum_idx], data[indices])
+
+    @property
+    def inputs(self):
+        return (self.args[0],)
+
+    @property
+    def outputs(self):
+        return (self.args[1],)
+
+class reduce_min(pm.Template):
+    def define_graph(self, data, out, axes=(0,), keepdims=True):
+        # indices = _get_single_node_indices(data)
+        indices = tuple([pm.index(0, s - 1) for s in data.shape])
+        sum_idx = tuple([indices[i] for i in axes])
+        out_idx = tuple([indices[i] for i in range(len(indices)) if i not in axes])
+        out[out_idx] = pm.min([sum_idx], data[indices])
+
+    @property
+    def inputs(self):
+        return (self.args[0],)
+
+    @property
+    def outputs(self):
+        return (self.args[1],)
+
+class reduce_max(pm.Template):
+    def define_graph(self, data, out, axes=(0,), keepdims=True):
+        # indices = _get_single_node_indices(data)
+        indices = tuple([pm.index(0, s - 1) for s in data.shape])
+        sum_idx = tuple([indices[i] for i in axes])
+        out_idx = tuple([indices[i] for i in range(len(indices)) if i not in axes])
+        out[out_idx] = pm.max([sum_idx], data[indices])
+
+    @property
+    def inputs(self):
+        return (self.args[0],)
+
+    @property
+    def outputs(self):
+        return (self.args[1],)
+
 class elem_greater(pm.Template):
     def define_graph(self, a, b, out):
         a_idx, b_idx, indices = _get_elem_indices(a, b, out)
         # a_idx, b_idx, indices = _get_binop_idx(a, b, out)
 
         out[indices] = (a[a_idx] > b[b_idx])
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1])
+
+    @property
+    def outputs(self):
+        return (self.args[2],)
+
+class elem_less(pm.Template):
+    def define_graph(self, a, b, out):
+        a_idx, b_idx, indices = _get_elem_indices(a, b, out)
+
+        out[indices] = (a[a_idx] < b[b_idx])
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1])
+
+    @property
+    def outputs(self):
+        return (self.args[2],)
+
+class elem_not(pm.Template):
+    def define_graph(self, x, out):
+        indices = _get_single_node_indices(out, shape=out.shape)
+        out[indices] = pm.logical_not(x[indices])
+
+    @property
+    def inputs(self):
+        return (self.args[0],)
+
+    @property
+    def outputs(self):
+        return (self.args[1],)
+
+class elem_nonzero(pm.Template):
+    def define_graph(self, x, out):
+        pass
+        # indices = _get_single_node_indices(out, shape=out.shape)
+        # out[indices] = ((x[indices] != 0) * indices)
+
+    @property
+    def inputs(self):
+        return (self.args[0],)
+
+    @property
+    def outputs(self):
+        return (self.args[1],)
+
+class elem_or(pm.Template):
+    def define_graph(self, a, b, out):
+        a_idx, b_idx, indices = _get_elem_indices(a, b, out)
+        out[indices] = (a[a_idx] or b[b_idx])
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1])
+
+    @property
+    def outputs(self):
+        return (self.args[2],)
+
+class elem_and(pm.Template):
+    def define_graph(self, a, b, out):
+        a_idx, b_idx, indices = _get_elem_indices(a, b, out)
+        out[indices] = (a[a_idx] and b[b_idx])
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1])
+
+    @property
+    def outputs(self):
+        return (self.args[2],)
+
+class elem_equal(pm.Template):
+    def define_graph(self, a, b, out):
+        a_idx, b_idx, indices = _get_elem_indices(a, b, out)
+        out[indices] = (a[a_idx] == b[b_idx])
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1])
+
+    @property
+    def outputs(self):
+        return (self.args[2],)
+
+class elem_min(pm.Template):
+    def define_graph(self, a, b, out):
+        a_idx, b_idx, indices = _get_elem_indices(a, b, out)
+        out[indices] = (a[a_idx] > b[b_idx]) * b[a_idx] + (a[a_idx] <= b[b_idx]) * a[a_idx]
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1])
+
+    @property
+    def outputs(self):
+        return (self.args[2],)
+
+class elem_max(pm.Template):
+    def define_graph(self, a, b, out):
+        a_idx, b_idx, indices = _get_elem_indices(a, b, out)
+        out[indices] = (a[a_idx] > b[b_idx]) * a[a_idx] + (a[a_idx] <= b[b_idx]) * b[a_idx]
 
     @property
     def inputs(self):
@@ -69,6 +222,19 @@ class elem_mul(pm.Template):
     def define_graph(self, a, b, out):
         a_idx, b_idx, indices = _get_elem_indices(a, b, out)
         out[indices] = (a[a_idx] * b[b_idx])
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1])
+
+    @property
+    def outputs(self):
+        return (self.args[2],)
+
+class elem_div(pm.Template):
+    def define_graph(self, a, b, out):
+        a_idx, b_idx, indices = _get_elem_indices(a, b, out)
+        out[indices] = (a[a_idx] / b[b_idx])
 
     @property
     def inputs(self):

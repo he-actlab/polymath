@@ -12,6 +12,33 @@ ONNX_OP_NAMES = ['max_pool', 'lrn', 'conv', 'conv_bias', 'global_avg_pool', 'dro
                 'leaky_relu', 'relu', 'dense_sigmoid', 'dense', 'avg_pool', 'gemm', 'gemm_no_bias', 'elem_add', 'elem_sub',
                  'elem_mul', 'dropout', 'coarse_flatten', 'cross_entropy_loss', 'reduce_sum']
 
+def update_onnx_graph_names(graph):
+    names = {}
+    for n in onnx_graph.node:
+        new_inputs = []
+        for i in n.input:
+            if i in names:
+                new_inputs.append(f"{names[i]}")
+            elif i.isdigit():
+                names[i] = f"{n.name}_{i}"
+                new_inputs.append(names[i])
+            else:
+                names[i] = i
+                new_inputs.append(i)
+        n.input = new_inputs
+
+        new_outputs = []
+        for o in n.output:
+            if o in names:
+                new_outputs.append(f"{names[o]}")
+            elif o.isdigit():
+                names[o] = f"{n.name}_{o}"
+                new_outputs.append(names[o])
+            else:
+                names[o] = o
+                new_outputs.append(o)
+        n.output = new_outputs
+
 def from_onnx(filepath, infer_shapes=True, use_filename=True, lower=False):
     onnx_proto, graph_name = load_onnx_proto(filepath)
     attr = get_model_attributes(onnx_proto)
@@ -160,9 +187,12 @@ def convert_node(onnx_node, mgdfg, node_info, state_vars):
         kwargs = attributes
         kwargs['shape'] = tuple(list(o_shape))
 
-
+        print(onnx_node.op_type)
+        print(onnx_node.name)
+        print()
         with mgdfg:
             new_node = NODE_NAMES[onnx_node.op_type](*args, name=o_name, **kwargs)
+
         if id(new_node.graph) != id(mgdfg):
             new_node.graph = mgdfg
             new_node.set_name(o_name)

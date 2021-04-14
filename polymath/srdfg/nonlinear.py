@@ -103,6 +103,14 @@ class tanh(NonLinear):
     def __init__(self, input_node, **kwargs):
         super(tanh, self).__init__(_tanh, input_node, **kwargs)
 
+class logical_not(NonLinear):
+    def __init__(self, input_node, **kwargs):
+        super(logical_not, self).__init__(_logical_not, input_node, **kwargs)
+
+class logical_or(NonLinear):
+    def __init__(self, input_node, **kwargs):
+        super(logical_or, self).__init__(_logical_or, input_node, **kwargs)
+
 class log2(NonLinear):
     def __init__(self, input_node, **kwargs):
         super(log2, self).__init__(_log2, input_node, **kwargs)
@@ -166,6 +174,33 @@ class cast(NonLinear):
             self.shape = val.shape
         return val
 
+class clip(NonLinear):
+    def __init__(self, minval, maxval, input_node, **kwargs):
+        kwargs['minval'] = minval
+        kwargs['maxval'] = maxval
+        kwargs['init_extras'] = (minval, maxval)
+        super(cast, self).__init__(_clip, input_node, **kwargs)
+
+    @property
+    def minval(self):
+        return self.kwargs['minval']
+
+    @property
+    def maxval(self):
+        return self.kwargs['maxval']
+
+    def _evaluate(self, val, **kwargs):
+        if "target" in kwargs:
+            kwargs.pop("target")
+        if "domain" in kwargs:
+            kwargs.pop("domain")
+
+        val = self.target(val, self.minval, self.maxval)
+
+        if not self.is_shape_finalized():
+            self.shape = val.shape
+        return val
+
 def _log(value):
     return np.log(value)
 
@@ -180,6 +215,12 @@ def _sigmoid(value):
 
 def _tanh(value):
     return np.tanh(value)
+
+def _logical_not(value):
+    return np.logical_not(value)
+
+def _logical_or(value):
+    return np.logical_or(value)
 
 def _exp(value):
     return np.exp(value)
@@ -208,6 +249,11 @@ def _cast(value, npdtype):
         res = np.asarray(value).astype(npdtype)
     else:
         res = value.astype(npdtype)
+    return res
+
+def _clip(value, minval, maxval):
+
+    res = np.clip(value, minval, maxval)
     return res
 
 

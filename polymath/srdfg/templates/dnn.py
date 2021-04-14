@@ -158,6 +158,21 @@ class dense(pm.Template):
     def outputs(self):
         return (self.args[2],)
 
+class roi_align(pm.Template):
+    def define_graph(self, x, rois, batch_indices, out, mode='avg',
+                  output_height=1, output_width=1,
+                  sampling_ratio=0, spatial_scale=1.0):
+        pass
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1], self.args[2])
+
+    @property
+    def outputs(self):
+        return (self.args[3],)
+
+
 class dense_sigmoid(pm.Template):
     def define_graph(self, x, w, y):
         i = pm.index(0, (w.shape[1] - 1), name="i")
@@ -467,6 +482,46 @@ class elem_sigmoid(pm.Template):
     def outputs(self):
         return (self.args[1],)
 
+
+class loop(pm.Template):
+    def define_graph(self, v_initial, out, cond=None, max_trip_count=None):
+        pass
+
+    @property
+    def inputs(self):
+        return (self.args[0],)
+
+    @property
+    def outputs(self):
+        return (self.args[1],)
+
+class elem_where(pm.Template):
+    def define_graph(self, condition, x, y, out):
+        x_idx, y_idx, indices = _get_elem_indices(x, y, out)
+        out[indices] = condition[indices] * x[x_idx] + condition[indices] * y[y_idx]
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1], self.args[2])
+
+    @property
+    def outputs(self):
+        return (self.args[3],)
+
+
+class scatter_elements(pm.Template):
+    def define_graph(self, data, indices, updates, out, axis=0):
+        pass
+
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1], self.args[2])
+
+    @property
+    def outputs(self):
+        return (self.args[3],)
+
 class elem_cast(pm.Template):
     def define_graph(self, x, out, to):
         indices = _get_single_node_indices(out, shape=out.shape)
@@ -479,6 +534,71 @@ class elem_cast(pm.Template):
     @property
     def outputs(self):
         return (self.args[1],)
+
+class elem_floor(pm.Template):
+    def define_graph(self, x, out):
+        indices = _get_single_node_indices(out, shape=out.shape)
+        out[indices] = pm.floor(x[indices], shape=out.shape)
+
+    @property
+    def inputs(self):
+        return (self.args[0],)
+
+    @property
+    def outputs(self):
+        return (self.args[1],)
+
+class elem_ceil(pm.Template):
+    def define_graph(self, x, out):
+        indices = _get_single_node_indices(out, shape=out.shape)
+        out[indices] = pm.ceil(x[indices], shape=out.shape)
+
+    @property
+    def inputs(self):
+        return (self.args[0],)
+
+    @property
+    def outputs(self):
+        return (self.args[1],)
+
+class elem_clip(pm.Template):
+    def define_graph(self, x, out, min=None, max=None):
+        indices = _get_single_node_indices(out, shape=out.shape)
+        out[indices] = pm.clip(min, max, x[indices])
+
+    @property
+    def inputs(self):
+        return (self.args[0],)
+
+    @property
+    def outputs(self):
+        return (self.args[1],)
+
+class topk(pm.Template):
+    def define_graph(self, x, k, out, out_indices, largest=1, sorted=1, axis=-1):
+        indices = _get_single_node_indices(out, shape=out.shape)
+        out[indices] = pm.clip(min, max, x[indices])
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1])
+
+    @property
+    def outputs(self):
+        return (self.args[2],)
+
+class split(pm.Template):
+    def define_graph(self, x, out, split=None, axis=-1):
+        pass
+
+    @property
+    def inputs(self):
+        return (self.args[0],)
+
+    @property
+    def outputs(self):
+        return (self.args[1],)
+
 
 class softmax(pm.Template):
     def define_graph(self, data, out, axis=0):
@@ -516,7 +636,58 @@ class elem_tanh(pm.Template):
     def outputs(self):
         return (self.args[1],)
 
+class elem_if(pm.Template):
+    def define_graph(self, condition, out):
+        pass
+        # a_idx, b_idx, indices = _get_elem_indices(a, b, out)
+        # out[indices] = (a[a_idx] == b[b_idx])
 
+    @property
+    def inputs(self):
+        return (self.args[0],)
+
+    @property
+    def outputs(self):
+        return (self.args[2],)
+
+class elem_exp(pm.Template):
+    def define_graph(self, x, out):
+        indices = _get_single_node_indices(out, shape=out.shape)
+        out[indices] = pm.exp(x[indices])
+
+    @property
+    def inputs(self):
+        return (self.args[0],)
+
+    @property
+    def outputs(self):
+        return (self.args[1],)
+
+class elem_sqrt(pm.Template):
+    def define_graph(self, x, out):
+        indices = _get_single_node_indices(out, shape=out.shape)
+        out[indices] = pm.sqrt(x[indices])
+
+    @property
+    def inputs(self):
+        return (self.args[0],)
+
+    @property
+    def outputs(self):
+        return (self.args[1],)
+
+class elem_log(pm.Template):
+    def define_graph(self, x, out):
+        indices = _get_single_node_indices(out, shape=out.shape)
+        out[indices] = pm.log(x[indices])
+
+    @property
+    def inputs(self):
+        return (self.args[0],)
+
+    @property
+    def outputs(self):
+        return (self.args[1],)
 
 class dropout(pm.Template):
     # TODO: Fix and test indices here

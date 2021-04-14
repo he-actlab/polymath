@@ -19,15 +19,39 @@ def get_elem_sigmoid(x, shape=None, name=None, out=None):
 def get_softmax(x, axis=1, shape=None, name=None, out=None):
     if not out:
         out = pm.output(name=name, shape=shape)
-    # return softmax(x, out, axis=axis, shape=shape)
     pm.softmax(x, out, axis=axis)
     return out
 
 def get_elem_tanh(x, shape=None, name=None, out=None):
     if not out:
         out = pm.output(name=name, shape=shape)
-    # return elem_tanh(x, out, shape=shape)
     pm.elem_tanh(x, out)
+    return out
+
+def get_elem_sqrt(x, shape=None, name=None, out=None):
+    if not out:
+        out = pm.output(name=name, shape=shape)
+    pm.elem_sqrt(x, out)
+    return out
+
+def get_elem_log(x, shape=None, name=None, out=None):
+    if not out:
+        out = pm.output(name=name, shape=shape)
+    pm.elem_log(x, out)
+    return out
+
+def get_elem_exp(x, shape=None, name=None, out=None):
+    if not out:
+        out = pm.output(name=name, shape=shape)
+    pm.elem_exp(x, out)
+    return out
+
+def get_topk(x, k, largest=1, sorted=1, axis=-1, shape=None, name=None, out=None, out_indices=None, **kwargs):
+    if not out:
+        out = pm.output(name=name, shape=shape)
+    if not out_indices:
+        out_indices = pm.output(name=name, shape=shape)
+    pm.topk(x, k, out, out_indices, largest=largest, sorted=sorted, axis=axis)
     return out
 
 
@@ -36,7 +60,24 @@ def get_elem_cast(data, to=None, shape=None, name=None, out=None, **kwargs):
     if not out:
         out = pm.output(name=name, shape=shape)
     pm.elem_cast(data, out, to)
-    # return pm.cast(to, data[indices], name=name, shape=shape)
+    return out
+
+def get_elem_floor(data, shape=None, name=None, out=None, **kwargs):
+    if not out:
+        out = pm.output(name=name, shape=shape)
+    pm.elem_floor(data, out)
+    return out
+
+def get_elem_clip(data, min=None, max=None, shape=None, name=None, out=None, **kwargs):
+    if not out:
+        out = pm.output(name=name, shape=shape)
+    pm.elem_clip(data, out, min=min, max=max)
+    return out
+
+def get_elem_ceil(data, shape=None, name=None, out=None, **kwargs):
+    if not out:
+        out = pm.output(name=name, shape=shape)
+    pm.elem_ceil(data, out)
     return out
 
 def get_elem_add(a, b, shape=None, name=None, out=None):
@@ -46,7 +87,37 @@ def get_elem_add(a, b, shape=None, name=None, out=None):
     pm.elem_add(a, b, out)
     return out
 
+def get_elem_min(a, b, shape=None, name=None, out=None):
+    if not out:
+        out = pm.output(name=name, shape=shape)
+    pm.elem_min(a, b, out)
+    return out
+
+def get_elem_max(a, b, shape=None, name=None, out=None):
+    if not out:
+        out = pm.output(name=name, shape=shape)
+    pm.elem_min(a, b, out)
+    return out
+
+def get_elem_div(a, b, shape=None, name=None, out=None):
+    if not out:
+        out = pm.output(name=name, shape=shape)
+    pm.elem_div(a, b, out)
+    return out
+
 def get_elem_sub(a, b, shape=None, name=None, out=None):
+    if not out:
+        out = pm.output(name=name, shape=shape)
+    pm.elem_sub(a, b, out)
+    return out
+
+def get_scatter_elements(data, indices, updates, axis=0, shape=None, name=None, out=None):
+    if not out:
+        out = pm.output(name=name, shape=shape)
+    pm.scatter_elements(data, indices, updates, out, axis=axis)
+    return out
+
+def get_where(condition, x, y, shape=None, name=None, out=None):
     if not out:
         out = pm.output(name=name, shape=shape)
     pm.elem_sub(a, b, out)
@@ -56,6 +127,48 @@ def get_elem_greater(a, b, shape=None, name=None, out=None):
     if not out:
         out = pm.output(name=name, shape=shape)
     pm.elem_greater(a, b, out)
+    return out
+
+def get_elem_not(a, shape=None, name=None, out=None):
+    if not out:
+        out = pm.output(name=name, shape=shape)
+    pm.elem_not(a, out)
+    return out
+
+def get_elem_or(a, b, shape=None, name=None, out=None):
+    if not out:
+        out = pm.output(name=name, shape=shape)
+    pm.elem_or(a, b, out)
+    return out
+
+def get_elem_and(a, b, shape=None, name=None, out=None):
+    if not out:
+        out = pm.output(name=name, shape=shape)
+    pm.elem_and(a, b, out)
+    return out
+
+def get_elem_equal(a, b, shape=None, name=None, out=None):
+    if not out:
+        out = pm.output(name=name, shape=shape)
+    pm.elem_equal(a, b, out)
+    return out
+
+def get_elem_nonzero(a, shape=None, name=None, out=None):
+    if not out:
+        out = pm.output(name=name, shape=shape)
+    pm.elem_nonzero(a, out)
+    return out
+
+def get_elem_if(condition, else_branch=None, then_branch=None, shape=None, name=None, out=None):
+    if not out:
+        out = pm.output(name=name, shape=shape)
+    pm.elem_nonzero(condition, out)
+    return out
+
+def get_elem_less(a, b, shape=None, name=None, out=None):
+    if not out:
+        out = pm.output(name=name, shape=shape)
+    pm.elem_less(a, b, out)
     return out
 
 def get_elem_mul(a, b, shape=None, name=None, out=None):
@@ -77,6 +190,41 @@ def get_reduce_sum(x, shape=None, name=None, out=None, axes=(0,), **kwargs):
     pm.reduce_sum(x, out, axes=axes)
     return out
 
+def get_reduce_prod(x, shape=None, name=None, out=None, axes=(0,), **kwargs):
+    if not out:
+        out = pm.output(name=name, shape=shape)
+    if isinstance(axes, Integral):
+        axes = (axes,)
+    elif isinstance(axes, list):
+        axes = tuple(axes)
+    else:
+        assert isinstance(axes, tuple)
+    pm.reduce_prod(x, out, axes=axes)
+    return out
+
+def get_reduce_min(x, shape=None, name=None, out=None, axes=(0,), **kwargs):
+    if not out:
+        out = pm.output(name=name, shape=shape)
+    if isinstance(axes, Integral):
+        axes = (axes,)
+    elif isinstance(axes, list):
+        axes = tuple(axes)
+    else:
+        assert isinstance(axes, tuple)
+    pm.reduce_min(x, out, axes=axes)
+    return out
+
+def get_reduce_max(x, shape=None, name=None, out=None, axes=(0,), **kwargs):
+    if not out:
+        out = pm.output(name=name, shape=shape)
+    if isinstance(axes, Integral):
+        axes = (axes,)
+    elif isinstance(axes, list):
+        axes = tuple(axes)
+    else:
+        assert isinstance(axes, tuple)
+    pm.reduce_max(x, out, axes=axes)
+    return out
 
 def get_matmul(a, b, out=None, **kwargs):
 
@@ -111,6 +259,41 @@ def get_concat(*inputs, axis=None, shape=None, name=None, out=None):
         out[tuple(indices)] = i[tuple(indices[:axis] + [j] + indices[axis+1:])]
     return out
 
+def get_conv_transpose(x, w, bias=None, dilations=None, group=None, kernel_shape=None, pads=None, auto_pad=None,
+             output_padding=None,
+             strides=None,
+             shape=None,
+             name=None,
+             out=None):
+    if not out:
+        out = pm.output(shape=shape, name=name)
+
+    if auto_pad:
+
+        h_out = np.ceil(x.shape[-2] / strides[0])
+        w_out = np.ceil(x.shape[-1] / strides[1])
+        ph = max(0, (h_out - 1) * strides[0] + kernel_shape[0] - x.shape[-2])
+        pw = max(0, (w_out - 1) * strides[1] + kernel_shape[1] - x.shape[-1])
+        pads = [0,0,0,0]
+        if auto_pad == "SAME_LOWER":
+            pads[0] = np.floor(ph//2)
+            pads[1] = ph - pads[0]
+            pads[2] = np.floor(pw//2)
+            pads[3] = pw - pads[2]
+        elif auto_pad == "SAME_UPPER":
+            pads[1] = np.floor(ph // 2)
+            pads[0] = ph - pads[1]
+            pads[3] = np.floor(pw // 2)
+            pads[2] = pw - pads[3]
+
+    if bias:
+        pm.conv_transpose_bias(x, w, bias, out, int(strides[0]), int(pads[-2]), out_pad=output_padding)
+        return out
+    else:
+        pm.conv_transpose(x, w, out, int(strides[0]), int(pads[-2]), out_pad=output_padding)
+        return out
+
+
 def get_conv(x, w, bias=None, dilations=None, group=None, kernel_shape=None, pads=None, auto_pad=None,
              strides=None,
              shape=None,
@@ -143,6 +326,16 @@ def get_conv(x, w, bias=None, dilations=None, group=None, kernel_shape=None, pad
     else:
         pm.conv(x, w, out, int(strides[0]), int(pads[-2]))
         return out
+
+def get_roi_align(x, rois, batch_indices, mode='avg',
+                  output_height=1, output_width=1,
+                  sampling_ratio=0, spatial_scale=1.0,
+                  name=None, shape=None, out=None):
+    if not out:
+        out = pm.output(name=name, shape=shape)
+    pm.roi_align(x, rois, batch_indices, out, mode=mode,
+                  output_height=output_height, output_width=output_width,
+                  sampling_ratio=sampling_ratio, spatial_scale=spatial_scale)
 
 def get_batch_norm(x, s, b, mean, var, spatial=None, momentum=None,  epsilon=None, name=None, shape=None, out=None):
     if not out:
@@ -286,9 +479,10 @@ def get_range(start, limit, delta, shape=None, name=None):
     return y
 
 # TODO: Fix this to be an actual operation
-def get_shape(x, *args, name=None, shape=None, **kwargs):
-    x.graph.nodes[name] = x.shape
-    return x.graph.nodes[name]
+def get_shape(x, *args, name=None, shape=None, out=None, **kwargs):
+    if not out:
+        out = pm.output(name=name, shape=shape)
+    return out
 
 # TODO: Fix this operation
 def get_expand(input, shape_input, name=None, shape=None, out=None):
@@ -296,12 +490,42 @@ def get_expand(input, shape_input, name=None, shape=None, out=None):
         out = pm.output(name=name, shape=shape)
     return out
 
+def get_pad(input, shape_input, name=None, shape=None, out=None, **kwargs):
+    if not out:
+        out = pm.output(name=name, shape=shape)
+    return out
+
+def get_slice(input, starts, ends, axes=-1, steps=1, name=None, shape=None, out=None, **kwargs):
+    if not out:
+        out = pm.output(name=name, shape=shape)
+    return out
+
+def get_split(input, split=None, axis=-1, name=None, shape=None, out=None, **kwargs):
+    if not out:
+        out = pm.output(name=name, shape=shape)
+    pm.split(input, out, split=split, axis=axis)
+    return out
+
+def get_constant_of_shape(input_var, name=None, shape=None, out=None, **kwargs):
+    if not out:
+        out = pm.state(name=name, shape=shape)
+    return out
+
+def get_loop(v_initial, cond=None, max_trip_count=None, name=None, shape=None, out=None):
+    if not out:
+        out = pm.output(name=name, shape=shape)
+    pm.loop(v_initial, out, cond=cond, max_trip_count=max_trip_count)
+    return out
+
 
 NODE_NAMES = {"SVMClassifier": pm.svm_classifier_train,
               "Conv": get_conv,
+              "ConvTranspose": get_conv_transpose,
               "MatMul": get_matmul,
+              "Loop": get_loop,
               "Concat": get_concat,
               "GlobalAveragePool": get_global_avg_pool,
+              "ScatterElements": get_scatter_elements,
               "AveragePool": get_avg_pool,
               "Flatten": get_flatten,
               "LRN": get_lrn,
@@ -309,16 +533,30 @@ NODE_NAMES = {"SVMClassifier": pm.svm_classifier_train,
               "LeakyRelu": get_leaky_relu,
               "BatchNormalization": get_batch_norm,
               "MaxPool": get_max_pool,
+              "If": get_elem_if,
+              "Sqrt": get_elem_sqrt,
               "Gemm": get_gemm,
               "Dropout": get_dropout,
+              "Not": get_elem_not,
+              "Or": get_elem_or,
+              "NonZero": get_elem_nonzero,
+              "And": get_elem_and,
+              "Equal": get_elem_equal,
+              "RoiAlign": get_roi_align,
+              "Where": get_where,
               "Mul": get_elem_mul,
               "Sub": get_elem_sub,
               "Add": get_elem_add,
+              "Div": get_elem_div,
+              "Pad": get_pad,
+              "Slice": get_slice,
               "Softmax": get_softmax,
               "Transpose": get_transpose,
               "Sigmoid": get_elem_sigmoid,
               "Tanh": get_elem_tanh,
+              "Log": get_elem_log,
               "Greater": get_elem_greater,
+              "Less": get_elem_less,
               "Shape": get_shape,
               "Gather": get_gather,
               "Range": get_range,
@@ -326,11 +564,23 @@ NODE_NAMES = {"SVMClassifier": pm.svm_classifier_train,
               "LinearRegressor": pm.linear_regressor_train,
               "Cast": get_elem_cast,
               "Constant": pm.parameter,
+              "ConstantOfShape": get_constant_of_shape,
               "Reshape": pm.onnx_reshape,
               "Identity": pm.identity,
               "ReduceSum": get_reduce_sum,
+              "Floor": get_elem_floor,
+              "Clip": get_elem_clip,
+              "Exp": get_elem_exp,
+              "Split": get_split,
+              "Ceil": get_elem_ceil,
+              "Min": get_elem_min,
+              "Max": get_elem_max,
+              "ReduceMin": get_reduce_min,
+              "ReduceProd": get_reduce_prod,
+              "ReduceMax": get_reduce_max,
               "Unsqueeze": pm.onnx_unsqueeze,
               "Squeeze": pm.onnx_squeeze,
               "Resize": pm.onnx_resize,
+              "TopK": get_topk,
               "SoftmaxCrossEntropyLoss": get_cross_entropy_loss
               }
