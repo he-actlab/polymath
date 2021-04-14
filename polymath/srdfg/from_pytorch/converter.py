@@ -7,12 +7,12 @@ from polymath.srdfg.templates.onnx_conversion import NODE_NAMES
 import polymath as pm
 
 # TODO: Dynamically create this list to make sure it is valid
-ONNX_OP_NAMES = ['max_pool', 'lrn', 'conv', 'conv_bias', 'global_avg_pool', 'dropout', 'elem_tanh',
+PYTORCH_OP_NAMES = ['max_pool', 'lrn', 'conv', 'conv_bias', 'global_avg_pool', 'dropout', 'elem_tanh',
                 'softmax', 'elem_cast', 'elem_sigmoid', 'batch_norm', 'batch_flatten', 'avg_pool2d',
                 'leaky_relu', 'relu', 'dense_sigmoid', 'dense', 'avg_pool', 'gemm', 'gemm_no_bias', 'elem_add', 'elem_sub',
                  'elem_mul', 'dropout', 'coarse_flatten', 'cross_entropy_loss', 'reduce_sum']
 
-def update_onnx_graph_names(graph):
+def update_pytorch_graph_names(graph):
     names = {}
     for n in onnx_graph.node:
         new_inputs = []
@@ -39,7 +39,7 @@ def update_onnx_graph_names(graph):
                 new_outputs.append(o)
         n.output = new_outputs
 
-def from_onnx(filepath, infer_shapes=True, use_filename=True, lower=False):
+def from_pytorch(filepath, infer_shapes=True, use_filename=True, lower=False):
     onnx_proto, graph_name = load_onnx_proto(filepath)
     attr = get_model_attributes(onnx_proto)
     if infer_shapes:
@@ -186,6 +186,10 @@ def convert_node(onnx_node, mgdfg, node_info, state_vars):
         args = tuple(args)
         kwargs = attributes
         kwargs['shape'] = tuple(list(o_shape))
+
+        print(onnx_node.op_type)
+        print(onnx_node.name)
+        print()
         with mgdfg:
             new_node = NODE_NAMES[onnx_node.op_type](*args, name=o_name, **kwargs)
 

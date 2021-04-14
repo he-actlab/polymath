@@ -45,6 +45,7 @@ from polymath.srdfg.templates.tensor_transformations import coarse_flatten, elem
     onnx_squeeze, onnx_identity, onnx_resize, onnx_unsqueeze
 
 from polymath.srdfg.from_onnx.converter import from_onnx, get_attributes, get_value_info_shape, ONNX_OP_NAMES
+from polymath.srdfg.from_pytorch.converter import from_pytorch, get_attributes, get_value_info_shape, PYTORCH_OP_NAMES
 DNN_TRAINING_OPS = AUTODIFF_OPS + ONNX_OP_NAMES
 
 from polymath.srdfg.passes import register_pass, Pass
