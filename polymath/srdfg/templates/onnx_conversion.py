@@ -46,13 +46,13 @@ def get_elem_exp(x, shape=None, name=None, out=None):
     pm.elem_exp(x, out)
     return out
 
-def get_topk(x, k, largest=1, sorted=1, axis=-1, shape=None, name=None, out=None, out_indices=None, **kwargs):
+def get_topk(x, k, largest=1, sorted=1, axis=-1, shapes=None, name=None, out=None, out_indices=None, **kwargs):
     if not out:
-        out = pm.output(name=name, shape=shape)
+        out = pm.output(name=name[0], shape=shapes[0])
     if not out_indices:
-        out_indices = pm.output(name=name, shape=shape)
+        out_indices = pm.output(name=name[1], shape=shapes[1])
     pm.topk(x, k, out, out_indices, largest=largest, sorted=sorted, axis=axis)
-    return out
+    return out, out_indices
 
 
 # TODO: Need to convert this to a node with an output
@@ -117,10 +117,16 @@ def get_scatter_elements(data, indices, updates, axis=0, shape=None, name=None, 
     pm.scatter_elements(data, indices, updates, out, axis=axis)
     return out
 
+def get_scatter(data, indices, updates, axis=0, shape=None, name=None, out=None):
+    if not out:
+        out = pm.output(name=name, shape=shape)
+    pm.scatter_elements(data, indices, updates, out, axis=axis)
+    return out
+
 def get_where(condition, x, y, shape=None, name=None, out=None):
     if not out:
         out = pm.output(name=name, shape=shape)
-    pm.elem_sub(a, b, out)
+    pm.elem_where(condition, x, y, out)
     return out
 
 def get_elem_greater(a, b, shape=None, name=None, out=None):
@@ -150,6 +156,7 @@ def get_elem_and(a, b, shape=None, name=None, out=None):
 def get_elem_equal(a, b, shape=None, name=None, out=None):
     if not out:
         out = pm.output(name=name, shape=shape)
+
     pm.elem_equal(a, b, out)
     return out
 
@@ -252,11 +259,12 @@ def get_lrn(x, alpha=None, beta=None, bias=None, size=None, name=None, shape=Non
 def get_concat(*inputs, axis=None, shape=None, name=None, out=None):
     if not out:
         out = pm.output(name=name, shape=shape)
-    indices = [pm.index(0, s - 1) if s > 1 else 0 for s in shape]
-    for idx, i in enumerate(inputs):
-        indices[axis] = pm.index(idx*i.shape[axis], (idx+1)*i.shape[axis]-1)
-        j = pm.index(0, i.shape[axis]-1)
-        out[tuple(indices)] = i[tuple(indices[:axis] + [j] + indices[axis+1:])]
+    pm.concat(*(inputs + (out,)), axis=axis)
+    # indices = [pm.index(0, s - 1) if s > 1 else 0 for s in shape]
+    # for idx, i in enumerate(inputs):
+    #     indices[axis] = pm.index(idx*i.shape[axis], (idx+1)*i.shape[axis]-1)
+    #     j = pm.index(0, i.shape[axis]-1)
+    #     out[tuple(indices)] = i[tuple(indices[:axis] + [j] + indices[axis+1:])]
     return out
 
 def get_conv_transpose(x, w, bias=None, dilations=None, group=None, kernel_shape=None, pads=None, auto_pad=None,
@@ -299,6 +307,8 @@ def get_conv(x, w, bias=None, dilations=None, group=None, kernel_shape=None, pad
              shape=None,
              name=None,
              out=None):
+
+
     if not out:
         out = pm.output(shape=shape, name=name)
 
@@ -325,6 +335,7 @@ def get_conv(x, w, bias=None, dilations=None, group=None, kernel_shape=None, pad
         return out
     else:
         pm.conv(x, w, out, int(strides[0]), int(pads[-2]))
+
         return out
 
 def get_roi_align(x, rois, batch_indices, mode='avg',
@@ -336,6 +347,7 @@ def get_roi_align(x, rois, batch_indices, mode='avg',
     pm.roi_align(x, rois, batch_indices, out, mode=mode,
                   output_height=output_height, output_width=output_width,
                   sampling_ratio=sampling_ratio, spatial_scale=spatial_scale)
+    return out
 
 def get_batch_norm(x, s, b, mean, var, spatial=None, momentum=None,  epsilon=None, name=None, shape=None, out=None):
     if not out:
@@ -460,6 +472,7 @@ def get_gemm(a, b , c=None, shape=None, name=None, alpha=None,
         assert len(b.shape) == 2
         b.shape = (b.shape[1], b.shape[0])
         transB = False
+
     if c:
         pm.gemm(a, b, c, out, alpha=alpha, beta=beta, transA=transA, transB=transB, strict_shapes=True)
     else:
@@ -500,11 +513,16 @@ def get_slice(input, starts, ends, axes=-1, steps=1, name=None, shape=None, out=
         out = pm.output(name=name, shape=shape)
     return out
 
-def get_split(input, split=None, axis=-1, name=None, shape=None, out=None, **kwargs):
-    if not out:
-        out = pm.output(name=name, shape=shape)
-    pm.split(input, out, split=split, axis=axis)
-    return out
+def get_split(input, split=None, axis=-1, name=None, shapes=None, outputs=None, **kwargs):
+    if not outputs:
+        outputs = []
+        for idx, n in enumerate(name):
+            out = pm.output(name=n, shape=shapes[idx])
+            outputs.append(out)
+    else:
+        assert isinstance(outputs, list) and len(outputs) == len(name)
+    pm.split(input, *tuple(outputs), split=split, axis=axis)
+    return tuple(outputs)
 
 def get_constant_of_shape(input_var, name=None, shape=None, out=None, **kwargs):
     if not out:
@@ -517,6 +535,12 @@ def get_loop(v_initial, cond=None, max_trip_count=None, name=None, shape=None, o
     pm.loop(v_initial, out, cond=cond, max_trip_count=max_trip_count)
     return out
 
+def get_nms(boxes, scores, max_output_boxes_per_class=0, iou_threshold=0, score_threshold=-1, center_point_box=0, name=None, shape=None, out=None):
+    if not out:
+        out = pm.output(name=name, shape=shape)
+    pm.nms(boxes, scores, out, max_output_boxes_per_class=max_output_boxes_per_class,
+           iou_threshold=iou_threshold, score_threshold=score_threshold, center_point_box=center_point_box)
+    return out
 
 NODE_NAMES = {"SVMClassifier": pm.svm_classifier_train,
               "Conv": get_conv,
@@ -582,5 +606,7 @@ NODE_NAMES = {"SVMClassifier": pm.svm_classifier_train,
               "Squeeze": pm.onnx_squeeze,
               "Resize": pm.onnx_resize,
               "TopK": get_topk,
-              "SoftmaxCrossEntropyLoss": get_cross_entropy_loss
+              "SoftmaxCrossEntropyLoss": get_cross_entropy_loss,
+              "NonMaxSuppression": get_nms,
+              "Scatter": get_scatter
               }

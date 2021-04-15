@@ -28,7 +28,8 @@ from polymath.srdfg.templates.dnn import conv_bias, dense, relu, avg_pool2d,\
     global_avg_pool, conv, max_pool, dropout, leaky_relu, avg_pool, lrn, \
     elem_tanh, elem_sigmoid, elem_cast, conv_transpose, cross_entropy_loss, log_softmax, \
     nll_loss, conv_transpose_bias, elem_floor, elem_ceil, elem_clip, elem_exp, topk,\
-    split, elem_if, elem_sqrt, elem_log, roi_align, elem_where, scatter_elements, loop
+    split, elem_if, elem_sqrt, elem_log, roi_align, elem_where, scatter_elements, \
+    loop, nms, concat
 
 from polymath.srdfg.templates.optimizers import sgd
 from polymath.srdfg.templates.gradient_defs import gemm_grad, gemm_grad_no_bias, conv_grad, conv_grad_no_bias, \

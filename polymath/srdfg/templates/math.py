@@ -154,7 +154,7 @@ class elem_and(pm.Template):
 class elem_equal(pm.Template):
     def define_graph(self, a, b, out):
         a_idx, b_idx, indices = _get_elem_indices(a, b, out)
-        out[indices] = (a[a_idx] == b[b_idx])
+        # out[indices] = (a[a_idx] == b[b_idx])
 
     @property
     def inputs(self):

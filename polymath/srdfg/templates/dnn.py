@@ -51,6 +51,9 @@ class cross_entropy_loss(pm.Template):
     def outputs(self):
         return (self.args[2],)
 
+class concat(pm.Template):
+    def define_graph(self, *args, axis=None):
+        pass
 
 class nll_loss(pm.Template):
     def define_graph(self, logs, targets, out, reduction="mean"):
@@ -260,20 +263,20 @@ class conv_bias(pm.Template):
         ow = (in_width - dilated_kernel_w + pad_left + pad_right) // stride_w + 1
         pad_before = [0, 0, pad_top, pad_left]
         pad_after = [0, 0, pad_down, pad_right]
-        c = pm.index(0, w.shape[0] - 1, name="c")
-        y = pm.index(0, oh - 1, name="y_")
-        x = pm.index(0, ow - 1, name="x_")
-        dy = pm.index(0, w.shape[2] - 1, name="dy")
-        dx = pm.index(0, w.shape[3] - 1, name="dx")
-        iy = pm.index(0, data.shape[-2] - 1, name="iy")
-        ix = pm.index(0, data.shape[-1] - 1, name="ix")
-        k = pm.index(0, data.shape[-3] - 1, name="k")
+        c = pm.index(0, w.shape[0] - 1)
+        y = pm.index(0, oh - 1)
+        x = pm.index(0, ow - 1)
+        dy = pm.index(0, w.shape[2] - 1)
+        dx = pm.index(0, w.shape[3] - 1)
+        iy = pm.index(0, data.shape[-2] - 1)
+        ix = pm.index(0, data.shape[-1] - 1)
+        k = pm.index(0, data.shape[-3] - 1)
         ihp = data.shape[-2] + pad_top + pad_down
         iwp = data.shape[-1] + pad_left + pad_right
-        ihp_ = pm.index(0, ihp - 1, name="ihp")
-        iwp_ = pm.index(0, iwp - 1, name="iwp")
+        ihp_ = pm.index(0, ihp - 1)
+        iwp_ = pm.index(0, iwp - 1)
         if len(data.shape) > 3:
-            b = pm.index(0, data.shape[0] - 1, name="b")
+            b = pm.index(0, data.shape[0] - 1)
             o_indices = (b, c)
             p_indices = (b, k,)
             p_shape = (data.shape[0], data.shape[1], ihp, iwp)
@@ -283,7 +286,9 @@ class conv_bias(pm.Template):
             p_indices = (k,)
             p_shape = (data.shape[0], ihp, iwp)
             out.set_shape((w.shape[0], oh, ow))
+        # padded = pm.temp(shape=p_shape)
         padded = pm.temp(shape=p_shape)
+
         padded[p_indices + (ihp_, iwp_)] = 0
         padded[p_indices + (iy + pad_top, ix + pad_left)] = data[p_indices + (iy, ix)]
 
@@ -328,7 +333,7 @@ class conv_transpose_bias(pm.Template):
         y4[n_idx, c_idx, h_idx*stride + sh_idx, w_idx*stride + sw_idx] = y3[(n_idx*c + c_idx), h_idx, sh_idx, w_idx, sw_idx]
         ph, pw = kh - pad - 1, kw - pad - 1
 
-        w_perm = pm.temp(name="w_perm_flip", shape=(wgt.shape[1], wgt.shape[0], wgt.shape[3], wgt.shape[2]))
+        w_perm = pm.temp(shape=(wgt.shape[1], wgt.shape[0], wgt.shape[3], wgt.shape[2]))
         oc_idx = pm.index(0, wgt.shape[0]-1)
         ic_idx = pm.index(0, wgt.shape[1]-1)
         kh_idx = pm.index(0, kh-1)
@@ -360,7 +365,7 @@ class conv_transpose(pm.Template):
         h_idx = pm.index(0, h-1)
         w_idx = pm.index(0, w-1)
         y[(n_idx*c + c_idx), (h_idx*w + w_idx), 0, 0] = data[n_idx, c_idx, h_idx, w_idx]
-        y1 = pm.temp(name=f"{data.name}_pad")
+        y1 = pm.temp()
         y1 = pad_node(y, y1, (0, sw, 0, sh), (kh, kw))
 
         y2 = pm.temp(name=f"{data.name}_reshaped2", shape=(n * c, h, w, 1 + sh, 1 + sw))
@@ -419,7 +424,7 @@ class avg_pool2d(pm.Template):
         padded = pm.temp(shape=(inp.shape[0], inp.shape[1], ihp, iwp))
         padded[b, c, ihp_, iwp_] = 0
         padded[b, c, iy + pad, ix + pad] = inp[b, c, iy, ix]
-        out[b, c, y, x] = ((1/(kh*kw)) * pm.sum([m, n], padded[b, c, stride*y + m, stride*x + n], name="apool_sum")).set_name("final")
+        out[b, c, y, x] = ((1/(kh*kw)) * pm.sum([m, n], padded[b, c, stride*y + m, stride*x + n]))
 
     @property
     def inputs(self):
@@ -494,6 +499,10 @@ class loop(pm.Template):
     @property
     def outputs(self):
         return (self.args[1],)
+
+class nms(pm.Template):
+    def define_graph(self, boxes, scores, out, max_output_boxes_per_class=0, iou_threshold=0, score_threshold=-1, center_point_box=0):
+        pass
 
 class elem_where(pm.Template):
     def define_graph(self, condition, x, y, out):
@@ -588,7 +597,7 @@ class topk(pm.Template):
         return (self.args[2],)
 
 class split(pm.Template):
-    def define_graph(self, x, out, split=None, axis=-1):
+    def define_graph(self, x, *out, split=None, axis=-1):
         pass
 
     @property
@@ -725,6 +734,7 @@ class global_avg_pool(pm.Template):
 
 class conv(pm.Template):
     def define_graph(self, data, w, out, stride=1, pad=0, dilation=1):
+
         if not isinstance(stride, (tuple, list)):
             stride_h = stride_w = stride
         else:
@@ -746,8 +756,11 @@ class conv(pm.Template):
         pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
             pad, (dilated_kernel_h, dilated_kernel_w)
         )
+        out_channel = num_filter
         oh = (in_height - dilated_kernel_h + pad_top + pad_down) // stride_h + 1
         ow = (in_width - dilated_kernel_w + pad_left + pad_right) // stride_w + 1
+        pad_before = [0, 0, pad_top, pad_left]
+        pad_after = [0, 0, pad_down, pad_right]
         c = pm.index(0, w.shape[0] - 1, name="c")
         y = pm.index(0, oh - 1, name="y_")
         x = pm.index(0, ow - 1, name="x_")
@@ -771,13 +784,15 @@ class conv(pm.Template):
             p_indices = (k,)
             p_shape = (data.shape[0], ihp, iwp)
             out.set_shape((w.shape[0], oh, ow))
+
         padded = pm.temp(shape=p_shape)
         padded[p_indices + (ihp_, iwp_)] = 0
+
         padded[p_indices + (iy + pad_top, ix + pad_left)] = data[p_indices + (iy, ix)]
 
-        out[o_indices + (y, x)] = pm.sum([dy, dx, k], (
-                    padded[p_indices + (dy * dilation_h + stride * y, dx * dilation_w + stride * x)] * w[
-                c, k, dy, dx]))
+        # out[o_indices + (y, x)] = pm.sum([dy, dx, k], (padded[p_indices + (dy + stride*y, dx + stride*x)] * w[c, k, dy, dx])) + bias[c]
+
+        out[o_indices + (y, x)] = pm.sum([dy, dx, k], (padded[p_indices + (dy * dilation_h + stride * y, dx * dilation_w + stride * x)] * w[c, k, dy, dx]))
 
     @property
     def inputs(self):

@@ -39,8 +39,24 @@ def update_onnx_graph_names(graph):
                 new_outputs.append(o)
         n.output = new_outputs
 
+def update_node_names(model_proto):
+    non_digit_nodes = []
+    for n in model_proto.graph.node:
+        if not n.name.isdigit():
+            non_digit_nodes.append(n.name)
+
+    for n in model_proto.graph.node:
+        if n.name.isdigit():
+            new_name = f"{n.op_type}{n.name}"
+            assert new_name not in non_digit_nodes
+            n.name = new_name
+
+    return model_proto
+
+
 def from_onnx(filepath, infer_shapes=True, use_filename=True, lower=False):
     onnx_proto, graph_name = load_onnx_proto(filepath)
+    onnx_proto = update_node_names(onnx_proto)
     attr = get_model_attributes(onnx_proto)
     if infer_shapes:
         onnx_graph = shape_inference.infer_shapes(onnx_proto).graph
@@ -156,51 +172,92 @@ def convert_node(onnx_node, mgdfg, node_info, state_vars):
     args = []
     # TODO: check if node name is already in the graph
 
+
     for i in onnx_node.input:
+
         if i not in mgdfg.nodes:
             raise KeyError(f"Input node {i} for {name} not in graph nodes:\n"
                            f"Nodes: {list(mgdfg.nodes.keys())}")
 
         args.append(mgdfg.nodes[i])
     num_outputs = 0
-    outnode = None
+    outnodes = []
+    # outnode = None
     for o in onnx_node.output:
         if o in node_info:
             num_outputs += 1
-            outnode = o
-    if num_outputs != 1:
-        raise RuntimeError(f"Length of outputs for node {onnx_node.name} is not equal to 1:\n"
-                           f"Output: {onnx_node.output}")
+            outnodes.append(o)
+    # if num_outputs != 1:
+    #     raise RuntimeError(f"Length of outputs for node {onnx_node.name} is not equal to 1:\n"
+    #                        f"Output: {onnx_node.output}")
     # elif onnx_node.output[0] not in node_info:
     #     raise RuntimeError(f"Could not find output for {onnx_node.name} in node info:\n"
     #                        f"Output: {onnx_node.output}")
-    assert outnode is not None
-    o_name = state_vars[outnode] if outnode in state_vars else outnode
+    # assert outnode is not None
+    assert len(outnodes) > 0
+    output_names = []
+    for o in outnodes:
+        if o in state_vars:
+            output_names.append(state_vars[o])
+        else:
+            output_names.append(o)
+    # o_name = state_vars[outnode] if outnode in state_vars else outnode
     # o_name = state_vars[onnx_node.output[0]] if onnx_node.output[0] in state_vars else onnx_node.output[0]
-    if isinstance(node_info[o_name], dict):
+    if output_names[0] == "roialign2586_2623Y":
+        print(node_info[output_names[0]])
+    if isinstance(node_info[output_names[0]], dict):
 
 
-        o_shape = node_info[o_name]["shape"]
+        if len(output_names) > 1:
+            o_shapes = []
+            for on in output_names:
+                o_shapes.append(node_info[on]["shape"])
 
-        attributes = get_attributes(onnx_node)
-        args = tuple(args)
-        kwargs = attributes
-        kwargs['shape'] = tuple(list(o_shape))
-        with mgdfg:
-            new_node = NODE_NAMES[onnx_node.op_type](*args, name=o_name, **kwargs)
+            attributes = get_attributes(onnx_node)
+            args = tuple(args)
+            kwargs = attributes
+            kwargs['shapes'] = [tuple(list(os)) for os in o_shapes]
 
-        if id(new_node.graph) != id(mgdfg):
-            new_node.graph = mgdfg
-            new_node.set_name(o_name)
+            with mgdfg:
+                new_nodes = NODE_NAMES[onnx_node.op_type](*args, name=output_names, **kwargs)
 
-        if o_name not in mgdfg.nodes:
-            raise KeyError(f"Newly created node {new_node} with graph {new_node.graph} not added to the graph:\n"
-                           f"\t{list(mgdfg.nodes.keys())}")
+            assert isinstance(new_nodes, (list, tuple)) and len(new_nodes) == len(output_names)
+            for idx, nn in enumerate(new_nodes):
+                o_name = output_names[idx]
+                if id(nn.graph) != id(mgdfg):
+                    nn.graph = mgdfg
+                    nn.set_name(o_name)
 
-        if not new_node.is_shape_finalized():
-            new_node._shape = o_shape
+                if o_name not in mgdfg.nodes:
+                    raise KeyError(f"Newly created node {nn} with graph {nn.graph} not added to the graph:\n"
+                                   f"\t{list(mgdfg.nodes.keys())}")
+
+                if not nn.is_shape_finalized():
+                    nn._shape = o_shapes[idx]
+        else:
+            o_shape = node_info[output_names[0]]["shape"]
+
+            attributes = get_attributes(onnx_node)
+            args = tuple(args)
+            kwargs = attributes
+            kwargs['shape'] = tuple(list(o_shape))
+            o_name = output_names[0]
+            with mgdfg:
+                new_node = NODE_NAMES[onnx_node.op_type](*args, name=o_name, **kwargs)
+
+            if id(new_node.graph) != id(mgdfg):
+                new_node.graph = mgdfg
+                new_node.set_name(o_name)
+
+            if o_name not in mgdfg.nodes:
+                raise KeyError(f"Newly created node {new_node} with graph {new_node.graph} not added to the graph:\n"
+                               f"\t{list(mgdfg.nodes.keys())}")
+
+            if not new_node.is_shape_finalized():
+                new_node._shape = o_shape
     else:
-
+        assert len(output_names) == 1
+        o_name = output_names[0]
         o_shape = node_info[o_name].shape
         attributes = get_attributes(onnx_node)
         args = tuple(args)
@@ -343,5 +400,4 @@ def add_value_info_for_constants(model : onnx.ModelProto):
 
 
     return add_const_value_infos_to_graph(model.graph)
-
 

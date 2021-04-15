@@ -186,6 +186,8 @@ class gather(Transformation):
     def __init__(self, input_node, indices, axis=1, shape=None, **kwargs):
         if shape:
             new_shape = shape
+        elif len(input_node.shape) == 1 and input_node.shape[0] == 1:
+            new_shape = list(input_node.shape)
         else:
             new_shape = list(input_node.shape)
             new_shape.pop(axis)

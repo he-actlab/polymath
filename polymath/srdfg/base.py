@@ -1187,7 +1187,6 @@ class slice_op(Node):
     def __ge__(self, other):
         return slice_op(operator.ge, self, other, graph=self.graph)
 
-
     def __repr__(self):
         return "<slice_%s '%s'>" % (self.target.__name__, self.name)
 

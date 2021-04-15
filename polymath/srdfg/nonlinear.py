@@ -179,7 +179,7 @@ class clip(NonLinear):
         kwargs['minval'] = minval
         kwargs['maxval'] = maxval
         kwargs['init_extras'] = (minval, maxval)
-        super(cast, self).__init__(_clip, input_node, **kwargs)
+        super(clip, self).__init__(_clip, input_node, **kwargs)
 
     @property
     def minval(self):

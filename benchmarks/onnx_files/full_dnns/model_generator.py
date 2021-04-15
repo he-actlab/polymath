@@ -1,9 +1,9 @@
 import argparse
 from onnxsim import simplify
 import polymath as pm
-import onnx
 import torch
 import torch.nn as nn
+import onnx
 import torch.nn.functional as F
 import torchvision.datasets as datasets
 import torch.optim as optim
@@ -14,6 +14,9 @@ from torch.utils.data import DataLoader
 import io
 from onnxsim import simplify
 from collections import namedtuple
+from torchvision.ops._register_onnx_ops import _onnx_opset_version
+import onnx
+
 Targets = namedtuple('Targets', ['boxes', 'masks', 'labels'])
 
 
@@ -259,28 +262,55 @@ def _make_empty_samples(N, C, H, W, training=False):
 
     return img, [t._asdict()]
 
+def _make_mrcnn_samples():
+    img, other = get_test_images()
+    dummy_image = [torch.ones(3, 100, 100) * 0.3]
+    return img, other, dummy_image
+
+
 def create_maskrcnn(optimize_model, training_mode, convert_data_format, to_polymath, batch_size=1):
     model = torchvision.models.detection.maskrcnn_resnet50_fpn(pretrained=not training_mode, min_size=200, max_size=300)
 
     N, C, H, W = 1, 1, 300, 300
-    inputs = _make_empty_samples(N, C, H, W, training=training_mode)
-    model_name = "mask_rcnn"
+    # inputs = _make_empty_samples(N, C, H, W, training=training_mode)
+    images, test_images, dummy_image = _make_mrcnn_samples()
+    model_name = "mask_rcnn_vision"
+
 
     if batch_size != 1:
         model_name = f"{model_name}_batch{batch_size}"
 
     if not training_mode:
-        # model = TraceWrapper(model)
         model.eval()
-        input_var = inputs[0]
-        model(input_var)
+        model(images)
+        input_var = [(images,), (test_images,), (dummy_image,)]
     else:
         model_name = f"{model_name}_train"
         model.train()
-        input_var = inputs
+        input_var = [(images,)]
 
     convert_torch_model(input_var, model, model_name, optimize_model, training_mode, to_polymath, convert_data_format=convert_data_format)
 
+def _print_nodes(graph):
+    nodes = []
+    for n in graph.node:
+        for a in n.attribute:
+            if a.type == onnx.AttributeProto.GRAPH:
+                print(f"Found graph attribute for {n.op_type} - {n.name}\n"
+                      f"Attribute name: {a.name}")
+                nodes += _print_nodes(a.g)
+        nodes.append(n.op_type)
+    return nodes
+
+def print_nodes(model_proto):
+    nodes = _print_nodes(model_proto.graph)
+    num_unique_nodes = len(list(set(nodes)))
+    num_nodes_total = len(list(nodes))
+    all_node_names = list(set(nodes))
+
+    print(f"All node names: {all_node_names}\n"
+          f"Unique operations: {num_unique_nodes}\n"
+          f"Total Operations: {num_nodes_total}")
 
 def convert_torch_model(input_var, model, model_name, optimize_model, training_mode, to_polymath,
                         convert_data_format=False):
@@ -298,37 +328,41 @@ def convert_torch_model(input_var, model, model_name, optimize_model, training_m
                           output_names=['output'],
                           opset_version=12)
     else:
-        input_var = [(input_var,)]
+        model.eval()
+        # input_var = [(input_var,)]
         if isinstance(input_var[0][-1], dict):
             input_var = input_var[0] + ({},)
         else:
             input_var = input_var[0]
-        # dynamic_axes = {"images_tensors": [0, 1, 2], "boxes": [0, 1], "labels": [0],
-        #                                 "scores": [0], "masks": [0, 1, 2]}
-        dynamic_axes = None
-        model_name = f"{model_name}_aten"
+
+        dynamic_axes = {"images_tensors": [0, 1, 2], "boxes": [0, 1], "labels": [0],
+                                        "scores": [0], "masks": [0, 1, 2]}
         torch.onnx.export(model,  # model being run
                           input_var,  # model input (or a tuple for multiple inputs)
                           f,  # where to save the model (can be a file or file-like object)
-                          export_params=True,  # store the trained parameter weights inside the model file
                           do_constant_folding=True,  # whether to execute constant folding for optimization
-                          keep_initializers_as_inputs=True,
-                          training=mode,
-                          operator_export_type=torch.onnx.OperatorExportTypes.ONNX_ATEN,
+                          # training=mode,
                           input_names=["images_tensors"],
                           output_names=["boxes", "labels", "scores", "masks"],
                           dynamic_axes=dynamic_axes,
-                          opset_version=11)
+                          opset_version=_onnx_opset_version,
+                          verbose=False,
+                          # export_params=True,  # store the trained parameter weights inside the model file
+                          # keep_initializers_as_inputs=True,
+                          # operator_export_type=torch.onnx.OperatorExportTypes.ONNX_ATEN,
+                          )
+        print(type(f.getvalue()))
     model_proto = onnx.ModelProto.FromString(f.getvalue())
+    print_nodes(model_proto)
     onnx.checker.check_model(model_proto)
-    # if dynamic_axes is None:
-    #     add_value_info_for_constants(model_proto)
-    #     model_proto = onnx.shape_inference.infer_shapes(model_proto)
+    add_value_info_for_constants(model_proto)
+    model_proto = onnx.shape_inference.infer_shapes(model_proto)
     filepath = f"./{model_name}.onnx"
-    # model_proto = optimizer.optimize(model_proto, ['eliminate_identity'])
-    # if optimize_model and dynamic_axes is None:
-    #     model_proto, check = simplify(model_proto)
-    #     assert check
+    if optimize_model:
+        model_proto, check = simplify(model_proto)
+        assert check
+    model_proto = update_node_names(model_proto)
+    model_proto = update_edge_names(model_proto)
     with open(filepath, "wb") as f:
         f.write(model_proto.SerializeToString())
 
@@ -347,8 +381,109 @@ def str2bool(v):
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
 
-def visualize_training_graph(model):
-    pass
+def fix_original_onnx_model(batch_size):
+    from pathlib import Path
+    CWD = Path(f"{__file__}").parent
+
+    input_path = f"{CWD}/mask_rcnn_zoo_original.onnx"
+    output_path = f"{CWD}/mask_rcnn_zoo_original_updated.onnx"
+
+    model_proto = onnx.load(input_path)
+    new_start_idx = -1
+    target_idx = -1
+    for idx, n in enumerate(model_proto.graph.node):
+        if n.name == '0':
+            assert n.op_type == 'Unsqueeze'
+            target_idx = idx
+        elif n.name == '2':
+            new_start_idx = idx
+        elif new_start_idx != -1 and target_idx != -1:
+            break
+
+    assert target_idx != -1 and new_start_idx != -1
+    target_shape = (batch_size, 3, 800, 800)
+    dummy_tensor = onnx.helper.make_tensor_value_info("dummy", 1, target_shape)
+    model_proto.graph.input[0].type.tensor_type.shape.CopyFrom(dummy_tensor.type.tensor_type.shape)
+    model_proto.graph.node[new_start_idx].input[0] = model_proto.graph.input[0].name
+    del model_proto.graph.node[target_idx]
+
+    with open(output_path, "wb") as f:
+        f.write(model_proto.SerializeToString())
+    onnx.checker.check_model(output_path)
+
+def update_node_names(model_proto):
+    non_digit_nodes = []
+    for n in model_proto.graph.node:
+        if not n.name.isdigit():
+            non_digit_nodes.append(n.name)
+    for n in model_proto.graph.node:
+        if n.name.isdigit():
+            new_name = f"{n.op_type}{n.name}"
+            assert new_name not in non_digit_nodes
+            n.name = new_name
+    return model_proto
+
+def update_edge_names(model_proto):
+    node_name_map = {}
+    INPUT_NAMES = ['A', 'B', 'D', 'X', 'W']
+    OUTPUT_NAMES = ['Y', 'Z', 'C', 'H', 'P']
+
+    for n in model_proto.graph.node:
+        for idx, i in enumerate(n.input):
+            if i not in node_name_map:
+                if i.isdigit():
+                    assert idx < len(INPUT_NAMES)
+                    new_name = f"{n.name.lower()}_{i}{INPUT_NAMES[idx]}"
+                else:
+                    new_name = i
+                node_name_map[i] = new_name
+
+        for idx, o in enumerate(n.output):
+            if o not in node_name_map:
+                if o.isdigit():
+                    assert idx < len(OUTPUT_NAMES)
+                    new_name = f"{n.name.lower()}_{o}{OUTPUT_NAMES[idx]}"
+                else:
+                    new_name = o
+                node_name_map[o] = new_name
+
+    for v in model_proto.graph.value_info:
+        assert v.name in node_name_map
+        v.name = node_name_map[v.name]
+
+    for i in model_proto.graph.initializer:
+        assert i.name in node_name_map
+        i.name = node_name_map[i.name]
+
+    for n in model_proto.graph.node:
+        n.input[:] = [node_name_map[i] for i in n.input]
+        n.output[:] = [node_name_map[o] for o in n.output]
+
+    for i in model_proto.graph.input:
+        i.name = node_name_map[i.name]
+
+    for o in model_proto.graph.output:
+        o.name = node_name_map[o.name]
+
+    return model_proto
+
+def simplify_mrcnn_zoo(batch_size=1):
+    from pathlib import Path
+    CWD = Path(f"{__file__}").parent
+    initial_path = f"{CWD}/mask_rcnn_zoo_original_updated.onnx"
+    filepath = f"mask_rcnn_zoo_test.onnx"
+    model_proto = onnx.load(initial_path)
+    model_proto = update_node_names(model_proto)
+    model_proto = update_edge_names(model_proto)
+    # onnx.checker.check_model(model_proto)
+    # model_proto, check = simplify(model_proto)
+    # assert check
+    add_value_info_for_constants(model_proto)
+    model_proto = onnx.shape_inference.infer_shapes(model_proto)
+    print_nodes(model_proto)
+    # #
+    with open(filepath, "wb") as f:
+        f.write(model_proto.SerializeToString())
 
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser(description='ONNX Benchmark Generator')
@@ -381,6 +516,8 @@ if __name__ == "__main__":
     elif args.benchmark == "maskrcnn":
         create_maskrcnn(args.optimize_model, args.training_mode, args.data_format_convert, args.to_polymath,
                         batch_size=args.batch_size)
+    elif args.benchmark == "maskrcnn_simplify":
+        simplify_mrcnn_zoo(batch_size=args.batch_size)
     else:
         raise RuntimeError(f"Invalid benchmark supplied. Options are one of:\n"
                            f"\"lenet\", \"resnet18\".")
