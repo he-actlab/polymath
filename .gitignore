@@ -17,6 +17,7 @@ venv/
 *.pyc
 ~$*.ppt*
 polymath/archive
+polymath/experimental
 polymath/onnx_cmstack/models
 tests/pmlang_examples/outputs/*
 prof
@@ -142,3 +143,5 @@ TODO
 
 benchmarks/outputs/*
 scratch/
+
+

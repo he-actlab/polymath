@@ -7,7 +7,6 @@ import pytest
 import pprint
 import numpy as np
 import copy
-import tvm
 
 import pickle
 from onnx import numpy_helper, helper, defs
@@ -15,6 +14,8 @@ from onnx import numpy_helper, helper, defs
 
 # TODO: Fix this
 def test_lenet():
+    import tvm
+
     graph, inp_info, out_info, key = lenet(coarse=True)
     coarse_cpy = pickle.loads(pickle.dumps(inp_info))
     res = graph(key, coarse_cpy)

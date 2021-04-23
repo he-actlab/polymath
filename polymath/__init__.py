@@ -56,15 +56,3 @@ from polymath.srdfg.passes.autodiff import AutoDiffGraph, create_training_graph
 from polymath.codegen.tabla.tabla_translate import generate_tabla
 
 from polymath.tools.srdfg_helpers import print_graph_ops
-
-try:
-    from polymath.codegen.dnnweavergen.dnnweaver_translate import generate_dnnweaver
-except ImportError:
-    print(f"WARNING: DNNWeaver translation could not be imported because DNNWeaver is not currently installed.")
-    generate_dnnweaver = None
-
-try:
-    from polymath.codegen.tvmgen.tvm_translate import generate_tvm
-except ImportError:
-    print(f"WARNING: TVM translation could not be imported because TVM is not currently installed.")
-    generate_tvm = None

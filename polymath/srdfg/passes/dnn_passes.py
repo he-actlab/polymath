@@ -71,6 +71,7 @@ class UpdateLayout(Pass):
         self.layout_map[1] = 3
         self.layout_map[2] = 2
         self.layout_map[3] = 1
+        self.yin_yang_program = []
         self.updated_shapes = {}
         super(UpdateLayout, self).__init__()
 
@@ -80,6 +81,7 @@ class UpdateLayout(Pass):
         elif node.op_name in UpdateLayout.UNIQUE_OPS:
             node = self.handle_unique_op(node)
         return node
+
 
     def update_shape(self, node):
         new_shape = tuple([node.shape[self.layout_map[i]] for i in range(len(node.shape))])
@@ -93,7 +95,7 @@ class UpdateLayout(Pass):
         return node
 
     def handle_unique_op(self, node):
-        if node.op_name in  ['conv', 'conv_bias']:
+        if node.op_name in ['conv', 'conv_bias']:
             weight = node.inputs[1]
             if weight.name in self.updated_shapes:
                 original_shape = self.get_original_shape(self.updated_shapes[weight.name])

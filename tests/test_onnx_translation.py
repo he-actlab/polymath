@@ -402,14 +402,14 @@ def test_translate_softmax(x_shape, axis):
     np.testing.assert_allclose(np_res, res)
 
 
-@pytest.mark.parametrize('layer_name, param_dict, data_func, input_keys, output_key',[
-    ("conv", {'m': 54}, conv, {"y":"y:0", "x":"x:0", "w":"W:0"}, [("w", "W:0")]),
-])
-def test_translate_layers(layer_name, param_dict, data_func, input_keys, output_key):
-    filename = f"full_dnns/tiny_yolo.onnx"
-    filepath = f"{BENCH_DIR}/{filename}"
-    assert Path(filepath).exists()
-    graph = pm.from_onnx(filepath)
+# @pytest.mark.parametrize('layer_name, param_dict, data_func, input_keys, output_key',[
+#     ("conv", {'m': 54}, conv, {"y":"y:0", "x":"x:0", "w":"W:0"}, [("w", "W:0")]),
+# ])
+# def test_translate_layers(layer_name, param_dict, data_func, input_keys, output_key):
+#     filename = f"full_dnns/tiny_yolo.onnx"
+#     filepath = f"{BENCH_DIR}/{filename}"
+#     assert Path(filepath).exists()
+#     graph = pm.from_onnx(filepath)
 
 
 @pytest.mark.parametrize('x_shape',[
@@ -479,14 +479,6 @@ def test_resnet18_train():
     node = pm.pb_load(pb_path, verbose=True)
     assert len(node.nodes) == len(graph.nodes)
 
-
-def test_maskrcnn():
-    MRCNN_PATH = f"{BENCH_DIR}/full_dnns/mask_rcnn/builtin"
-    filenames = [f"backbone_mrcnn_builtin_opt.onnx", f"rpn_mrcnn_builtin_opt.onnx"]
-    for f in filenames:
-        filepath = f"{MRCNN_PATH}/{f}"
-        assert Path(filepath).exists()
-        graph = pm.from_onnx(filepath)
 
 @pytest.mark.parametrize('in_shape, w_shape',[
     ((10, 7), (3, 7)), ((10, 7), (7, 3))

@@ -54,7 +54,7 @@ def update_node_names(model_proto):
     return model_proto
 
 
-def from_onnx(filepath, infer_shapes=True, use_filename=True, lower=False):
+def from_onnx(filepath, infer_shapes=True, use_filename=True, lower=False, verbose=False):
     onnx_proto, graph_name = load_onnx_proto(filepath)
     onnx_proto = update_node_names(onnx_proto)
     attr = get_model_attributes(onnx_proto)
@@ -66,7 +66,7 @@ def from_onnx(filepath, infer_shapes=True, use_filename=True, lower=False):
         if n.op_type not in NODE_NAMES and n.name not in NODE_NAMES:
             raise RuntimeError(f"Support for {n.op_type} or {n.name} is not currently included in PolyMath")
 
-    graph = generate_srdfg(onnx_graph)
+    graph = generate_srdfg(onnx_graph, verbose=verbose)
     if use_filename:
         graph_name = filepath.split("/")[-1].split(".")[0]
         graph.set_name(graph_name)
@@ -107,7 +107,7 @@ def get_states_by_gradient(onnx_graph):
 
     return state_vars
 
-def generate_srdfg(onnx_graph):
+def generate_srdfg(onnx_graph, verbose=False):
     names = [des.name for des in onnx_graph.DESCRIPTOR.fields]
     graph_name = getattr(onnx_graph, "name")
     initializers = get_initializers(onnx_graph.initializer)
@@ -133,6 +133,7 @@ def generate_srdfg(onnx_graph):
             continue
         assert i.name not in node_info
         if i.name in state_variables:
+
             node_info[i.name] = pm.state(name=state_variables[i.name], shape=get_value_info_shape(i, mgdfg), graph=mgdfg)
             node_info[state_variables[i.name]] = node_info[i.name]
         elif i.name in initializers and not itercheck(initializers[i.name]):
@@ -146,7 +147,8 @@ def generate_srdfg(onnx_graph):
         if v.name in node_info:
             continue
         elif v.name in initializers:
-            node_info[v.name] = pm.variable(initializers[v.name], name=v.name, shape=get_value_info_shape(v, mgdfg), graph=mgdfg)
+            # node_info[v.name] = pm.variable(initializers[v.name], name=v.name, shape=get_value_info_shape(v, mgdfg), graph=mgdfg)
+            node_info[v.name] = pm.state(name=v.name, shape=initializers[v.name].shape, graph=mgdfg)
         else:
 
             node_info[v.name] = {"name": v.name, "shape": get_value_info_shape(v, mgdfg)}
@@ -163,6 +165,8 @@ def generate_srdfg(onnx_graph):
 
     for n in onnx_graph.node:
         assert n.op_type in NODE_NAMES
+        if verbose:
+            print(f"Translating {n.op_type}")
         _ = convert_node(n, mgdfg, node_info, state_variables)
 
     return mgdfg
@@ -203,8 +207,7 @@ def convert_node(onnx_node, mgdfg, node_info, state_vars):
             output_names.append(o)
     # o_name = state_vars[outnode] if outnode in state_vars else outnode
     # o_name = state_vars[onnx_node.output[0]] if onnx_node.output[0] in state_vars else onnx_node.output[0]
-    if output_names[0] == "roialign2586_2623Y":
-        print(node_info[output_names[0]])
+
     if isinstance(node_info[output_names[0]], dict):
 
 
@@ -309,7 +312,7 @@ def get_attributes(node):
                 val = np.asarray(val)
             else:
                 val = val[0]
-        if a.name in ["from","to"]:
+        if a.name in ["from", "to"]:
             val = TENSOR_TYPE_TO_NP_TYPE[val]
         attributes[a.name] = val
 

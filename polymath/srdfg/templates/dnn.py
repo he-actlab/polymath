@@ -389,8 +389,6 @@ class conv_transpose(pm.Template):
         w_perm[ic_idx, oc_idx, kh - kh_idx - 1, kw - kw_idx - 1] = wgt[oc_idx, ic_idx, kh_idx, kw_idx]
 
         y5 = pm.temp(name=f"{data.name}_pad2")
-
-
         y5 = pad_node(y4, y5, (pw, pw - sw + out_pad, ph, ph - sh + out_pad), (kh, kw))
 
         pm.conv(y5, w_perm, out, stride=1, pad=0)

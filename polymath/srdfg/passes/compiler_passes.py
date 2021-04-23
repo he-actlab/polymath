@@ -530,6 +530,7 @@ class Lower(Pass):
 
         if node.graph is None and not self.top:
             self.top = node
+
         if node.op_name in self.supported_ops or (
                 isinstance(node, (func_op, pm.placeholder, pm.NonLinear, pm.write)) and len(node.nodes) == 0):
             assert node.name != self.top.name
