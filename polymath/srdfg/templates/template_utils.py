@@ -259,7 +259,7 @@ def get_pad_tuple(padding, kernel):
 
 def pad_node(data: pm.Node, padded_out: pm.Node, pad_size, kernel, pad_val=0):
     assert len(data.shape) == 4
-    p_top, p_left, p_bottom, p_right = get_pad_tuple(pad_size, kernel)
+    p_top, p_bottom, p_left, p_right = get_pad_tuple(pad_size, kernel)
     oh = data.shape[2] + p_top + p_bottom
     ow = data.shape[3] + p_left + p_right
 

@@ -283,7 +283,7 @@ class reshape(Transformation):
             new_domain = Domain(tuple(new_shape))
         super(reshape, self).__init__(_reshape, input_node, new_shape, domain=new_domain, shape=new_shape, **kwargs)
 
-    def _evaluate(self, val, **kwargs):
+    def _evaluate(self, val, new_shape, **kwargs):
         if "target" in kwargs:
             kwargs.pop("target")
         if "domain" in kwargs:

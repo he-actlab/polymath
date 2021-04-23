@@ -867,6 +867,7 @@ class var_index(Node):  # pylint: disable=C0103,W0223
                              f"Eval Stack: {Node._eval_stack}")
 
         if not single and not all([(idx_val - 1) >= indices[-1][idx] for idx, idx_val in enumerate(var.shape)]):
+
             raise ValueError(f"var_index {self.name} has indices which are greater than the variable shape:\n"
                              f"\tArgs: {self.args}\n"
                              f"\tVar shape: {var.shape}\n"

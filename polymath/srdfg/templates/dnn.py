@@ -331,7 +331,6 @@ class conv_transpose_bias(pm.Template):
 
         y4 = pm.temp(name=f"{data.name}_reshaped3", shape=(n, c, h * (1 + sh), w * (1 + sw)))
         y4[n_idx, c_idx, h_idx*stride + sh_idx, w_idx*stride + sw_idx] = y3[(n_idx*c + c_idx), h_idx, sh_idx, w_idx, sw_idx]
-        ph, pw = kh - pad - 1, kw - pad - 1
 
         w_perm = pm.temp(shape=(wgt.shape[1], wgt.shape[0], wgt.shape[3], wgt.shape[2]))
         oc_idx = pm.index(0, wgt.shape[0]-1)
@@ -341,6 +340,7 @@ class conv_transpose_bias(pm.Template):
         w_perm[ic_idx, oc_idx, kh - kh_idx - 1, kw - kw_idx - 1] = wgt[oc_idx, ic_idx, kh_idx, kw_idx]
 
         y5 = pm.temp(name=f"{data.name}_pad2")
+        ph, pw = kh - pad - 1, kw - pad - 1
         y5 = pad_node(y4, y5, (pw, pw - sw + out_pad, ph, ph - sh + out_pad), (kh, kw))
         pm.conv_bias(y5, w_perm, bias, out, stride=1, pad=out_pad)
 
@@ -365,7 +365,7 @@ class conv_transpose(pm.Template):
         h_idx = pm.index(0, h-1)
         w_idx = pm.index(0, w-1)
         y[(n_idx*c + c_idx), (h_idx*w + w_idx), 0, 0] = data[n_idx, c_idx, h_idx, w_idx]
-        y1 = pm.temp()
+        y1 = pm.temp(name=f"{data.name}_reshaped1")
         y1 = pad_node(y, y1, (0, sw, 0, sh), (kh, kw))
 
         y2 = pm.temp(name=f"{data.name}_reshaped2", shape=(n * c, h, w, 1 + sh, 1 + sw))

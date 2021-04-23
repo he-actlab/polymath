@@ -107,7 +107,7 @@ def test_reshape(in_shape, out_shape):
 
     with pm.Node(name="reshape_op") as graph:
         data = pm.input(name="input", shape=x.shape)
-        out = pm.reshape(data, shape=out_shape, name="res")
+        out = pm.reshape(data, out_shape, name="res")
 
     pm_y = graph("res", {"input": x})
     np_y = np.reshape(x, out_shape)

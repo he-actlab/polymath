@@ -42,6 +42,28 @@ def test_resnet18_batchsize():
         for idx, s in enumerate(shapes):
             assert isinstance(s, tuple) and s == test_shapes[op_name][idx]
 
+def conv2d_transpose(
+    input, weight, stride=1, padding=0, out_pad=0
+):
+    b, c, h, w = input.shape
+    dim_in, dim_out, kh, kw = weight.shape
+    sh, sw = stride - 1, stride - 1
+    y = input.reshape(b*c,h*w,1,1)
+    print(y.shape)
+    y = F.pad(y, [0, sw, 0, sh])
+    print(y.shape)
+    y = y.reshape(b*c,h,w,1+sh,1+sw)
+    y = y.permute(0,1,3,2,4)
+    y = y.reshape(b, c, h*(1+sh), w*(1+sw))
+    # ph, pw = kh - 1, kw - 1
+    ph, pw = kh - padding - 1, kw - padding - 1
+    weight = weight.permute(1,0,2,3)
+    weight = weight.flip(2, 3)
+    # y = F.pad(y, [pw, pw-sw, ph, ph-sh])
+    y = F.pad(y, (pw, pw - sw + out_pad, ph, ph - sh + out_pad))
+    y = F.conv2d(y, weight, padding=0, stride=1)
+
+    return y
 
 @pytest.mark.parametrize('inp_shape, wgt_shape, stride, pad',[
     ((1, 3, 18, 18), (3, 10, 3, 3), 2, 1),
@@ -54,7 +76,8 @@ def test_conv2d_transpose_shapes(inp_shape, wgt_shape, stride, pad):
     wgt = np.random.randint(-15, 15, np.prod(wgt_shape)).reshape(wgt_shape)
     torch_res = F.conv_transpose2d(torch.from_numpy(inp), torch.from_numpy(wgt),
                                    stride=stride, padding=pad)
-
+    # tres = conv2d_transpose(torch.from_numpy(inp), torch.from_numpy(wgt), stride, pad)
+    # np.testing.assert_allclose(tres.numpy(), torch_res.numpy())
     info = {
         'data': inp,
         'w': wgt,
@@ -186,10 +209,10 @@ def test_bnorm():
     optimizer_kwargs = {"lr": 0.01}
     pm_x = pm.input(name="x", shape=shape)
     pm_grad = pm.input(name="grad", shape=shape)
-    pm_scale = pm.input(name="scale", shape=scale.shape)
-    pm_bias = pm.input(name="bias", shape=scale.shape)
-    pm_mean = pm.input(name="mean", shape=scale.shape)
-    pm_var = pm.input(name="var", shape=scale.shape)
+    pm_scale = pm.state(name="scale", shape=scale.shape)
+    pm_bias = pm.state(name="bias", shape=scale.shape)
+    pm_mean = pm.state(name="mean", shape=scale.shape)
+    pm_var = pm.state(name="var", shape=scale.shape)
     pm_x_grad = pm.output(name="x_grad", shape=shape)
     pm_scale_grad = pm.output(name="scale_grad", shape=scale.shape)
     pm_b_grad = pm.output(name="bias_grad", shape=bias.shape)
