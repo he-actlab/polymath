@@ -380,20 +380,18 @@ def get_avg_pool(x, auto_pad=None, ceil_mode=0, kernel_shape=None, pads=None,
                  out=None):
     if not out:
         out = pm.output(shape=shape, name=name)
+
+    int_fn = np.ceil if ceil_mode != 0 else np.floor
     if auto_pad:
-        if ceil_mode == 0:
-            h_out = np.floor(x.shape[-2] / strides[0])
-            w_out = np.floor(x.shape[-1] / strides[1])
-        else:
-            h_out = np.ceil(x.shape[-2] / strides[0])
-            w_out = np.ceil(x.shape[-1] / strides[1])
+        h_out = int_fn(x.shape[-2] / strides[0])
+        w_out = int_fn(x.shape[-1] / strides[1])
         ph = max(0, (h_out - 1) * strides[0] + kernel_shape[0] - x.shape[-2])
         pw = max(0, (w_out - 1) * strides[1] + kernel_shape[1] - x.shape[-1])
-        pads = [0, 0, 0, 0]
+        pads = [0,0,0,0]
         if auto_pad == "SAME_LOWER":
-            pads[0] = np.floor(ph // 2)
+            pads[0] = np.floor(ph//2)
             pads[1] = ph - pads[0]
-            pads[2] = np.floor(pw // 2)
+            pads[2] = np.floor(pw//2)
             pads[3] = pw - pads[2]
         elif auto_pad == "SAME_UPPER":
             pads[1] = np.floor(ph // 2)

@@ -14,15 +14,16 @@ import pprint
 
 @pytest.mark.parametrize('m_',[
     # 3, 55
-    5
+    55
 ])
 def test_linear_reg(m_):
     shape_dict = {"m": m_}
     graph, input_info, out_info, keys = linear(m=m_, coarse=True)
+
+
     coarse_eval = graph(keys, input_info)
     np.testing.assert_allclose(coarse_eval, out_info["w"])
     tabla_path = f"{OUTPATH}/{graph.name}_tabla.json"
-
     tabla_ir, tabla_graph = pm.generate_tabla(graph, shape_dict, tabla_path)
     # validation_path = f"{CWD}/tabla_examples/{graph.name}_{m_}.json"
     # compare_tabla_dfg(validation_path, tabla_ir, tabla_graph)

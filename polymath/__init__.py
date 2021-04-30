@@ -34,7 +34,7 @@ from polymath.srdfg.templates.dnn import conv_bias, dense, relu, avg_pool2d,\
 from polymath.srdfg.templates.optimizers import sgd
 from polymath.srdfg.templates.gradient_defs import gemm_grad, gemm_grad_no_bias, conv_grad, conv_grad_no_bias, \
     flatten_grad, elem_add_grad, relu_grad, batchnorm_grad, global_average_pool_grad, max_pool_grad,\
-    cross_entropy_loss_grad
+    cross_entropy_loss_grad, average_pool_grad, elem_tanh_grad
 
 from polymath.srdfg.templates.gradient_defs import AUTODIFF_OPS
 

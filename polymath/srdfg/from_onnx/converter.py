@@ -53,7 +53,6 @@ def update_node_names(model_proto):
 
     return model_proto
 
-
 def from_onnx(filepath, infer_shapes=True, use_filename=True, lower=False, verbose=False):
     onnx_proto, graph_name = load_onnx_proto(filepath)
     onnx_proto = update_node_names(onnx_proto)
@@ -139,7 +138,9 @@ def generate_srdfg(onnx_graph, verbose=False):
         elif i.name in initializers and not itercheck(initializers[i.name]):
             node_info[i.name] = pm.parameter(name=i.name, default=initializers[i.name], graph=mgdfg)
         elif i.name in initializers:
-            node_info[i.name] = pm.state(name=i.name, shape=get_value_info_shape(i, mgdfg), graph=mgdfg)
+            rshape = get_value_info_shape(i, mgdfg)
+            assert rshape == initializers[i.name].shape
+            node_info[i.name] = pm.state(name=i.name, init_value=initializers[i.name], shape=get_value_info_shape(i, mgdfg), graph=mgdfg)
         else:
             node_info[i.name] = pm.input(name=i.name, shape=get_value_info_shape(i, mgdfg), graph=mgdfg)
 
@@ -147,8 +148,8 @@ def generate_srdfg(onnx_graph, verbose=False):
         if v.name in node_info:
             continue
         elif v.name in initializers:
-            # node_info[v.name] = pm.variable(initializers[v.name], name=v.name, shape=get_value_info_shape(v, mgdfg), graph=mgdfg)
-            node_info[v.name] = pm.state(name=v.name, shape=initializers[v.name].shape, graph=mgdfg)
+
+            node_info[v.name] = pm.state(name=v.name, init_value=initializers[v.name], shape=initializers[v.name].shape, graph=mgdfg)
         else:
 
             node_info[v.name] = {"name": v.name, "shape": get_value_info_shape(v, mgdfg)}
@@ -156,7 +157,7 @@ def generate_srdfg(onnx_graph, verbose=False):
     for k, v in initializers.items():
         if k not in node_info:
             # TODO: Need to set the value here
-            node_info[k] = pm.state(name=k, shape=get_value_info_shape(v, mgdfg), graph=mgdfg)
+            node_info[k] = pm.state(name=k, init_value=v, shape=get_value_info_shape(v, mgdfg), graph=mgdfg)
             state_variables[k] = node_info[k]
 
     for k, v in mgdfg.nodes.items():

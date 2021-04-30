@@ -423,26 +423,25 @@ def linear_inf(m=3, coarse=False):
         return new_graph, in_info, out_info, keys
 
 def linear(m=3, coarse=False):
+    in_info, keys, out_info = linear_data_gen(m=m, lowered=not coarse)
     with pm.Node(name="linear") as graph:
         m_ = pm.parameter("m")
         mu = pm.parameter(name="mu", default=1.0)
         x = pm.input("x", shape=(m_))
         y = pm.input("y")
-        w = pm.state("w", shape=(m_))
+        # w = pm.state("w", init_value=in_info.pop("w"), shape=(m_))
+        w = pm.state("w", init_value=in_info["w"], shape=(m_))
+        # w = pm.state("w", shape=(m_))
         i = pm.index(0, (m_ - 1).set_name("m-1"), name="i")
         h = pm.sum([i], (x[i] * w[i]), name="h")
         d = (h - y).set_name("h-y")
         g = (d * x[i]).set_name("d*x")
         w[i] = w[i] - mu * g[i]
 
-    if coarse:
-        in_info, keys, out_info = linear_data_gen(m=m)
-        return graph, in_info, out_info, keys
-    else:
+    if not coarse:
         shape_val_pass = pm.NormalizeGraph({"m": m})
-        new_graph = shape_val_pass(graph)
-        in_info, keys, out_info = linear_data_gen(m=m, lowered=True)
-        return new_graph, in_info, out_info, keys
+        graph = shape_val_pass(graph)
+    return graph, in_info, out_info, keys
 
 
 

@@ -27,7 +27,8 @@ class AutoDiffGraph(Pass):
 
     def apply_pass(self, node:pm.Node, ctx):
         if node.op_name in pm.ONNX_OP_NAMES:
-            assert node.op_name in AutoDiffGraph.GRAD_FUNCS
+            if node.op_name not in AutoDiffGraph.GRAD_FUNCS:
+                raise RuntimeError(f"No definition for operation {node.op_name}")
             self.tape.append(node)
         return node
 
@@ -98,9 +99,15 @@ class AutoDiffGraph(Pass):
 
     def relu_grad(self, node):
         grad = self.grad_map[node.outputs[0].name]
-        relu_grad = pm.output(name=f"{node.inputs[0].name}_grad", shape=node.inputs[0].shape)
-        pm.relu_grad(node.inputs[0], grad, relu_grad)
-        self.grad_map[node.inputs[0].name] = relu_grad
+        out_grad = pm.output(name=f"{node.inputs[0].name}_grad", shape=node.inputs[0].shape)
+        pm.relu_grad(node.inputs[0], grad, out_grad)
+        self.grad_map[node.inputs[0].name] = out_grad
+
+    def elem_tanh_grad(self, node):
+        grad = self.grad_map[node.outputs[0].name]
+        out_grad = pm.output(name=f"{node.inputs[0].name}_grad", shape=node.inputs[0].shape)
+        pm.elem_tanh_grad(node.inputs[0], grad, out_grad)
+        self.grad_map[node.inputs[0].name] = out_grad
 
     def gemm_grad(self, node):
         grad = self.grad_map[node.outputs[0].name]
@@ -122,11 +129,18 @@ class AutoDiffGraph(Pass):
 
     def max_pool_grad(self, node):
         grad = self.grad_map[node.outputs[0].name]
-        max_pool_grad = pm.output(name=f"{node.inputs[0].name}_grad", shape=node.inputs[0].shape)
-        pm.max_pool_grad(node.inputs[0], grad, max_pool_grad, node.kernel_size[0], node.kernel_size[1],
+        mpool_grad = pm.output(name=f"{node.inputs[0].name}_grad", shape=node.inputs[0].shape)
+        pm.max_pool_grad(node.inputs[0], grad, mpool_grad, node.kernel_size[0], node.kernel_size[1],
                          node.stride, node.pad)
-        self.grad_map[node.inputs[0].name] = max_pool_grad
-    
+        self.grad_map[node.inputs[0].name] = mpool_grad
+
+    def average_pool_grad(self, node):
+        grad = self.grad_map[node.outputs[0].name]
+        apool_grad = pm.output(name=f"{node.inputs[0].name}_grad", shape=node.inputs[0].shape)
+        pm.average_pool_grad(node.inputs[0], grad, apool_grad, node.kernel_size[0], node.kernel_size[1],
+                         node.stride, node.pad)
+        self.grad_map[node.inputs[0].name] = apool_grad
+
     def global_avg_pool_grad(self, node):
         grad = self.grad_map[node.outputs[0].name]
         global_average_pool_grad = pm.output(name=f"{node.inputs[0].name}_grad", shape=node.inputs[0].shape)
@@ -151,6 +165,8 @@ class AutoDiffGraph(Pass):
     GRAD_FUNCS['relu'] = relu_grad
     GRAD_FUNCS['batch_norm'] = batch_norm_grad
     GRAD_FUNCS['max_pool'] = max_pool_grad
+    GRAD_FUNCS['elem_tanh'] = elem_tanh_grad
+    GRAD_FUNCS['avg_pool'] = average_pool_grad
     GRAD_FUNCS['global_avg_pool'] = global_avg_pool_grad
     GRAD_FUNCS['gemm'] = gemm_grad
     GRAD_FUNCS['elem_add'] = elem_add_grad

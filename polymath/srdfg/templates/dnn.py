@@ -146,6 +146,18 @@ class avg_pool(pm.Template):
     def outputs(self):
         return (self.args[1],)
 
+    @property
+    def stride(self):
+        return self.kwargs['stride']
+
+    @property
+    def kernel_size(self):
+        return (self.args[2], self.args[3])
+
+    @property
+    def pad(self):
+        return self.kwargs['pad']
+
 class dense(pm.Template):
     def define_graph(self, x, w, y):
         i = pm.index(0, (w.shape[1] - 1), name="i")

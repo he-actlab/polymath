@@ -215,12 +215,27 @@ class output(placeholder):
         return "<output '%s'>" % self.name
 
 class state(placeholder):
-    def __init__(self, name=None, **kwargs):
+    def __init__(self, name=None, init_value=None, **kwargs):
         if "type_modifier" in kwargs:
             kwargs.pop("type_modifier")
 
         if "write_count" not in kwargs:
             kwargs["write_count"] = 0
+
+        if init_value is not None:
+            if isinstance(init_value, (list, tuple)):
+                init_value = np.asarray(init_value)
+                kwargs['shape'] = init_value.shape
+            elif isinstance(init_value, np.ndarray):
+                kwargs['shape'] = init_value.shape
+            elif isinstance(init_value, Integral):
+                init_value = np.asarray(init_value)
+                kwargs['shape'] = init_value.shape
+            else:
+                kwargs['shape'] = tuple([len(init_value)])
+            kwargs['init_value'] = init_value
+        else:
+            kwargs['init_value'] = init_value
 
         super(state, self).__init__(name=name, type_modifier="state", **kwargs)
         self.alias = self.name
@@ -229,12 +244,6 @@ class state(placeholder):
         key = _flatten_iterable(key)
         name = f"{self.name}{self.write_count}"
         prev_name = f"{self.name}{self.write_count - 1}" if self.write_count > 0 else self.name
-        ## HOTFIX FOR SERIALIZATION
-        # if prev_name not in self.graph.nodes:
-        #     prev_node = self.find_node(prev_name)
-        # else:
-        #     prev_node = self.graph.nodes[prev_name]
-        ## END HOTFIX
         prev_node = self.graph.nodes[prev_name]
 
         x = write(value, list(key), prev_node, name=name, alias=self.name, graph=self.graph)
@@ -263,32 +272,26 @@ class state(placeholder):
             return self
         elif f"{self.name}{self.write_count - 1}" not in self.graph.nodes:
             name = f"{self.name}{self.write_count - 1}"
-            ### HOTFIX, NEED TO REMOVE THIS
-            # return self.find_node(name)
-            ## END HOTFIX
+
             raise RuntimeError(f"Unable to find node {name} in graph {self.graph} for node {self.name}."
                                f"All Nodes: {list(self.graph.nodes.keys())}")
-            # END HOTFIX
         else:
             return self.graph.nodes[f"{self.name}{self.write_count - 1}"]
-
-        # return self if self.write_count == 0 or len(Node._graph_stack) == 1 else self.graph.nodes[f"{self.name}{self.write_count - 1}"]
 
     def evaluate(self, context, callback=None):
         callback = callback or _noop_callback
 
         with callback(self, context):
+
             value = self.get_context_value(context)
+
             if isinstance(value, (list, tuple, np.ndarray)) and not self.is_shape_finalized():
                 value = value if isinstance(value, np.ndarray) else np.asarray(value)
                 assert len(value.shape) == len(self.shape)
-                # self.evaluate_shape(context)
-                # TODO: Figure out why this breaks stuff
                 for idx, dim in enumerate(value.shape):
                     if isinstance(self.shape[idx], Node):
                         context[self.shape[idx]] = dim
                         _ = self.shape[idx].evaluate(context)
-
         return value
 
     def __repr__(self):
@@ -301,6 +304,10 @@ class state(placeholder):
     @write_count.setter
     def write_count(self, value):
         self.kwargs["write_count"] = value
+
+    @property
+    def init_value(self):
+        return self.kwargs['init_value']
 
 
 

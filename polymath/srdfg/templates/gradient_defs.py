@@ -77,6 +77,30 @@ class max_pool_grad(pm.Template):
     def pad(self):
         return self.kwargs['pad']
 
+class average_pool_grad(pm.Template):
+    def define_graph(self, data, grad, data_grad, kh, kw, stride=(1, 1), pad=(0,0)):
+        data_grad.set_shape(data.shape)
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1])
+
+    @property
+    def outputs(self):
+        return (self.args[2],)
+
+    @property
+    def stride(self):
+        return self.kwargs['stride']
+
+    @property
+    def kernel_size(self):
+        return (self.args[3], self.args[4])
+
+    @property
+    def pad(self):
+        return self.kwargs['pad']
+
 class flatten_grad(pm.Template):
     def define_graph(self, inp, grad, inp_grad):
         inp_grad.set_shape(inp.shape)
@@ -108,6 +132,21 @@ class relu_grad(pm.Template):
 
         x_idx, grad_idx, x_grad_idx = _get_elem_indices(x, grad, x_grad)
         x_grad[x_grad_idx] = grad[grad_idx] * (x[x_idx] >= 0)
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1])
+
+    @property
+    def outputs(self):
+        return (self.args[2],)
+
+class elem_tanh_grad(pm.Template):
+    def define_graph(self, x, grad, x_grad):
+
+        x_idx, grad_idx, x_grad_idx = _get_elem_indices(x, grad, x_grad)
+        # # x_grad[x_grad_idx] = grad[grad_idx] * (1 - pm.square(pm.tanh(x[x_idx])))
+        # x_grad[x_grad_idx] = grad[grad_idx] * (1 - pm.tanh(x[x_idx])))
 
     @property
     def inputs(self):
@@ -292,4 +331,5 @@ class cross_entropy_loss_grad(pm.Template):
         return (self.args[3],)
 
 AUTODIFF_OPS =  ['cross_entropy_loss_grad', 'sgd', 'relu_grad', 'max_pool_grad',
-                     'global_average_pool_grad', 'elem_add_grad', 'flatten_grad', 'batchnorm_grad']
+                     'global_average_pool_grad', 'elem_add_grad', 'flatten_grad', 'batchnorm_grad',
+                 'average_pool_grad']

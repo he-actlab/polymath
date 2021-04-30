@@ -354,7 +354,11 @@ class NormalizeGraph(Pass):
         if node.shape != pm.DEFAULT_SHAPES[0]:
             indices = list(product(*tuple([np.arange(i) for i in node.shape])))
             for i in indices:
-                x = pm.state(graph=node, name=f"{node.name}{i}", root_name=node.name, shape=(1,))
+                if node.init_value is not None:
+                    init_val = node.init_value[i]
+                else:
+                    init_val = None
+                x = pm.state(graph=node, init_value=init_val, name=f"{node.name}{i}", root_name=node.name, shape=(1,))
                 self.stored_objects[id(x)] = x
 
     def populate_write(self, node):

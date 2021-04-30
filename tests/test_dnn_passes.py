@@ -111,9 +111,14 @@ def test_layer_autodiff(filename):
     train_graph = layout_pass(train_graph)
 
 def test_load_maskrcnn():
-    mrcnn_path = f"{ONNX_DNNS}/mask_rcnn_vision_backbone.onnx"
-    # mrcnn_path = f"{ONNX_DNNS}/resnet18.onnx"
+    # mrcnn_path = f"{ONNX_DNNS}/mask_rcnn_vision_backbone.onnx"
+    mrcnn_path = f"{ONNX_DNNS}/resnet18_train.onnx"
     graph = pm.from_onnx(mrcnn_path)
+    for name, node in graph.nodes.items():
+        if node.op_name in ['conv', 'conv_bias']:
+            print(node.inputs[1].name)
+            print(f"{node.inputs[1].init_value is not None}")
+            print(type(node.inputs[1]))
 
 
 @pytest.mark.parametrize('shape',[
@@ -145,12 +150,12 @@ def test_nll_loss(shape):
     torch_res = F.nll_loss(torch.from_numpy(inp), torch.from_numpy(tgt))
     info = {
         'data': inp,
-        'tgt': tgt,
     }
     np_res = nll_loss(inp, tgt)
     np.testing.assert_allclose(np_res, torch_res.numpy())
     x = pm.input(name="data", shape=shape)
-    tgt_ = pm.state(name="tgt", shape=(shape[0],))
+
+    tgt_ = pm.state(name="tgt", init_value=tgt, shape=(shape[0],))
 
     loss = pm.output(name="loss")
     #

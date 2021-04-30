@@ -45,7 +45,7 @@ class UpdateBatchSize(Pass):
 
 @register_pass
 class RenameMultiDimOps(Pass):
-    MULTI_DIM_OPS = ['sgd']
+    MULTI_DIM_OPS = ['sgd', 'elem_tanh', 'elem_tanh_grad']
     def __init__(self):
         super(RenameMultiDimOps, self).__init__()
 
@@ -55,14 +55,17 @@ class RenameMultiDimOps(Pass):
         return node
 
     def rename_op(self, node):
-        assert len(node.inputs) == 2 and node.inputs[0].shape == node.inputs[1].shape
-        op_name = f"{node.op_name}{str(len(node.inputs[0].shape))}d"
+        # assert len(node.inputs) == 2 and node.inputs[0].shape == node.inputs[1].shape
+        if node.op_name in ["elem_tanh", "elem_tanh_grad"] and len(node.inputs[0].shape) == 4:
+            op_name = node._op_name
+        else:
+            op_name = f"{node.op_name}{str(len(node.inputs[0].shape))}d"
         node._op_name = op_name
         return node
 
 @register_pass
 class UpdateLayout(Pass):
-    UNIQUE_OPS = ['conv', 'conv_bias', 'global_average_pool_grad', 'max_pool_grad']
+    UNIQUE_OPS = ['conv', 'conv_bias', 'global_average_pool_grad', 'max_pool_grad', 'avg_pool', 'average_pool_grad']
     def __init__(self, current_layout, new_layout):
         assert current_layout == 'nchw'
         assert new_layout == 'nhwc'
@@ -106,7 +109,12 @@ class UpdateLayout(Pass):
             activation = node.inputs[0]
             if activation.name not in self.updated_shapes:
                 activation = self.update_shape(activation)
-        elif node.op_name in ['global_average_pool_grad', 'max_pool_grad']:
+            output = node.outputs[0]
+
+            if output.name not in self.updated_shapes:
+                output = self.update_shape(output)
+
+        elif node.op_name in ['global_average_pool_grad', 'max_pool_grad', 'average_pool_grad']:
             for i in node.inputs:
                 if isinstance(i, pm.Node) and len(i.shape) == 4:
                     if i.name not in self.updated_shapes:
@@ -123,10 +131,6 @@ class UpdateLayout(Pass):
         rev_map = {v: k for k, v in self.layout_map.items()}
         orig_shape = tuple([new_shape[rev_map[i]] for i in range(len(new_shape))])
         return orig_shape
-
-
-
-
 
 
 def conv_bias_batch(node, batch_size):
@@ -148,6 +152,13 @@ def relu_batch(node, batch_size):
     out = node.outputs[0]
     act.shape = tuple([batch_size, act.shape[1], act.shape[2], act.shape[3]])
     out.shape = tuple([batch_size, out.shape[1], out.shape[2], out.shape[3]])
+    return node, [act.shape, out.shape]
+
+def elem_tanh_batch(node, batch_size):
+    act = node.inputs[0]
+    out = node.outputs[0]
+    act.shape[0] = batch_size
+    out.shape[0] = batch_size
     return node, [act.shape, out.shape]
 
 def batch_norm_batch(node, batch_size):
@@ -187,6 +198,13 @@ def max_pool_batch(node, batch_size):
     out.shape = tuple([batch_size, out.shape[1], out.shape[2], out.shape[3]])
     return node, [act.shape, out.shape]
 
+def avg_pool_batch(node, batch_size):
+    act = node.inputs[0]
+    out = node.outputs[0]
+    act.shape = tuple([batch_size, act.shape[1], act.shape[2], act.shape[3]])
+    out.shape = tuple([batch_size, out.shape[1], out.shape[2], out.shape[3]])
+    return node, [act.shape, out.shape]
+
 def gemm_batch(node, batch_size):
     # TODO: Check for transpose in kwargs
     act = node.inputs[0]
@@ -198,10 +216,12 @@ def gemm_batch(node, batch_size):
 BATCH_FUNCS['conv_bias'] = conv_bias_batch
 BATCH_FUNCS['conv'] = conv_batch
 BATCH_FUNCS['relu'] = relu_batch
+BATCH_FUNCS['elem_tanh'] = elem_tanh_batch
 BATCH_FUNCS['coarse_flatten'] = flatten_batch
 BATCH_FUNCS['elem_add'] = elem_add_batch
 BATCH_FUNCS['global_avg_pool'] = global_avg_pool_batch
 BATCH_FUNCS['max_pool'] = max_pool_batch
+BATCH_FUNCS['avg_pool'] = avg_pool_batch
 BATCH_FUNCS['batch_norm'] = batch_norm_batch
 BATCH_FUNCS['gemm'] = gemm_batch
 
