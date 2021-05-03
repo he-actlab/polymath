@@ -176,17 +176,18 @@ class conv_grad_no_bias(pm.Template):
         inp_indices = tuple(pm.index(0, s - 1) for s in inp.shape)
         grad_indices = tuple(pm.index(0, s - 1) for s in grad.shape)
         weight_indices = tuple(pm.index(0, s - 1) for s in weight.shape)
-        inp_transposed = pm.temp("inp_t", shape=(inp.shape[1], inp.shape[0], inp.shape[2], inp.shape[3]))
-        grad_transposed = pm.temp("grad_t", shape=(grad.shape[1], grad.shape[0], grad.shape[2], grad.shape[3]))
-        wgt_grad_transposed = pm.temp("wgt_grad_t",
+        inp_transposed = pm.temp(name=f"transposed_{inp.name}", shape=(inp.shape[1], inp.shape[0], inp.shape[2], inp.shape[3]))
+        grad_transposed = pm.temp(name=f"transposed_{grad.name}", shape=(grad.shape[1], grad.shape[0], grad.shape[2], grad.shape[3]))
+        wgt_grad_transposed = pm.temp(name=f"transposed_{weight.name}",
                                       shape=(weight.shape[1], weight.shape[0], weight.shape[2], weight.shape[3]))
-
-        inp_transposed[inp_indices[1], inp_indices[0], inp_indices[2], inp_indices[3]] = inp[inp_indices]
-        grad_transposed[grad_indices[1], grad_indices[0], grad_indices[2], grad_indices[3]] = grad[grad_indices]
+        pm.tensor_transpose(inp, inp_transposed, perm=(1, 0, 2, 3))
+        pm.tensor_transpose(grad, grad_transposed, perm=(1, 0, 2, 3))
+        # inp_transposed[inp_indices[1], inp_indices[0], inp_indices[2], inp_indices[3]] = inp[inp_indices]
+        # grad_transposed[grad_indices[1], grad_indices[0], grad_indices[2], grad_indices[3]] = grad[grad_indices]
 
         pm.conv(inp_transposed, grad_transposed, wgt_grad_transposed, stride=dilation, pad=pad, dilation=stride)
-        weight_grad[weight_indices] = wgt_grad_transposed[
-            weight_indices[1], weight_indices[0], weight_indices[2], weight_indices[3]]
+        pm.tensor_transpose(wgt_grad_transposed, weight_grad, perm=(1, 0, 2, 3))
+        # weight_grad[weight_indices] = wgt_grad_transposed[weight_indices[1], weight_indices[0], weight_indices[2], weight_indices[3]]
         # Weight update
         OPTIMIZERS[optimizer](weight, weight_grad, **optimizer_kwargs)
 
@@ -221,15 +222,17 @@ class conv_grad(pm.Template):
         inp_indices = tuple(pm.index(0, s-1) for s in inp.shape)
         grad_indices = tuple(pm.index(0, s-1) for s in grad.shape)
         weight_indices = tuple(pm.index(0, s-1) for s in weight.shape)
-        inp_transposed = pm.temp("inp_t", shape=(inp.shape[1], inp.shape[0], inp.shape[2], inp.shape[3]))
-        grad_transposed = pm.temp("grad_t", shape=(grad.shape[1], grad.shape[0], grad.shape[2], grad.shape[3]))
-        wgt_grad_transposed = pm.temp("wgt_grad_t", shape=(weight.shape[1], weight.shape[0], weight.shape[2], weight.shape[3]))
-
-        inp_transposed[inp_indices[1], inp_indices[0], inp_indices[2], inp_indices[3]] = inp[inp_indices]
-        grad_transposed[grad_indices[1], grad_indices[0], grad_indices[2], grad_indices[3]] = grad[grad_indices]
-
+        inp_transposed = pm.temp(name=f"transposed_{inp.name}", shape=(inp.shape[1], inp.shape[0], inp.shape[2], inp.shape[3]))
+        grad_transposed = pm.temp(name=f"transposed_{grad.name}", shape=(grad.shape[1], grad.shape[0], grad.shape[2], grad.shape[3]))
+        wgt_grad_transposed = pm.temp(name=f"transposed_{weight.name}",
+                                      shape=(weight.shape[1], weight.shape[0], weight.shape[2], weight.shape[3]))
+        pm.tensor_transpose(inp, inp_transposed, perm=(1, 0, 2, 3))
+        pm.tensor_transpose(grad, grad_transposed, perm=(1, 0, 2, 3))
+        # inp_transposed[inp_indices[1], inp_indices[0], inp_indices[2], inp_indices[3]] = inp[inp_indices]
+        # grad_transposed[grad_indices[1], grad_indices[0], grad_indices[2], grad_indices[3]] = grad[grad_indices]
         pm.conv(inp_transposed, grad_transposed, wgt_grad_transposed, stride=dilation, pad=pad, dilation=stride)
-        weight_grad[weight_indices] = wgt_grad_transposed[weight_indices[1], weight_indices[0], weight_indices[2], weight_indices[3]]
+        pm.tensor_transpose(wgt_grad_transposed, weight_grad, perm=(1, 0, 2, 3))
+        # weight_grad[weight_indices] = wgt_grad_transposed[weight_indices[1], weight_indices[0], weight_indices[2], weight_indices[3]]
         # Weight update
         OPTIMIZERS[optimizer](weight, weight_grad, **optimizer_kwargs)
 
@@ -330,6 +333,6 @@ class cross_entropy_loss_grad(pm.Template):
     def outputs(self):
         return (self.args[3],)
 
-AUTODIFF_OPS =  ['cross_entropy_loss_grad', 'sgd', 'relu_grad', 'max_pool_grad',
+AUTODIFF_OPS =  ['cross_entropy_loss_grad', 'sgd', 'relu_grad', 'max_pool_grad', 'elem_tanh_grad',
                      'global_average_pool_grad', 'elem_add_grad', 'flatten_grad', 'batchnorm_grad',
                  'average_pool_grad']

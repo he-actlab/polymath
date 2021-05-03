@@ -113,3 +113,21 @@ def test_reshape(in_shape, out_shape):
     np_y = np.reshape(x, out_shape)
     np.testing.assert_allclose(np_y, pm_y)
     assert np_y.shape == pm_y.shape
+
+
+@pytest.mark.parametrize('in_shape, axis',[
+    ((5, 100,), (1, 0)),
+    ((3, 4, 5, 6), (3, 2, 1, 0)),
+    ((3, 4, 5, 6), (1, 0, 2, 3)),
+])
+def test_transpose(in_shape, axis):
+    x = np.random.randn(*in_shape).astype(np.float32)
+
+    with pm.Node(name="transpose_op") as graph:
+        data = pm.input(name="input", shape=x.shape)
+        out = pm.transpose(data, axis, name="res")
+
+    np_y = np.transpose(x, axis)
+    pm_y = graph("res", {"input": x})
+    np.testing.assert_allclose(np_y, pm_y)
+    assert np_y.shape == pm_y.shape

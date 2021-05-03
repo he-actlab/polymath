@@ -14,7 +14,7 @@ ONNX_OP_NAMES = ['max_pool', 'lrn', 'conv', 'conv_bias', 'global_avg_pool', 'dro
 
 def update_onnx_graph_names(graph):
     names = {}
-    for n in onnx_graph.node:
+    for n in graph.node:
         new_inputs = []
         for i in n.input:
             if i in names:
@@ -44,18 +44,61 @@ def update_node_names(model_proto):
     for n in model_proto.graph.node:
         if not n.name.isdigit():
             non_digit_nodes.append(n.name)
-
     for n in model_proto.graph.node:
         if n.name.isdigit():
             new_name = f"{n.op_type}{n.name}"
             assert new_name not in non_digit_nodes
             n.name = new_name
+    return model_proto
+
+def update_edge_names(model_proto):
+    node_name_map = {}
+    INPUT_NAMES = ['A', 'B', 'D', 'X', 'W']
+    OUTPUT_NAMES = ['Y', 'Z', 'C', 'H', 'P']
+
+    for n in model_proto.graph.node:
+        for idx, i in enumerate(n.input):
+            if i not in node_name_map:
+                if i.isdigit():
+                    assert idx < len(INPUT_NAMES)
+                    new_name = f"{n.name.lower()}_{i}{INPUT_NAMES[idx]}"
+                else:
+                    new_name = i
+                node_name_map[i] = new_name
+
+        for idx, o in enumerate(n.output):
+            if o not in node_name_map:
+                if o.isdigit():
+                    assert idx < len(OUTPUT_NAMES)
+                    new_name = f"{n.name.lower()}_{o}{OUTPUT_NAMES[idx]}"
+                else:
+                    new_name = o
+                node_name_map[o] = new_name
+
+    for v in model_proto.graph.value_info:
+        assert v.name in node_name_map
+        v.name = node_name_map[v.name]
+
+    for i in model_proto.graph.initializer:
+        assert i.name in node_name_map
+        i.name = node_name_map[i.name]
+
+    for n in model_proto.graph.node:
+        n.input[:] = [node_name_map[i] for i in n.input]
+        n.output[:] = [node_name_map[o] for o in n.output]
+
+    for i in model_proto.graph.input:
+        i.name = node_name_map[i.name]
+
+    for o in model_proto.graph.output:
+        o.name = node_name_map[o.name]
 
     return model_proto
 
 def from_onnx(filepath, infer_shapes=True, use_filename=True, lower=False, verbose=False):
     onnx_proto, graph_name = load_onnx_proto(filepath)
     onnx_proto = update_node_names(onnx_proto)
+    onnx_proto = update_edge_names(onnx_proto)
     attr = get_model_attributes(onnx_proto)
     if infer_shapes:
         onnx_graph = shape_inference.infer_shapes(onnx_proto).graph

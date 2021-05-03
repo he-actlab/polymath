@@ -16,7 +16,7 @@ from polymath.srdfg.nonlinear import NonLinear, sigmoid, log2, log10, exp, abs, 
     floor, cast, tanh, square, log, rsqrt, clip, logical_not, logical_or
 from polymath.srdfg.template import Template
 from polymath.srdfg.transformations import Transformation, unsqueeze, squeeze, flatten, gather, \
-    reshape, gather_elements
+    reshape, gather_elements, transpose
 from polymath.srdfg.util import Profiler, visualize, lower_graph, is_iterable
 from polymath.srdfg.serialization.serialize import pb_store, pb_load
 
@@ -42,7 +42,7 @@ from polymath.srdfg.templates.math import elem_mul, elem_sub, elem_div, reduce_s
     elem_add, elem_greater, lvmatmul, rvmatmul, gemm_no_bias, reduce_min, reduce_max, elem_min, elem_max,\
     elem_less, elem_not, elem_or, elem_and, elem_nonzero, reduce_prod, elem_equal
 
-from polymath.srdfg.templates.tensor_transformations import coarse_flatten, elem_gather, transpose, onnx_reshape, \
+from polymath.srdfg.templates.tensor_transformations import coarse_flatten, elem_gather, tensor_transpose, onnx_reshape, \
     onnx_squeeze, onnx_identity, onnx_resize, onnx_unsqueeze
 
 from polymath.srdfg.from_onnx.converter import from_onnx, get_attributes, get_value_info_shape, ONNX_OP_NAMES

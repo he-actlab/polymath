@@ -5,9 +5,9 @@ from numbers import Integral
 import numpy as np
 import functools
 
-class transpose(pm.Template):
-    def define_graph(self, data, out):
-        # indices = tuple([pm.index(0, s - 1) for s in data.shape])
+class tensor_transpose(pm.Template):
+    def define_graph(self, data, out, perm=None):
+
         indices = _get_single_node_indices(data)
         rev_idx = tuple(reversed(indices))
         out[rev_idx] = data[indices]

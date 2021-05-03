@@ -292,6 +292,35 @@ class reshape(Transformation):
         val = self.target(val, self.shape)
         return val
 
+class transpose(Transformation):
+    def __init__(self, input_node, axis, **kwargs):
+
+        assert isinstance(axis, (tuple, list))
+        if len(input_node.shape) > 1:
+            new_shape = tuple([input_node.shape[i] for i in axis])
+        else:
+            new_shape = input_node.shape
+
+        if 'domain' in kwargs:
+            new_domain = kwargs.pop('domain')
+        else:
+            new_domain = Domain(new_shape)
+
+        super(transpose, self).__init__(_transpose, input_node, axis, domain=new_domain, shape=new_shape, **kwargs)
+
+    def _evaluate(self, val, axis, **kwargs):
+        if "target" in kwargs:
+            kwargs.pop("target")
+        if "domain" in kwargs:
+            kwargs.pop("domain")
+
+        val = self.target(val, axis)
+        return val
+
+    @property
+    def axis(self):
+        return self.args[1]
+
 def _gather(value, indices, axis=0):
     return np.take(value, indices, axis=axis)
 
@@ -310,5 +339,8 @@ def _squeeze(value, axis=0):
 def _flatten(value, axis=1):
     new_shape = (1, -1) if axis == 0 else (np.prod(value.shape[0:axis]).astype(int), -1)
     return np.reshape(value, new_shape)
+
+def _transpose(value, axis=None):
+    return np.transpose(value, axis)
 
 

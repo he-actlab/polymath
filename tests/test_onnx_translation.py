@@ -512,8 +512,7 @@ def test_transpose(in_shape):
 
     with pm.Node(name="tpose") as graph:
         x_pm = pm.input(name="x", shape=in_shape)
-        o_pm = pm.output(name="o", shape=x.T.shape)
-        pm.transpose(x_pm, o_pm)
+        pm.transpose(x_pm, (1,0), name="o")
 
     in_dict = {"x": x}
     res = graph("o", in_dict)
