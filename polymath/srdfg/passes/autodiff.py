@@ -53,7 +53,6 @@ class AutoDiffGraph(Pass):
 
     def update_grad_map(self, input_node, gradient_node, parent_node):
         if input_node.name in self.grad_map:
-            print(f"Existing gradient for {input_node.name} - {gradient_node.name}")
             assert gradient_node.shape == self.grad_map[input_node.name].shape
             grad_name = f"{self.grad_map[input_node.name].name},{gradient_node.name}"
             acc_grad = pm.output(name=grad_name, shape=gradient_node.shape)
