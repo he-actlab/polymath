@@ -131,3 +131,45 @@ def test_transpose(in_shape, axis):
     pm_y = graph("res", {"input": x})
     np.testing.assert_allclose(np_y, pm_y)
     assert np_y.shape == pm_y.shape
+
+@pytest.mark.parametrize('in_shape, axis',[
+    ((5, 100,), (0,)),
+    ((5, 100,), (0,1)),
+    ((3, 4, 5, 6), (0, 1, 2)),
+    ((3, 4, 5, 6), (1,)),
+])
+def test_flip(in_shape, axis):
+    x = np.random.randn(*in_shape).astype(np.float32)
+
+    with pm.Node(name="flip_op") as graph:
+        data = pm.input(name="input", shape=x.shape)
+        out = pm.flip(data, axis, name="res")
+
+    np_y = np.flip(x, axis)
+    pm_y = graph("res", {"input": x})
+    np.testing.assert_allclose(np_y, pm_y)
+
+
+@pytest.mark.parametrize('in_shape, pad_start, pad_end',[
+    ((5, 100,), (0, 2), None),
+    ((5, 100,), (0, 2), (0, 0)),
+    ((3, 4, 5, 6), (1, 1, 1, 1), None),
+    ((3, 4, 5, 6), (1, 1, 1, 1), (1, 0, 0, 1)),
+])
+def test_pad(in_shape, pad_start, pad_end):
+    x = np.random.randn(*in_shape).astype(np.float32)
+
+    with pm.Node(name="pad_op") as graph:
+        data = pm.input(name="input", shape=x.shape)
+        out = pm.pad(data, pad_start, pad_end=pad_end, name="res")
+
+    if pad_end is None:
+        padding_val = tuple((pad_start[i], pad_start[i]) for i in range(len(pad_start)))
+    else:
+        padding_val = tuple((pad_start[i], pad_end[i]) for i in range(len(pad_start)))
+    np_y = np.pad(x, padding_val)
+    pm_y = graph("res", {"input": x})
+    assert np_y.shape == pm_y.shape
+    np.testing.assert_allclose(np_y, pm_y)
+
+

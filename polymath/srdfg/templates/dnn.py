@@ -318,43 +318,36 @@ class conv_bias(pm.Template):
 # TODO: Make flexible for different conv shapes
 class conv_transpose_bias(pm.Template):
     def define_graph(self, data, wgt, bias, out, stride=1, pad=0, out_pad=0):
-
         n, c, h, w = data.shape
         dim_in, dim_out, kh, kw = wgt.shape
         sh, sw = stride - 1, stride - 1
 
         y = pm.temp(name=f"{data.name}_reshaped", shape=(n*c, h*w, 1, 1))
-        n_idx = pm.index(0, n-1)
-        c_idx = pm.index(0, c-1)
-        h_idx = pm.index(0, h-1)
-        w_idx = pm.index(0, w-1)
-        y[(n_idx*c + c_idx), (h_idx*w + w_idx), 0, 0] = data[n_idx, c_idx, h_idx, w_idx]
-        y1 = pm.temp(name=f"{data.name}_pad")
-        y1 = pad_node(y, y1, (0, sw, 0, sh), (kh, kw))
+        pm.tensor_reshape(data, y, y.shape)
+
+
+        y1 = pm.temp(name=f"{data.name}_reshaped1")
+        pm.tensor_pad(y, y1, ((0, 0), (0, 0), (0, sh), (0, sw)))
 
         y2 = pm.temp(name=f"{data.name}_reshaped2", shape=(n * c, h, w, 1 + sh, 1 + sw))
-        nc_idx = pm.index(0, n*c - 1)
-        sh_idx = pm.index(0, sh)
-        sw_idx = pm.index(0, sw)
-        y2[nc_idx, h_idx, w_idx, sh_idx, sw_idx] = y1[nc_idx, (h_idx*w + w_idx), sh_idx, sw_idx]
+        pm.tensor_reshape(y1, y2, y2.shape)
 
         y3 = pm.temp(name=f"{data.name}_permuted", shape=(n * c, h, 1 + sh, w, 1 + sw))
-        y3[nc_idx, h_idx, sh_idx, w_idx, sw_idx] = y2[nc_idx, h_idx, w_idx, sh_idx, sw_idx ]
+        pm.tensor_transpose(y2, y3, (0, 1, 3, 2, 4))
 
         y4 = pm.temp(name=f"{data.name}_reshaped3", shape=(n, c, h * (1 + sh), w * (1 + sw)))
-        y4[n_idx, c_idx, h_idx*stride + sh_idx, w_idx*stride + sw_idx] = y3[(n_idx*c + c_idx), h_idx, sh_idx, w_idx, sw_idx]
+        pm.tensor_reshape(y3, y4, y4.shape)
+        ph, pw = kh - pad - 1, kw - pad - 1
 
-        w_perm = pm.temp(shape=(wgt.shape[1], wgt.shape[0], wgt.shape[3], wgt.shape[2]))
-        oc_idx = pm.index(0, wgt.shape[0]-1)
-        ic_idx = pm.index(0, wgt.shape[1]-1)
-        kh_idx = pm.index(0, kh-1)
-        kw_idx = pm.index(0, kw-1)
-        w_perm[ic_idx, oc_idx, kh - kh_idx - 1, kw - kw_idx - 1] = wgt[oc_idx, ic_idx, kh_idx, kw_idx]
+        w_perm = pm.temp(name=f"{wgt.name}_perm", shape=(wgt.shape[1], wgt.shape[0], wgt.shape[2], wgt.shape[3]))
+        w_perm_flip = pm.temp(name=f"{wgt.name}_flip", shape=(wgt.shape[1], wgt.shape[0], wgt.shape[2], wgt.shape[3]))
+
+        pm.tensor_transpose(wgt, w_perm, (1, 0, 2, 3))
+        pm.tensor_flip(w_perm, w_perm_flip, (2, 3))
 
         y5 = pm.temp(name=f"{data.name}_pad2")
-        ph, pw = kh - pad - 1, kw - pad - 1
-        y5 = pad_node(y4, y5, (pw, pw - sw + out_pad, ph, ph - sh + out_pad), (kh, kw))
-        pm.conv_bias(y5, w_perm, bias, out, stride=1, pad=out_pad)
+        pm.tensor_pad(y4, y5, ((0, 0), (0, 0), (pw, pw - sw + out_pad), (ph, ph - sh + out_pad)))
+        pm.conv_bias(y5, w_perm_flip, bias, out, stride=1, pad=out_pad)
 
     @property
     def inputs(self):
@@ -372,38 +365,31 @@ class conv_transpose(pm.Template):
         sh, sw = stride - 1, stride - 1
 
         y = pm.temp(name=f"{data.name}_reshaped", shape=(n*c, h*w, 1, 1))
-        n_idx = pm.index(0, n-1)
-        c_idx = pm.index(0, c-1)
-        h_idx = pm.index(0, h-1)
-        w_idx = pm.index(0, w-1)
-        y[(n_idx*c + c_idx), (h_idx*w + w_idx), 0, 0] = data[n_idx, c_idx, h_idx, w_idx]
+        pm.tensor_reshape(data, y, y.shape)
+
+
         y1 = pm.temp(name=f"{data.name}_reshaped1")
-        y1 = pad_node(y, y1, (0, sw, 0, sh), (kh, kw))
+        pm.tensor_pad(y, y1, ((0, 0), (0, 0), (0, sh), (0, sw)))
 
         y2 = pm.temp(name=f"{data.name}_reshaped2", shape=(n * c, h, w, 1 + sh, 1 + sw))
-        nc_idx = pm.index(0, n*c - 1)
-        sh_idx = pm.index(0, sh)
-        sw_idx = pm.index(0, sw)
-        y2[nc_idx, h_idx, w_idx, sh_idx, sw_idx] = y1[nc_idx, (h_idx*w + w_idx), sh_idx, sw_idx]
+        pm.tensor_reshape(y1, y2, y2.shape)
 
         y3 = pm.temp(name=f"{data.name}_permuted", shape=(n * c, h, 1 + sh, w, 1 + sw))
-        y3[nc_idx, h_idx, sh_idx, w_idx, sw_idx] = y2[nc_idx, h_idx, w_idx, sh_idx, sw_idx ]
+        pm.tensor_transpose(y2, y3, (0, 1, 3, 2, 4))
 
         y4 = pm.temp(name=f"{data.name}_reshaped3", shape=(n, c, h * (1 + sh), w * (1 + sw)))
-        y4[n_idx, c_idx, h_idx*stride + sh_idx, w_idx*stride + sw_idx] = y3[(n_idx*c + c_idx), h_idx, sh_idx, w_idx, sw_idx]
+        pm.tensor_reshape(y3, y4, y4.shape)
         ph, pw = kh - pad - 1, kw - pad - 1
 
-        w_perm = pm.temp(name=f"w_perm_flip_{wgt.name}", shape=(wgt.shape[1], wgt.shape[0], wgt.shape[3], wgt.shape[2]))
-        oc_idx = pm.index(0, wgt.shape[0]-1)
-        ic_idx = pm.index(0, wgt.shape[1]-1)
-        kh_idx = pm.index(0, kh-1)
-        kw_idx = pm.index(0, kw-1)
-        w_perm[ic_idx, oc_idx, kh - kh_idx - 1, kw - kw_idx - 1] = wgt[oc_idx, ic_idx, kh_idx, kw_idx]
+        w_perm = pm.temp(name=f"{wgt.name}_perm", shape=(wgt.shape[1], wgt.shape[0], wgt.shape[2], wgt.shape[3]))
+        w_perm_flip = pm.temp(name=f"{wgt.name}_flip", shape=(wgt.shape[1], wgt.shape[0], wgt.shape[2], wgt.shape[3]))
+
+        pm.tensor_transpose(wgt, w_perm, (1, 0, 2, 3))
+        pm.tensor_flip(w_perm, w_perm_flip, (2, 3))
 
         y5 = pm.temp(name=f"{data.name}_pad2")
-        y5 = pad_node(y4, y5, (pw, pw - sw + out_pad, ph, ph - sh + out_pad), (kh, kw))
-
-        pm.conv(y5, w_perm, out, stride=1, pad=0)
+        pm.tensor_pad(y4, y5, ((0, 0), (0, 0), (pw, pw - sw + out_pad), (ph, ph - sh + out_pad)))
+        pm.conv(y5, w_perm_flip, out, pad=0, stride=1)
 
     @property
     def inputs(self):

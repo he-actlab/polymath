@@ -49,18 +49,17 @@ def conv2d_transpose(
     dim_in, dim_out, kh, kw = weight.shape
     sh, sw = stride - 1, stride - 1
     y = input.reshape(b*c,h*w,1,1)
-    print(y.shape)
     y = F.pad(y, [0, sw, 0, sh])
-    print(y.shape)
     y = y.reshape(b*c,h,w,1+sh,1+sw)
     y = y.permute(0,1,3,2,4)
     y = y.reshape(b, c, h*(1+sh), w*(1+sw))
-    # ph, pw = kh - 1, kw - 1
     ph, pw = kh - padding - 1, kw - padding - 1
+
     weight = weight.permute(1,0,2,3)
     weight = weight.flip(2, 3)
     # y = F.pad(y, [pw, pw-sw, ph, ph-sh])
-    y = F.pad(y, (pw, pw - sw + out_pad, ph, ph - sh + out_pad))
+    pad_vals = (pw, pw - sw + out_pad, ph, ph - sh + out_pad)
+    y = F.pad(y, pad_vals)
     y = F.conv2d(y, weight, padding=0, stride=1)
 
     return y
@@ -76,7 +75,7 @@ def test_conv2d_transpose_shapes(inp_shape, wgt_shape, stride, pad):
     wgt = np.random.randint(-15, 15, np.prod(wgt_shape)).reshape(wgt_shape)
     torch_res = F.conv_transpose2d(torch.from_numpy(inp), torch.from_numpy(wgt),
                                    stride=stride, padding=pad)
-    # tres = conv2d_transpose(torch.from_numpy(inp), torch.from_numpy(wgt), stride, pad)
+    torch_res = conv2d_transpose(torch.from_numpy(inp), torch.from_numpy(wgt), stride, pad)
     # np.testing.assert_allclose(tres.numpy(), torch_res.numpy())
     info = {
         'data': inp,

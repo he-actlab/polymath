@@ -115,9 +115,11 @@ class flatten_grad(pm.Template):
 
 class elem_add_grad(pm.Template):
     def define_graph(self, a, b, grad, a_grad, b_grad):
-        a_idx, grad_idx, indices = _get_elem_indices(a, grad, a_grad)
-        a_grad[indices] = a[a_idx] + grad[grad_idx]
-        b_grad[indices] = b[a_idx] + grad[grad_idx]
+        # a_idx, grad_idx, indices = _get_elem_indices(a, grad, a_grad)
+        pm.elem_add(a, grad, a_grad)
+        pm.elem_add(b, grad, b_grad)
+        # a_grad[indices] = a[a_idx] + grad[grad_idx]
+        # b_grad[indices] = b[a_idx] + grad[grad_idx]
 
     @property
     def inputs(self):
@@ -177,17 +179,14 @@ class conv_grad_no_bias(pm.Template):
         grad_indices = tuple(pm.index(0, s - 1) for s in grad.shape)
         weight_indices = tuple(pm.index(0, s - 1) for s in weight.shape)
         inp_transposed = pm.temp(name=f"transposed_{inp.name}", shape=(inp.shape[1], inp.shape[0], inp.shape[2], inp.shape[3]))
-        grad_transposed = pm.temp(name=f"transposed_{grad.name}", shape=(grad.shape[1], grad.shape[0], grad.shape[2], grad.shape[3]))
+        grad_transposed = pm.state(name=f"transposed_{grad.name}", shape=(grad.shape[1], grad.shape[0], grad.shape[2], grad.shape[3]))
         wgt_grad_transposed = pm.temp(name=f"transposed_{weight.name}",
                                       shape=(weight.shape[1], weight.shape[0], weight.shape[2], weight.shape[3]))
         pm.tensor_transpose(inp, inp_transposed, perm=(1, 0, 2, 3))
         pm.tensor_transpose(grad, grad_transposed, perm=(1, 0, 2, 3))
-        # inp_transposed[inp_indices[1], inp_indices[0], inp_indices[2], inp_indices[3]] = inp[inp_indices]
-        # grad_transposed[grad_indices[1], grad_indices[0], grad_indices[2], grad_indices[3]] = grad[grad_indices]
 
         pm.conv(inp_transposed, grad_transposed, wgt_grad_transposed, stride=dilation, pad=pad, dilation=stride)
         pm.tensor_transpose(wgt_grad_transposed, weight_grad, perm=(1, 0, 2, 3))
-        # weight_grad[weight_indices] = wgt_grad_transposed[weight_indices[1], weight_indices[0], weight_indices[2], weight_indices[3]]
         # Weight update
         OPTIMIZERS[optimizer](weight, weight_grad, **optimizer_kwargs)
 
@@ -223,19 +222,15 @@ class conv_grad(pm.Template):
         grad_indices = tuple(pm.index(0, s-1) for s in grad.shape)
         weight_indices = tuple(pm.index(0, s-1) for s in weight.shape)
         inp_transposed = pm.temp(name=f"transposed_{inp.name}", shape=(inp.shape[1], inp.shape[0], inp.shape[2], inp.shape[3]))
-        grad_transposed = pm.temp(name=f"transposed_{grad.name}", shape=(grad.shape[1], grad.shape[0], grad.shape[2], grad.shape[3]))
+        grad_transposed = pm.state(name=f"transposed_{grad.name}", shape=(grad.shape[1], grad.shape[0], grad.shape[2], grad.shape[3]))
         wgt_grad_transposed = pm.temp(name=f"transposed_{weight.name}",
                                       shape=(weight.shape[1], weight.shape[0], weight.shape[2], weight.shape[3]))
         pm.tensor_transpose(inp, inp_transposed, perm=(1, 0, 2, 3))
         pm.tensor_transpose(grad, grad_transposed, perm=(1, 0, 2, 3))
-        # inp_transposed[inp_indices[1], inp_indices[0], inp_indices[2], inp_indices[3]] = inp[inp_indices]
-        # grad_transposed[grad_indices[1], grad_indices[0], grad_indices[2], grad_indices[3]] = grad[grad_indices]
         pm.conv(inp_transposed, grad_transposed, wgt_grad_transposed, stride=dilation, pad=pad, dilation=stride)
         pm.tensor_transpose(wgt_grad_transposed, weight_grad, perm=(1, 0, 2, 3))
-        # weight_grad[weight_indices] = wgt_grad_transposed[weight_indices[1], weight_indices[0], weight_indices[2], weight_indices[3]]
         # Weight update
         OPTIMIZERS[optimizer](weight, weight_grad, **optimizer_kwargs)
-
         pm.reduce_sum(grad, bias_grad)
         OPTIMIZERS[optimizer](bias, bias_grad, **optimizer_kwargs)
 
@@ -254,7 +249,7 @@ class gemm_grad_no_bias(pm.Template):
         transB = False
         if grad.shape[1] != weight.shape[0]:
             indices = tuple([pm.index(0, s - 1) for s in weight.shape])
-            weight_transposed = pm.temp(name=f"{weight.name}_transposed", shape=(weight.shape[1], weight.shape[0]))
+            weight_transposed = pm.state(name=f"{weight.name}_transposed", shape=(weight.shape[1], weight.shape[0]))
             weight_transposed[indices[1], indices[0]] = weight[indices]
             pm.gemm_no_bias(grad, weight_transposed, inp_grad, transA=transA, transB=transB, strict_shapes=True)
         else:
@@ -262,7 +257,8 @@ class gemm_grad_no_bias(pm.Template):
 
         if grad.shape[0] != inp.shape[1]:
             indices = tuple([pm.index(0, s - 1) for s in inp.shape])
-            inp_transposed = pm.temp(name=f"{inp.name}_transposed", shape=(inp.shape[1], inp.shape[0]))
+            # inp_transposed = pm.temp(name=f"{inp.name}_transposed", shape=(inp.shape[1], inp.shape[0]))
+            inp_transposed = pm.state(name=f"{inp.name}_transposed", shape=(inp.shape[1], inp.shape[0]))
             inp_transposed[indices[1], indices[0]] = inp[indices]
             pm.gemm_no_bias(inp_transposed, grad, weight_grad, transA=transA, transB=transB, strict_shapes=True)
         else:
@@ -286,7 +282,8 @@ class gemm_grad(pm.Template):
 
         if grad.shape[1] != weight.shape[0]:
             indices = tuple([pm.index(0, s - 1) for s in weight.shape])
-            weight_transposed = pm.temp(name=f"{weight.name}_transposed", shape=(weight.shape[1], weight.shape[0]))
+            # weight_transposed = pm.temp(name=f"{weight.name}_transposed", shape=(weight.shape[1], weight.shape[0]))
+            weight_transposed = pm.state(name=f"{weight.name}_transposed", shape=(weight.shape[1], weight.shape[0]))
             weight_transposed[indices[1], indices[0]] = weight[indices]
             pm.gemm_no_bias(grad, weight_transposed, inp_grad, transA=transA, transB=transB, strict_shapes=True)
         else:
@@ -294,7 +291,8 @@ class gemm_grad(pm.Template):
 
         if grad.shape[0] != inp.shape[1]:
             indices = tuple([pm.index(0, s-1) for s in inp.shape])
-            inp_transposed = pm.temp(name=f"{inp.name}_transposed", shape=(inp.shape[1], inp.shape[0]))
+            # inp_transposed = pm.temp(name=f"{inp.name}_transposed", shape=(inp.shape[1], inp.shape[0]))
+            inp_transposed = pm.state(name=f"{inp.name}_transposed", shape=(inp.shape[1], inp.shape[0]))
             inp_transposed[indices[1], indices[0]] = inp[indices]
             pm.gemm_no_bias(inp_transposed, grad, weight_grad, transA=transA, transB=transB, strict_shapes=True)
         else:

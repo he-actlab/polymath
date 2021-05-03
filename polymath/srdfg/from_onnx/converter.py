@@ -10,7 +10,8 @@ import polymath as pm
 ONNX_OP_NAMES = ['max_pool', 'lrn', 'conv', 'conv_bias', 'global_avg_pool', 'dropout', 'elem_tanh',
                 'softmax', 'elem_cast', 'elem_sigmoid', 'batch_norm', 'batch_flatten', 'avg_pool2d',
                 'leaky_relu', 'relu', 'dense_sigmoid', 'dense', 'avg_pool', 'gemm', 'gemm_no_bias', 'elem_add', 'elem_sub',
-                 'elem_mul', 'dropout', 'coarse_flatten', 'cross_entropy_loss', 'reduce_sum', 'tensor_transpose']
+                 'elem_mul', 'dropout', 'coarse_flatten', 'cross_entropy_loss', 'reduce_sum',
+                 'tensor_transpose', 'tensor_flip', 'tensor_reshape', 'tensor_pad']
 
 def update_onnx_graph_names(graph):
     names = {}
