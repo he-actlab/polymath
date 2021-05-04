@@ -18,11 +18,7 @@ class cross_entropy_loss(pm.Template):
         exp_val = pm.exp((z[indices] - maxes[indices[0]]))
         lse_stable = pm.log(pm.sum([i], exp_val[indices], name="testing_lse"), name="lse_stable")
         a[indices] = z[indices] - maxes[indices[0]] - lse_stable[indices[0]]
-        # assert len(z.shape) == 2
-        # assert len(y.shape) == 1
-        # gathered = pm.gather_elements(a, pm.reshape(y, shape=(a.shape[0], 1), name="reshaped1"), axis=1, shape=(y.shape[0],), name="gathered_elem")
         gathered = pm.gather_elements(a, pm.reshape(y, (a.shape[0], 1), name="reshaped1"), axis=1, shape=(y.shape[0],), name="gathered_elem")
-        # reshaped = pm.reshape(-1*gathered, shape=(y.shape[0],), name="other_reshape")
         reshaped = pm.reshape(-1*gathered, (y.shape[0],), name="other_reshape")
         idx = (pm.index(0, a.shape[0] - 1),)
         if reduction == "none":

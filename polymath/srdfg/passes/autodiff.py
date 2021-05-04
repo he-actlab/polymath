@@ -33,7 +33,9 @@ class AutoDiffGraph(Pass):
         return node
 
     def package_pass(self, node, ctx):
-        node.name = f"{node.name}_training"
+
+        if "train" not in node.name:
+            node.name = f"{node.name}_train"
 
         final_node = self.tape[-1]
         if final_node.op_name not in LOSS_FUNCS:
@@ -68,13 +70,9 @@ class AutoDiffGraph(Pass):
 
     def elem_add_grad(self, node):
         grad = self.get_gradient(node)
-        a_grad = pm.output(name=f"{node.inputs[0].name}_grad", shape=node.inputs[0].shape)
-        b_grad = pm.output(name=f"{node.inputs[1].name}_grad", shape=node.inputs[1].shape)
-        pm.elem_add_grad(node.inputs[0], node.inputs[1], grad, a_grad, b_grad)
-        self.update_grad_map(node.inputs[0], a_grad, node)
-        self.update_grad_map(node.inputs[1], b_grad, node)
+        self.update_grad_map(node.inputs[0], grad, node)
+        self.update_grad_map(node.inputs[1], grad, node)
 
-    
     def conv_grad(self, node):
         grad = self.get_gradient(node)
         conv_inp_grad = pm.output(name=f"{node.inputs[0].name}_grad_{node.name}", shape=node.inputs[0].shape)

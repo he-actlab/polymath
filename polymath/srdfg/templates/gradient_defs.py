@@ -115,9 +115,11 @@ class flatten_grad(pm.Template):
 
 class elem_add_grad(pm.Template):
     def define_graph(self, a, b, grad, a_grad, b_grad):
+        a_grad.set_shape(grad.shape)
+        b_grad.set_shape(grad.shape)
         # a_idx, grad_idx, indices = _get_elem_indices(a, grad, a_grad)
-        pm.elem_add(a, grad, a_grad)
-        pm.elem_add(b, grad, b_grad)
+        # pm.elem_add(a, grad, a_grad)
+        # pm.elem_add(b, grad, b_grad)
         # a_grad[indices] = a[a_idx] + grad[grad_idx]
         # b_grad[indices] = b[a_idx] + grad[grad_idx]
 
