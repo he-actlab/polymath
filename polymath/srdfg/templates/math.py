@@ -261,7 +261,28 @@ class matmul(pm.Template):
     def outputs(self):
         return (self.args[2],)
 
+class mean_var(pm.Template):
+    def define_graph(self, data, mean, var, axis=None):
+        indices = tuple([pm.index(0, s-1) for s in data.shape])
+        if axis is None:
+            axis = tuple(list(range(len(data.shape))))
+        r_idx = [indices[i] for i in axis]
+        o_idx = tuple([indices[i] for i in range(len(data.shape)) if i not in axis])
 
+        denom = 1
+        for i in axis:
+            denom *= data.shape[i]
+
+        mean[o_idx] = pm.sum(r_idx, data[indices]) / (denom)
+        var[o_idx] = pm.sum(r_idx, pm.square(data[indices] - mean[o_idx])) / (denom)
+
+    @property
+    def inputs(self):
+        return (self.args[0],)
+
+    @property
+    def outputs(self):
+        return (self.args[1], self.args[2])
 
 def lvmatmul(a, b, shape=None, name=None, **kwargs):
     i = pm.index(0, a.shape[0] - 1)
@@ -306,6 +327,7 @@ class gemm(pm.Template):
     @property
     def outputs(self):
         return (self.args[3],)
+
 
 class gemm_no_bias(pm.Template):
     def define_graph(self, a, b, y, alpha=1.0, beta=0.0, transA=False, transB=False, strict_shapes=False):

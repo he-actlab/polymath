@@ -20,6 +20,10 @@ class tensor_transpose(pm.Template):
     def outputs(self):
         return (self.args[1],)
 
+    @property
+    def perm(self):
+        return self.kwargs["perm"] or tuple(reversed(range(len(self.args[0].shape))))
+
 class tensor_flip(pm.Template):
     def define_graph(self, data, out, axis=None):
         temp = pm.flip(data, axis)

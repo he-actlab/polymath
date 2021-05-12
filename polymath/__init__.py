@@ -40,7 +40,7 @@ from polymath.srdfg.templates.gradient_defs import AUTODIFF_OPS
 
 from polymath.srdfg.templates.math import elem_mul, elem_sub, elem_div, reduce_sum, matmul, gemm, \
     elem_add, elem_greater, lvmatmul, rvmatmul, gemm_no_bias, reduce_min, reduce_max, elem_min, elem_max,\
-    elem_less, elem_not, elem_or, elem_and, elem_nonzero, reduce_prod, elem_equal
+    elem_less, elem_not, elem_or, elem_and, elem_nonzero, reduce_prod, elem_equal, mean_var
 
 from polymath.srdfg.templates.tensor_transformations import coarse_flatten, elem_gather, tensor_transpose, onnx_reshape, \
     onnx_squeeze, onnx_identity, onnx_resize, onnx_unsqueeze, tensor_pad, tensor_flip, tensor_reshape

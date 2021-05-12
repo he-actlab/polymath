@@ -106,18 +106,15 @@ def test_layer_autodiff(filename):
     graph = pm.from_onnx(filename)
     # train_graph = graph
     train_graph = pm.create_training_graph(graph)
-    layout_pass = pm.UpdateLayout('nchw', 'nhwc')
-    train_graph = layout_pass(train_graph)
+    for name, node in train_graph.nodes.items():
+        if not isinstance(node, (pm.placeholder, pm.write)):
+            print(f"{node.op_name}")
+    # train_graph = layout_pass(train_graph)
 
 def test_load_maskrcnn():
     # mrcnn_path = f"{ONNX_DNNS}/mask_rcnn_vision_backbone.onnx"
     mrcnn_path = f"{ONNX_DNNS}/resnet18_train.onnx"
     graph = pm.from_onnx(mrcnn_path)
-    for name, node in graph.nodes.items():
-        if node.op_name in ['conv', 'conv_bias']:
-            print(node.inputs[1].name)
-            print(f"{node.inputs[1].init_value is not None}")
-            print(type(node.inputs[1]))
 
 
 @pytest.mark.parametrize('shape',[

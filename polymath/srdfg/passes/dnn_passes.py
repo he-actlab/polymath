@@ -74,7 +74,6 @@ class UpdateLayout(Pass):
         self.layout_map[1] = 3
         self.layout_map[2] = 2
         self.layout_map[3] = 1
-        self.yin_yang_program = []
         self.updated_shapes = {}
         super(UpdateLayout, self).__init__()
 

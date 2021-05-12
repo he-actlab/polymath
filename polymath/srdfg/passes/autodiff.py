@@ -26,9 +26,7 @@ class AutoDiffGraph(Pass):
         super(AutoDiffGraph, self).__init__()
 
     def apply_pass(self, node:pm.Node, ctx):
-        if node.op_name in pm.ONNX_OP_NAMES:
-            if node.op_name not in AutoDiffGraph.GRAD_FUNCS:
-                raise RuntimeError(f"No definition for operation {node.op_name}")
+        if node.op_name in AutoDiffGraph.GRAD_FUNCS:
             self.tape.append(node)
         return node
 
@@ -64,8 +62,15 @@ class AutoDiffGraph(Pass):
             self.grad_map[input_node.name] = gradient_node
 
     def get_gradient(self, parent_node):
-        assert len(parent_node.outputs) == 1 and parent_node.outputs[0].name in self.grad_map
-        return self.grad_map[parent_node.outputs[0].name]
+        if len(parent_node.outputs) > 1:
+            grads = []
+            for o in parent_node.outputs:
+                assert o.name in self.grad_map
+                grads.append(self.grad_map[o.name])
+            return tuple(grads)
+        else:
+            assert len(parent_node.outputs) == 1 and parent_node.outputs[0].name in self.grad_map
+            return self.grad_map[parent_node.outputs[0].name]
 
 
     def elem_add_grad(self, node):
@@ -94,6 +99,9 @@ class AutoDiffGraph(Pass):
 
         self.update_grad_map(node.inputs[0], conv_inp_grad, node)
 
+    def mean_var_grad(self, node):
+        pass
+
     def batch_norm_grad(self, node):
         grad = self.get_gradient(node)
         bn_inp_grad = pm.output(name=f"{node.inputs[0].name}_grad", shape=node.inputs[0].shape)
@@ -107,7 +115,6 @@ class AutoDiffGraph(Pass):
         pm.batchnorm_grad(inp, scale, bias, mean, var, grad, bn_inp_grad, bn_scale_grad, bn_bias_grad,
                           self.optimizer_name, self.optimizer_kwargs)
         self.update_grad_map(node.inputs[0], bn_inp_grad, node)
-
 
     def relu_grad(self, node):
         grad = self.get_gradient(node)
@@ -178,6 +185,7 @@ class AutoDiffGraph(Pass):
     GRAD_FUNCS['conv_bias'] = conv_grad
     GRAD_FUNCS['relu'] = relu_grad
     GRAD_FUNCS['batch_norm'] = batch_norm_grad
+    GRAD_FUNCS['mean_var'] = mean_var_grad
     GRAD_FUNCS['max_pool'] = max_pool_grad
     GRAD_FUNCS['elem_tanh'] = elem_tanh_grad
     GRAD_FUNCS['avg_pool'] = average_pool_grad

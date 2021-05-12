@@ -311,6 +311,15 @@ class conv_bias(pm.Template):
     def outputs(self):
         return (self.args[3],)
 
+    @property
+    def stride(self):
+        return self.kwargs['stride']
+
+    @property
+    def pad(self):
+        return self.kwargs['pad']
+
+
 # TODO: Make flexible for different conv shapes
 class conv_transpose_bias(pm.Template):
     def define_graph(self, data, wgt, bias, out, stride=1, pad=0, out_pad=0):
@@ -447,6 +456,9 @@ class batch_flatten(pm.Template):
     @property
     def outputs(self):
         return (self.args[1],)
+
+
+
 
 class batch_norm(pm.Template):
     def define_graph(self, x, scale, b, mean, var, out, eps=1e-05, momentum=0.9, spatial=1):
@@ -793,6 +805,14 @@ class conv(pm.Template):
     @property
     def outputs(self):
         return (self.args[2],)
+
+    @property
+    def stride(self):
+        return self.kwargs['stride']
+
+    @property
+    def pad(self):
+        return self.kwargs['pad']
 
 
 class lrn(pm.Template):

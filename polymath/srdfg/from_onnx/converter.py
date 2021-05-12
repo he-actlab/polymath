@@ -11,7 +11,7 @@ ONNX_OP_NAMES = ['max_pool', 'lrn', 'conv', 'conv_bias', 'global_avg_pool', 'dro
                 'softmax', 'elem_cast', 'elem_sigmoid', 'batch_norm', 'batch_flatten', 'avg_pool2d',
                 'leaky_relu', 'relu', 'dense_sigmoid', 'dense', 'avg_pool', 'gemm', 'gemm_no_bias', 'elem_add', 'elem_sub',
                  'elem_mul', 'dropout', 'coarse_flatten', 'cross_entropy_loss', 'reduce_sum',
-                 'tensor_transpose', 'tensor_flip', 'tensor_reshape', 'tensor_pad']
+                 'tensor_transpose', 'tensor_flip', 'tensor_reshape', 'tensor_pad', 'mean_var']
 
 def update_onnx_graph_names(graph):
     names = {}
@@ -290,6 +290,7 @@ def convert_node(onnx_node, mgdfg, node_info, state_vars):
             kwargs = attributes
             kwargs['shape'] = tuple(list(o_shape))
             o_name = output_names[0]
+
             with mgdfg:
                 new_node = NODE_NAMES[onnx_node.op_type](*args, name=o_name, **kwargs)
 
@@ -314,7 +315,6 @@ def convert_node(onnx_node, mgdfg, node_info, state_vars):
         kwargs['out'] = node_info[o_name]
         with mgdfg:
             new_node = NODE_NAMES[onnx_node.op_type](*args, **kwargs)
-
     return mgdfg
 
 def _print_proto_fields(pb):

@@ -59,8 +59,7 @@ def test_convert_benchmarks(benchmark_name, feature_dict, data_func, input_keys,
     _ = ref_ocount_pass(ref_tabla_graph)
     ocount_pass = pm.CountOpTypes(skip=['temp', 'parameter', 'output', 'write', tabla_graph.name])
     _ = ocount_pass(tabla_graph)
-    pprint.pprint(ref_ocount_pass.op_types)
-    pprint.pprint(ocount_pass.op_types)
+
     if set(ocount_pass.op_types.keys()) != set(ref_ocount_pass.op_types.keys()):
         raise RuntimeError(f"Unequal amounts of operations for graphs:\n"
               f"\tReference: {ref_ocount_pass.op_types.keys()}\n"
@@ -402,15 +401,6 @@ def test_translate_softmax(x_shape, axis):
     np.testing.assert_allclose(np_res, res)
 
 
-# @pytest.mark.parametrize('layer_name, param_dict, data_func, input_keys, output_key',[
-#     ("conv", {'m': 54}, conv, {"y":"y:0", "x":"x:0", "w":"W:0"}, [("w", "W:0")]),
-# ])
-# def test_translate_layers(layer_name, param_dict, data_func, input_keys, output_key):
-#     filename = f"full_dnns/tiny_yolo.onnx"
-#     filepath = f"{BENCH_DIR}/{filename}"
-#     assert Path(filepath).exists()
-#     graph = pm.from_onnx(filepath)
-
 
 @pytest.mark.parametrize('x_shape',[
     ((3,2,4,3)),
@@ -520,6 +510,54 @@ def test_transpose(in_shape):
 
 
 
+
+
+@pytest.mark.parametrize('layer_name',[
+    "resnet18_train_batchnormalization"
+])
+def test_translater_onnx_layer(layer_name):
+    filepath = f"{BENCH_DIR}/dnn_layers/{layer_name}.onnx"
+    assert Path(filepath).exists()
+    graph = pm.from_onnx(filepath, use_filename=False)
+
+@pytest.mark.parametrize('shape, axis',[
+    ((16, 24, 32, 80), (0,2,3))
+])
+def test_mean_var(shape, axis):
+    data = np.random.rand(*shape)
+
+    if axis is not None:
+        out_shape = tuple([s for idx, s in enumerate(shape) if idx not in axis])
+    else:
+        out_shape = (1,)
+
+    #
+    # with pm.Node(name="mean_var_tex") as graph:
+    #
+    #     data_pm = pm.input(name="data", shape=shape)
+    #     mean = pm.output(name="mean", shape=out_shape)
+    #     var = pm.output(name="var", shape=out_shape)
+    #
+    #     pm.mean_var(data_pm, mean, var, axis=axis)
+    #
+    # mean_pm, var_pm = graph(["mean", "var"], {"data": data})
+    denom = data.shape[0]*data.shape[2]*data.shape[3]
+    mean_pm = np.zeros(shape=out_shape)
+    var_pm = np.zeros(shape=out_shape)
+    for c in range(data.shape[1]):
+        for n in range(data.shape[0]):
+            for h in range(data.shape[2]):
+                for w in range(data.shape[3]):
+                    mean_pm[c] += data[n, c, h, w]
+                    var_pm[c] += data[n, c, h, w]*data[n, c, h, w]
+        var_pm[c] = (var_pm[c] - (mean_pm[c] * mean_pm[c])/denom) / (denom)
+        mean_pm[c] = mean_pm[c] / (denom)
+
+    np_mean = np.mean(data, axis=axis)
+    np_var = np.var(data, axis=axis)
+
+    np.testing.assert_allclose(np_mean, mean_pm)
+    np.testing.assert_allclose(np_var, var_pm)
 
 
 

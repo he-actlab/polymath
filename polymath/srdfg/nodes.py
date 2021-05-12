@@ -23,6 +23,10 @@ class placeholder(Node):  # pylint: disable=C0103,R0903
         self.type_modifier = type_modifier or "declaration"
         kwargs["uid"] = uid if uid else uuid.uuid4().hex
         root_name = root_name or name
+
+        if 'layout' not in kwargs:
+            kwargs['layout'] = 'nchw'
+
         super(placeholder, self).__init__(name=name, root_name=root_name, type_modifier=self.type_modifier, default=default, **kwargs)
         assert isinstance(self.shape, tuple)
         self._domain = Domain(self.shape)

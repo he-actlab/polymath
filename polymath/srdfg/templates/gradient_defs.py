@@ -30,6 +30,7 @@ class batchnorm_grad(pm.Template):
         x_grad[indices] = coeff[indices[1]] * (grad_y_offset[indices] - grad_sub[indices])
         scale_grad[indices[1]] = rsqrt_var[indices[1]] * offset_sum[indices[1]]
         b_grad[indices[1]] = sum_grad[indices[1]]
+
         OPTIMIZERS[optimizer](scale, scale_grad, **optimizer_kwargs)
         OPTIMIZERS[optimizer](b, b_grad, **optimizer_kwargs)
 

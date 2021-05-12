@@ -1,7 +1,7 @@
 import numpy as np
 from pathlib import Path
-LUT_PATH = f"{Path(f'{__file__}').parent}/lookup_tables"
-SIGMOID_PATH = f"{LUT_PATH}/sigmoid.csv"
+LUT_PATH = f"{Path(f'{__file__}').parent}"
+SIGMOID_PATH = f"{LUT_PATH}/sigmoid_lookup.csv"
 
 def get_sigmoid_lut():
     lvals = np.loadtxt(SIGMOID_PATH, delimiter=",")

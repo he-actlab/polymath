@@ -273,6 +273,7 @@ def get_conv_transpose(x, w, bias=None, dilations=None, group=None, kernel_shape
              shape=None,
              name=None,
              out=None):
+
     if not out:
         out = pm.output(shape=shape, name=name)
 
@@ -349,9 +350,12 @@ def get_roi_align(x, rois, batch_indices, mode='avg',
                   sampling_ratio=sampling_ratio, spatial_scale=spatial_scale)
     return out
 
-def get_batch_norm(x, s, b, mean, var, spatial=None, momentum=None,  epsilon=None, name=None, shape=None, out=None):
+def get_batch_norm(x, s, b, running_mean, running_var, spatial=None, momentum=None,  epsilon=None, name=None, shape=None, out=None):
     if not out:
         out = pm.output(name=name, shape=shape)
+    mean = pm.output(name=f"{x.name}_mean", shape=running_mean.shape)
+    var = pm.output(name=f"{x.name}_var", shape=running_var.shape)
+    pm.mean_var(x, mean, var, axis=(0,2,3))
     pm.batch_norm(x, s, b, mean, var, out, epsilon, momentum)
     return out
 

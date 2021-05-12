@@ -1517,11 +1517,13 @@ def unwound_fft(x_shape, coarse=False):
         p_imag = M_imag[n1, n2] * x[n2]
         # M_real_dot = (pm.sum([n2], M_real[n1, n2] * x[n2])**2).set_name("M_real_dot")
         # M_imag_dot = (pm.sum([n2], M_imag[n1, n2] * x[n2])**2).set_name("M_imag_dot")
+        # M_imag_dot = pm.sum([n2], pm.square(p_imag[n1, n2]))
+        # M_real_dot = pm.sum([n2], pm.square(p_real[n1, n2]))
 
-        # M_real_dot = pm.sum([n2], p_real[n1, n2] * p_real[n1, n2])
-        # M_imag_dot = pm.sum([n2], p_imag[n1, n2] * p_imag[n1, n2])
-        M_imag_dot = pm.sum([n2], pm.square(p_imag[n1, n2]))
-        M_real_dot = pm.sum([n2], pm.square(p_real[n1, n2]))
+        M_real_dot = pm.sum([n2], p_real[n1, n2] * p_real[n1, n2])
+        M_imag_dot = pm.sum([n2], p_imag[n1, n2] * p_imag[n1, n2])
+
+
         X[n1] = pm.sqrt(M_real_dot[n1] + M_imag_dot[n1])
         # X[n1] = (M_real_dot[n1] + M_imag_dot[n1])
 
