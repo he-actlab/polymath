@@ -45,7 +45,7 @@ class UpdateBatchSize(Pass):
 
 @register_pass
 class RenameMultiDimOps(Pass):
-    MULTI_DIM_OPS = ['sgd', 'elem_tanh', 'elem_tanh_grad', 'relu']
+    MULTI_DIM_OPS = ['sgd', 'elem_tanh', 'elem_tanh_grad', 'relu', 'relu_grad']
     def __init__(self):
         super(RenameMultiDimOps, self).__init__()
 
@@ -55,7 +55,6 @@ class RenameMultiDimOps(Pass):
         return node
 
     def rename_op(self, node):
-        # assert len(node.inputs) == 2 and node.inputs[0].shape == node.inputs[1].shape
         if node.op_name in ["elem_tanh", "elem_tanh_grad", "relu", "relu_grad"] and len(node.inputs[0].shape) == 4:
             op_name = node._op_name
         else:
