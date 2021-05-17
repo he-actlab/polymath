@@ -216,6 +216,53 @@ def create_lenet(optimize_model, training_mode, convert_data_format, to_polymath
     convert_torch_model(input_var, model, "lenet", optimize_model, training_mode, to_polymath, convert_data_format=convert_data_format)
 
 
+def create_lenet_bn(optimize_model, training_mode, convert_data_format, to_polymath):
+    class LeNetBN(nn.Module):
+        def __init__(self):
+            super(LeNetBN, self).__init__()
+
+            self.conv1 = nn.Conv2d(in_channels=1, out_channels=6,
+                                   kernel_size=5, stride=1, padding=0, bias=False)
+            self.bn1 = nn.BatchNorm2d(6)
+            self.conv2 = nn.Conv2d(in_channels=6, out_channels=16,
+                                   kernel_size=5, stride=1, padding=0, bias=False)
+            self.bn2 = nn.BatchNorm2d(16)
+
+            self.conv3 = nn.Conv2d(in_channels=16, out_channels=120,
+                                   kernel_size=5, stride=1, padding=0, bias=False)
+            self.bn3 = nn.BatchNorm2d(120)
+            self.linear1 = nn.Linear(120, 84)
+            self.linear2 = nn.Linear(84, 10)
+            self.relu = nn.ReLU()
+            self.max_pool = nn.MaxPool2d(kernel_size=2, stride=2)
+
+        def forward(self, x):
+            x = self.conv1(x)
+            x = self.bn1(x)
+            x = self.relu(x)
+            x = self.max_pool(x)
+
+            x = self.conv2(x)
+            x = self.bn2(x)
+            x = self.relu(x)
+            x = self.max_pool(x)
+
+            x = self.conv3(x)
+            x = self.bn3(x)
+            x = self.relu(x)
+
+            x = torch.flatten(x, 1)
+            x = self.linear1(x)
+            x = self.relu(x)
+            x = self.linear2(x)
+            return x
+    model = LeNetBN()
+    input_var = torch.randn(3, 1, 32, 32)
+    output = model(input_var)
+    model.eval()
+    convert_torch_model(input_var, model, "lenet_bn", optimize_model, training_mode, to_polymath, convert_data_format=convert_data_format)
+
+
 def create_resnet18(optimize_model, training_mode, convert_data_format, to_polymath, batch_size=1):
     model = models.resnet18(pretrained=not training_mode)
     input_var = torch.randn(batch_size, 3, 224, 224)
@@ -781,66 +828,71 @@ def split_mrcnn(model_name, split_part):
 
 
 def main():
-    benchmark = "mask_rcnn_zoo_original_updated_simplified"
-    training_mode = False
-    data_format_convert = False
-    to_polymath = False
-    optimize_model = True
-    batch_size = 1
-    split_part = "backbone"
-    # split_mrcnn(benchmark, split_part)
-    create_maskrcnn_part(split_part, optimize_model, training_mode, data_format_convert, to_polymath)
+
+
+    create_lenet_bn(True, True, False, False)
+    # benchmark = "mask_rcnn_zoo_original_updated_simplified"
+    # training_mode = False
+    # data_format_convert = False
+    # to_polymath = False
+    # optimize_model = True
+    # batch_size = 1
+    # split_part = "backbone"
+    # # split_mrcnn(benchmark, split_part)
+    # create_maskrcnn_part(split_part, optimize_model, training_mode, data_format_convert, to_polymath)
 
 if __name__ == "__main__":
-    # main()
-    argparser = argparse.ArgumentParser(description='ONNX Benchmark Generator')
-    argparser.add_argument('-b', '--benchmark', required=True,
-                           help='Name of the benchmark to create. One of "resnet18", "lenet')
-
-    argparser.add_argument('-o', '--optimize_model', type=str2bool, nargs='?', default=True,
-                           const=True, help='Optimize the model')
-
-    argparser.add_argument('-t', '--training_mode', type=str2bool, nargs='?', default=False,
-                           const=True, help='Whether or not the model is in training mode')
-
-    argparser.add_argument('-bs', '--batch_size', type=int, default=1, help='The batch size for the model')
-
-    argparser.add_argument('-df', '--data_format_convert', type=str2bool, nargs='?', default=False,
-                           const=True, help='Whether or not the model is in training mode')
-
-
-    argparser.add_argument('-pm', '--to_polymath', type=str2bool, nargs='?', default=False,
-                           const=True, help='Whether or not the model should be converted to PolyMath')
-    args = argparser.parse_args()
-    if args.benchmark == "lenet":
-        create_lenet(args.optimize_model, args.training_mode, args.data_format_convert, args.to_polymath)
-    elif args.benchmark == "resnet18":
-        create_resnet18(args.optimize_model, args.training_mode, args.data_format_convert, args.to_polymath,
-                        batch_size=args.batch_size)
-    elif args.benchmark == "resnet50":
-        create_resnet50(args.optimize_model, args.training_mode, args.data_format_convert, args.to_polymath,
-                        batch_size=args.batch_size)
-    elif args.benchmark == "vgg16":
-        create_vgg16(args.optimize_model, args.training_mode, args.data_format_convert, args.to_polymath,
-                        batch_size=args.batch_size)
-    elif args.benchmark == "efficientnet":
-        create_efficientnet(args.optimize_model, args.training_mode, args.data_format_convert, args.to_polymath,
-                        batch_size=args.batch_size)
-    elif args.benchmark == "alexnet":
-        create_alexnet(args.optimize_model, args.training_mode, args.data_format_convert, args.to_polymath,
-                        batch_size=args.batch_size)
-    elif args.benchmark == "inception":
-        create_inception(args.optimize_model, args.training_mode, args.data_format_convert, args.to_polymath,
-                        batch_size=args.batch_size)
-    elif args.benchmark == "mobilenet":
-        create_mobilenet(args.optimize_model, args.training_mode, args.data_format_convert, args.to_polymath,
-                        batch_size=args.batch_size)
-    elif args.benchmark == "maskrcnn":
-        create_maskrcnn(args.optimize_model, args.training_mode, args.data_format_convert, args.to_polymath,
-                        batch_size=args.batch_size)
-    elif args.benchmark == "maskrcnn_simplify":
-        simplify_mrcnn_zoo(batch_size=args.batch_size)
-    else:
-        raise RuntimeError(f"Invalid benchmark supplied. Options are one of:\n"
-                           f"\"lenet\", \"resnet18\".")
+    main()
+    # argparser = argparse.ArgumentParser(description='ONNX Benchmark Generator')
+    # argparser.add_argument('-b', '--benchmark', required=True,
+    #                        help='Name of the benchmark to create. One of "resnet18", "lenet')
+    #
+    # argparser.add_argument('-o', '--optimize_model', type=str2bool, nargs='?', default=True,
+    #                        const=True, help='Optimize the model')
+    #
+    # argparser.add_argument('-t', '--training_mode', type=str2bool, nargs='?', default=False,
+    #                        const=True, help='Whether or not the model is in training mode')
+    #
+    # argparser.add_argument('-bs', '--batch_size', type=int, default=1, help='The batch size for the model')
+    #
+    # argparser.add_argument('-df', '--data_format_convert', type=str2bool, nargs='?', default=False,
+    #                        const=True, help='Whether or not the model is in training mode')
+    #
+    #
+    # argparser.add_argument('-pm', '--to_polymath', type=str2bool, nargs='?', default=False,
+    #                        const=True, help='Whether or not the model should be converted to PolyMath')
+    # args = argparser.parse_args()
+    # if args.benchmark == "lenet":
+    #     create_lenet(args.optimize_model, args.training_mode, args.data_format_convert, args.to_polymath)
+    # elif args.benchmark == "lenetbn":
+    #     create_lenet_bn(args.optimize_model, args.training_mode, args.data_format_convert, args.to_polymath)
+    # elif args.benchmark == "resnet18":
+    #     create_resnet18(args.optimize_model, args.training_mode, args.data_format_convert, args.to_polymath,
+    #                     batch_size=args.batch_size)
+    # elif args.benchmark == "resnet50":
+    #     create_resnet50(args.optimize_model, args.training_mode, args.data_format_convert, args.to_polymath,
+    #                     batch_size=args.batch_size)
+    # elif args.benchmark == "vgg16":
+    #     create_vgg16(args.optimize_model, args.training_mode, args.data_format_convert, args.to_polymath,
+    #                     batch_size=args.batch_size)
+    # elif args.benchmark == "efficientnet":
+    #     create_efficientnet(args.optimize_model, args.training_mode, args.data_format_convert, args.to_polymath,
+    #                     batch_size=args.batch_size)
+    # elif args.benchmark == "alexnet":
+    #     create_alexnet(args.optimize_model, args.training_mode, args.data_format_convert, args.to_polymath,
+    #                     batch_size=args.batch_size)
+    # elif args.benchmark == "inception":
+    #     create_inception(args.optimize_model, args.training_mode, args.data_format_convert, args.to_polymath,
+    #                     batch_size=args.batch_size)
+    # elif args.benchmark == "mobilenet":
+    #     create_mobilenet(args.optimize_model, args.training_mode, args.data_format_convert, args.to_polymath,
+    #                     batch_size=args.batch_size)
+    # elif args.benchmark == "maskrcnn":
+    #     create_maskrcnn(args.optimize_model, args.training_mode, args.data_format_convert, args.to_polymath,
+    #                     batch_size=args.batch_size)
+    # elif args.benchmark == "maskrcnn_simplify":
+    #     simplify_mrcnn_zoo(batch_size=args.batch_size)
+    # else:
+    #     raise RuntimeError(f"Invalid benchmark supplied. Options are one of:\n"
+    #                        f"\"lenet\", \"resnet18\".")
 #
