@@ -134,7 +134,7 @@ class elem_add_grad(pm.Template):
 
 class relu_grad(pm.Template):
     def define_graph(self, x, grad, x_grad):
-
+        assert x.shape == grad.shape and grad.shape == x_grad.shape
         x_idx, grad_idx, x_grad_idx = _get_elem_indices(x, grad, x_grad)
         x_grad[x_grad_idx] = grad[grad_idx] * (x[x_idx] >= 0)
 

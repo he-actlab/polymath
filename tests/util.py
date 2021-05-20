@@ -1504,7 +1504,7 @@ def unwound_fft(x_shape, coarse=False):
     # mat_c = np.cos(mat_r)
     # mat_s = -np.sin(mat_r)
     # Source: https://matthew-brett.github.io/teaching/fourier_no_ei.html
-    with pm.Node(name="fft") as graph:
+    with pm.Node(name=f"fft_{x_shape[0]}") as graph:
         N = pm.parameter("N")
         x = pm.input("x", shape=(N,))
         n1 = pm.index(0, N-1, name="n1")
@@ -1515,17 +1515,11 @@ def unwound_fft(x_shape, coarse=False):
         M_imag = pm.state("M_imag", shape=(N, N))
         p_real = M_real[n1, n2] * x[n2]
         p_imag = M_imag[n1, n2] * x[n2]
-        # M_real_dot = (pm.sum([n2], M_real[n1, n2] * x[n2])**2).set_name("M_real_dot")
-        # M_imag_dot = (pm.sum([n2], M_imag[n1, n2] * x[n2])**2).set_name("M_imag_dot")
-        # M_imag_dot = pm.sum([n2], pm.square(p_imag[n1, n2]))
-        # M_real_dot = pm.sum([n2], pm.square(p_real[n1, n2]))
 
-        M_real_dot = pm.sum([n2], p_real[n1, n2] * p_real[n1, n2])
-        M_imag_dot = pm.sum([n2], p_imag[n1, n2] * p_imag[n1, n2])
-
+        M_imag_dot = pm.sum([n2], pm.square(p_imag[n1, n2]))
+        M_real_dot = pm.sum([n2], pm.square(p_real[n1, n2]))
 
         X[n1] = pm.sqrt(M_real_dot[n1] + M_imag_dot[n1])
-        # X[n1] = (M_real_dot[n1] + M_imag_dot[n1])
 
     if coarse:
         in_info, keys, out_info = fft_datagen(x_shape)

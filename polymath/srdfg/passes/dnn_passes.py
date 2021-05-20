@@ -35,13 +35,12 @@ class UpdateBatchSize(Pass):
         super(UpdateBatchSize, self).__init__()
 
     def apply_pass(self, node, ctx):
-        if not isinstance(node, NON_DNN_NODE_OPS) and node.op_name != self.graph_name:
-            assert node.op_name in BATCH_FUNCS, f"{node.op_name}"
+        if not isinstance(node, NON_DNN_NODE_OPS) and node.op_name != self.graph_name and node.name != self.graph_name:
+            assert node.op_name in BATCH_FUNCS, f"{node.op_name}, {self.graph_name}, {node.name}"
             node, shape_list = BATCH_FUNCS[node.op_name](node, self.batch_size)
             self.shape_tracker[f"{node.op_name}{self.op_counter[node.op_name]}"] = shape_list
             self.op_counter[node.op_name] += 1
         return node
-
 
 @register_pass
 class RenameMultiDimOps(Pass):
@@ -211,6 +210,12 @@ def gemm_batch(node, batch_size):
     out.shape = tuple([batch_size, out.shape[1]])
     return node, [act.shape, out.shape]
 
+def mean_var_batch(node, batch_size):
+    act = node.inputs[0]
+    act.shape = tuple([batch_size, act.shape[1], act.shape[2], act.shape[3]])
+    return node, [act.shape]
+
+
 BATCH_FUNCS['conv_bias'] = conv_bias_batch
 BATCH_FUNCS['conv'] = conv_batch
 BATCH_FUNCS['relu'] = relu_batch
@@ -222,4 +227,5 @@ BATCH_FUNCS['max_pool'] = max_pool_batch
 BATCH_FUNCS['avg_pool'] = avg_pool_batch
 BATCH_FUNCS['batch_norm'] = batch_norm_batch
 BATCH_FUNCS['gemm'] = gemm_batch
+BATCH_FUNCS['mean_var'] = mean_var_batch
 

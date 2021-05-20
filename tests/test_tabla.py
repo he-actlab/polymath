@@ -272,7 +272,7 @@ def test_reco_state_write(m_, n_, k_):
     tabla_ir, tabla_graph = pm.generate_tabla(graph, shape_dict, tabla_path)
 
 @pytest.mark.parametrize('m', [
-    (8,),
+    (128,),
 ])
 def test_fft(m):
 

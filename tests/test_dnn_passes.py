@@ -103,13 +103,31 @@ def test_conv2d_transpose_shapes(inp_shape, wgt_shape, stride, pad):
     f"{ONNX_DNNS}/resnet18_train.onnx",
 ])
 def test_layer_autodiff(filename):
-    graph = pm.from_onnx(filename)
-    # train_graph = graph
-    train_graph = pm.create_training_graph(graph)
-    for name, node in train_graph.nodes.items():
-        if not isinstance(node, (pm.placeholder, pm.write)):
-            print(f"{node.op_name}")
-    # train_graph = layout_pass(train_graph)
+    batch_size = 4
+    train_graph = pm.from_onnx(filename)
+    batch_pass = pm.UpdateBatchSize(batch_size, train_graph.name)
+    train_graph = batch_pass(train_graph)
+    target_layer = "batch_norm"
+    # for name, node in train_graph.nodes.items():
+    #     if isinstance(node, pm.Template) and node.op_name == target_layer:
+    #         for i in node.inputs:
+    #             print(f"Input {i.name} - {i.shape}")
+    #         print()
+    #         for i in node.outputs:
+    #             print(f"Output {i.name} - {i.shape}")
+    #         break
+    #
+    # print(f"\nAfter\n")
+    # for name, node in train_graph.nodes.items():
+    #     if isinstance(node, pm.Template) and node.op_name == target_layer:
+    #         for i in node.inputs:
+    #             print(f"Input {i.name} - {i.shape}")
+    #         print()
+    #         for i in node.outputs:
+    #             print(f"Output {i.name} - {i.shape}")
+    #         break
+    train_graph = pm.create_training_graph(train_graph)
+
 
 def test_load_maskrcnn():
     # mrcnn_path = f"{ONNX_DNNS}/mask_rcnn_vision_backbone.onnx"
