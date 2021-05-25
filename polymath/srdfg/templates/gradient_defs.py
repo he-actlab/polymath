@@ -31,8 +31,9 @@ class batchnorm_grad(pm.Template):
         scale_grad[indices[1]] = rsqrt_var[indices[1]] * offset_sum[indices[1]]
         b_grad[indices[1]] = sum_grad[indices[1]]
 
-        OPTIMIZERS[optimizer](scale, scale_grad, **optimizer_kwargs)
-        OPTIMIZERS[optimizer](b, b_grad, **optimizer_kwargs)
+        with self.graph:
+            OPTIMIZERS[optimizer](scale, scale_grad, **optimizer_kwargs)
+            OPTIMIZERS[optimizer](b, b_grad, **optimizer_kwargs)
 
     @property
     def inputs(self):
