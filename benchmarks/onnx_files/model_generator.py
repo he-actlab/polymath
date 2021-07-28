@@ -185,11 +185,11 @@ def create_lenet(optimize_model, training_mode, convert_data_format, to_polymath
             super(LeNet, self).__init__()
 
             self.conv1 = nn.Conv2d(in_channels=1, out_channels=6,
-                                   kernel_size=5, stride=1, padding=0, bias=False)
+                                   kernel_size=5, stride=1, padding=0, bias=True)
             self.conv2 = nn.Conv2d(in_channels=6, out_channels=16,
-                                   kernel_size=5, stride=1, padding=0, bias=False)
+                                   kernel_size=5, stride=1, padding=0, bias=True)
             self.conv3 = nn.Conv2d(in_channels=16, out_channels=120,
-                                   kernel_size=5, stride=1, padding=0, bias=False)
+                                   kernel_size=5, stride=1, padding=0, bias=True)
             self.linear1 = nn.Linear(120, 84)
             self.linear2 = nn.Linear(84, 10)
             self.tanh = nn.Tanh()
@@ -216,20 +216,39 @@ def create_lenet(optimize_model, training_mode, convert_data_format, to_polymath
     convert_torch_model(input_var, model, "lenet", optimize_model, training_mode, to_polymath, convert_data_format=convert_data_format)
 
 
+def create_custom_conv(optimize_model, training_mode, convert_data_format, to_polymath, input_shape, oc, ksize, stride, pad):
+    n, ic, h, w = input_shape
+    class CustomConv(nn.Module):
+        def __init__(self):
+            super(CustomConv, self).__init__()
+
+            self.conv = nn.Conv2d(in_channels=ic, out_channels=oc,
+                                   kernel_size=ksize, stride=stride, padding=pad, bias=True)
+
+        def forward(self, x):
+            x = self.conv(x)
+            return x
+    model = CustomConv()
+    input_var = torch.randn(n, ic, h, w)
+    output = model(input_var)
+    model.eval()
+    convert_torch_model(input_var, model, "custom_conv", optimize_model, training_mode, to_polymath, convert_data_format=convert_data_format)
+
+
 def create_lenet_bn(optimize_model, training_mode, convert_data_format, to_polymath):
     class LeNetBN(nn.Module):
         def __init__(self):
             super(LeNetBN, self).__init__()
 
             self.conv1 = nn.Conv2d(in_channels=1, out_channels=6,
-                                   kernel_size=5, stride=1, padding=0, bias=False)
+                                   kernel_size=5, stride=1, padding=0, bias=True)
             self.bn1 = nn.BatchNorm2d(6)
             self.conv2 = nn.Conv2d(in_channels=6, out_channels=16,
-                                   kernel_size=5, stride=1, padding=0, bias=False)
+                                   kernel_size=5, stride=1, padding=0, bias=True)
             self.bn2 = nn.BatchNorm2d(16)
 
             self.conv3 = nn.Conv2d(in_channels=16, out_channels=120,
-                                   kernel_size=5, stride=1, padding=0, bias=False)
+                                   kernel_size=5, stride=1, padding=0, bias=True)
             self.bn3 = nn.BatchNorm2d(120)
             self.linear1 = nn.Linear(120, 84)
             self.linear2 = nn.Linear(84, 10)
@@ -828,9 +847,26 @@ def split_mrcnn(model_name, split_part):
 
 
 def main():
-
-
-    create_lenet_bn(True, True, False, False)
+    n = 1
+    ic = 4
+    oc = 8
+    h = 33
+    w = 33
+    ksize = 3
+    stride = 2
+    pad = 0
+    assert (w + 2 * pad - ksize) % stride == 0, 'width does not work'
+    input_shape = (n, ic, h, w)
+    input_var = torch.randn(*input_shape)
+    l = torch.nn.Conv2d(ic, oc, ksize, stride=stride, padding=pad)
+    out = l(input_var)
+    # optimize_model, training_mode, convert_data_format, to_polymath, input_shape, oc, ksize, stride, pad
+    create_custom_conv(True, True, False, False, input_shape, oc, ksize, stride, pad)
+    # print(out.shape)
+    # output = F.conv2d(input_var)
+    # oc, ksize, stride, pad
+    # create_lenet_bn(True, True, False, False)
+    # create_lenet(True, True, False, False)
     # benchmark = "mask_rcnn_zoo_original_updated_simplified"
     # training_mode = False
     # data_format_convert = False

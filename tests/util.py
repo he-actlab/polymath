@@ -1479,23 +1479,34 @@ def np_lrn(x=None, alpha=None, beta=None, bias=None, nsize=None):
     y = x / ((bias + (alpha / nsize) * square_sum) ** beta)
     return y
 
-def fft_datagen(x_shape):
+def fft_datagen(x_shape, lowered=False):
     inp_info = {}
     out_info = {}
 
-    # inp_info['x'] = np.random.randint(0, 10, x_shape).astype(np.float32)
     inp_info['x'] = np.random.randint(0, 10, x_shape).astype(np.float32)
-    # inp_info['x2'] = inp_info['x1'].copy()
-    # inp_info['X'] = np.zeros(x_shape).astype(np.float32)
-
-    # out_info['X'] = np.abs(np.fft.fft(inp_info['x']))
     out_info['X'] = np.abs(np.fft.fft(inp_info['x']))
     n = np.arange(0, x_shape[0])
     M = np.exp(-2j * np.pi * (n * n.reshape(-1, 1)/x_shape[0]))
     inp_info['M_real'] = M.real
     inp_info['M_imag'] = M.imag
+    if lowered:
+        all_keys = []
+        for i in range(x_shape[0]):
+            o_key = f"X/X({i},)"
+            all_keys.append(o_key)
+            inp_info[f"x/x({i},)"] = inp_info["x"][i]
+            out_info[o_key] = out_info["X"][i]
+            for j in range(x_shape[0]):
+                inp_info[f'M_real/M_real({i}, {j})'] = inp_info["M_real"][i][j]
+                inp_info[f'M_imag/M_imag({i}, {j})'] = inp_info["M_imag"][i][j]
+        out_info.pop('X')
+        inp_info.pop('M_real')
+        inp_info.pop('M_imag')
+        inp_info.pop('x')
+    else:
+        all_keys = ['X']
 
-    return inp_info, ['X'], out_info
+    return inp_info, all_keys, out_info
 
 
 def unwound_fft(x_shape, coarse=False):
@@ -1526,10 +1537,10 @@ def unwound_fft(x_shape, coarse=False):
         return graph, in_info, out_info, keys
     else:
 
-        shape_dict = {"N": x_shape[0], "ic": x_shape[1], "ih": x_shape[2], "iw": x_shape[3]}
+        shape_dict = {"N": x_shape[0]}
         shape_val_pass = pm.NormalizeGraph(shape_dict)
         new_graph = shape_val_pass(graph)
-        in_info, keys, out_info = global_avg_pool_datagen(x_shape, lowered=True)
+        in_info, keys, out_info = fft_datagen(x_shape, lowered=True)
         return new_graph, in_info, out_info, keys
     # return pm_res, np_res
 

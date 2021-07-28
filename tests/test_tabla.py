@@ -272,23 +272,27 @@ def test_reco_state_write(m_, n_, k_):
     tabla_ir, tabla_graph = pm.generate_tabla(graph, shape_dict, tabla_path)
 
 @pytest.mark.parametrize('m', [
-    (128,),
+    (4,),
+    # (8,),
 ])
 def test_fft(m):
 
-    graph, input_info, out_info, keys = unwound_fft(m, coarse=True)
+    graph, tinput_info, tout_info, keys = unwound_fft(m, coarse=True)
+    lgraph, input_info, out_info, keys = unwound_fft(m, coarse=False)
+    input_info = {k: np.int16(v) for k,v in input_info.items()}
     shape_dict = {"N": m[0]}
-    out_real = input_info['x'].dot(input_info['M_real'])**2
-    out_imag = input_info['x'].dot(input_info['M_imag'])**2
-    out_t = np.sqrt(out_imag + out_real)
-
-    coarse_eval = graph(keys, input_info)
-
-    # np.testing.assert_allclose(out_t, out_info['X'])
-    # np.testing.assert_allclose(coarse_eval[0], out_info['X'])
+    # out_real = input_info['x'].dot(input_info['M_real'])**2
+    # out_imag = input_info['x'].dot(input_info['M_imag'])**2
+    # out_t = np.sqrt(out_imag + out_real)
     tabla_path = f"{OUTPATH}/{graph.name}_tabla.json"
-    # lowered = set_shape_and_lower(graph, shape_dict)
-    tabla_ir, tabla_graph = pm.generate_tabla(graph, shape_dict, tabla_path)
+    tabla_ir, tabla_graph = pm.generate_tabla(graph, shape_dict, tabla_path,
+                                              context_dict=input_info,
+                                              add_kwargs=True,
+                                              debug=False)
+    for n in tabla_ir:
+        if "computed" in n:
+            print(n)
+
 
 
 

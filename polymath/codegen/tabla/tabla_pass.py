@@ -106,7 +106,6 @@ class TablaPass(pm.Pass):
             self.norm_context = {node.nodes[n]: v for n, v in self.test_values.items()}
             return node
         key = self.node_key(node)
-
         if key not in self.used and not isinstance(node, (pm.output, pm.state, pm.temp, pm.write)):
             if node.graph and node.name in node.graph.nodes:
                 for a in node.args:
