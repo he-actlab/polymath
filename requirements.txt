@@ -12,6 +12,6 @@ protobuf
 indexed
 dataclasses
 tqdm
-pygraphviz
 jsonschema
 networkx
+torch
