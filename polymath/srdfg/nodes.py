@@ -141,16 +141,20 @@ class output(placeholder):
 
     def __getitem__(self, key):
         key = _flatten_iterable(key)
+        # if self.name == "sqrtz":
         if isinstance(key, (tuple, list, np.ndarray)) and len(key) == 0:
             return self
         elif self.is_shape_finalized() and all([not isinstance(i, Node) for i in key]) and len(self.nodes) > 0:
+
         # elif self.is_shape_finalized() and all([not isinstance(i, Node) for i in key]):
             idx = np.ravel_multi_index(key, dims=self.shape, order='C')
             ret = self.current_value().nodes.item_by_index(idx)
             return ret
         else:
+
             idx_name = str(tuple([i.name if isinstance(i, Node) else i for i in key])).replace("'","")
             name = f"{self.current_value().name}{idx_name}"
+
             if name in self.graph.nodes:
                 return self.graph.nodes[name]
             else:
@@ -422,14 +426,23 @@ class write(Node):
     def domain(self):
         return self.kwargs["domain"]
 
+    def is_scalar_write(self, dst_key):
+        return len(dst_key) == 1 and dst_key[0].shape == (1,)
+
     def _evaluate(self, src, dst_key, dst, context=None, **kwargs):
         if not self.is_shape_finalized():
             self._shape = self.args[2].shape
         # TODO: This should not be default shapes, fix
+
         if self.shape in DEFAULT_SHAPES:
             value = src
-        elif not is_iterable(src):
+        elif not is_iterable(src) and not self.is_scalar_write(dst_key):
             value = np.full(self.shape, src)
+        elif not is_iterable(src) and self.is_scalar_write(dst_key):
+            dst_idx = self.shape_domain.compute_shape_domain(indices=dst_key)[0]
+            value = dst.copy().astype(src.dtype)
+            print(f"{self.name}: {value}")
+            value[dst_idx] = src
         else:
             dst_indices = self.shape_domain.compute_shape_domain(indices=dst_key)
             key_indices = self.domain.compute_pairs()
@@ -441,11 +454,13 @@ class write(Node):
             # TODO: Fix logic here to check for validity
             if len(src_indices[0]) != len(src.shape):
                 src = src.squeeze()
-
+            # print(f"{self.name}, {src}, {dst.shape}, {dst_indices}, {src_indices}\n"
+            #       f"{self.source.name}, {self.args[0].name}\n")
             for i in dst_indices:
                 if i in key_indices:
                     idx = key_indices.index(i)
-                    value[i] = src[src_indices[idx]]
+                    src_idx = src_indices[idx]
+                    value[i] = src[src_idx]
                 else:
                     value[i] = dst[i]
 

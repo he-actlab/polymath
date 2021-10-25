@@ -845,7 +845,6 @@ class var_index(Node):  # pylint: disable=C0103,W0223
             out_shape = self.domain.shape_from_indices(indices)
             indices = self.domain.compute_pairs()
             single = False
-
         if isinstance(var, (Integral, Real, str)):
             var = np.asarray([var])
         elif not isinstance(var, (np.ndarray, list)):
@@ -877,9 +876,9 @@ class var_index(Node):  # pylint: disable=C0103,W0223
         indices = list(map(lambda x: x.tolist() if isinstance(x, np.ndarray) else x, indices))
 
         res = var[indices] if single else np.asarray([var[idx] for idx in indices]).reshape(out_shape)
-
+        if out_shape == (1,) and len(indices) == 1:
+            res = res[0]
         self.domain.set_computed(out_shape, indices)
-
 
         return res
 

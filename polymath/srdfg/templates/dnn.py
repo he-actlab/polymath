@@ -459,7 +459,6 @@ class batch_flatten(pm.Template):
 
 
 
-
 class batch_norm(pm.Template):
     def define_graph(self, x, scale, b, mean, var, out, eps=1e-05, momentum=0.9, spatial=1):
         indices = _get_single_node_indices(out, shape=out.shape)

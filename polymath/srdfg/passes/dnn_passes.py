@@ -73,6 +73,7 @@ class UpdateLayout(Pass):
         self.layout_map[2] = 2
         self.layout_map[3] = 1
         self.updated_shapes = {}
+
         super(UpdateLayout, self).__init__()
 
     def apply_pass(self, node, ctx):
