@@ -11,7 +11,9 @@ TABLA_OP_MAP = {"add": "+",
                 "mul": "*",
                 "sub": "-",
                 "gt": ">",
+                "lt": "<",
                 "sigmoid": "sigmoid",
+                "sqrt": "sqrt"
                 }
 
 @pm.register_pass
@@ -36,6 +38,7 @@ class TablaPass(pm.Pass):
 
         if node.graph is None:
             return node
+
         n_key = self.node_key(node)
         if isinstance(node, pm.parameter):
             self.add_constants(node)
@@ -49,7 +52,8 @@ class TablaPass(pm.Pass):
                 self.temp_map[node.args[2].name] = node.args[0]
 
             if a0_key not in self.dfg:
-                assert not isinstance(node.args[0], pm.Node), f"Error, argument not found for write:{node.name} - {a0_key}"
+                assert not isinstance(node.args[0], pm.Node), f"Error, argument not found for write:{node.name} - {a0_key}\n" \
+                                                              f"Keys: {list(self.dfg.keys())}"
                 self.set_dfg_node(node.args[0], self.create_node(str(node.args[0]), dtype="constant", parents=[0], dfg_node_name=node.args[0]))
                 self.get_dfg_node("source")["children"].append(self.get_dfg_node(node.args[0])["id"])
             self.get_dfg_node(node.args[0])["dataType"] = node.args[2].type_modifier
@@ -69,8 +73,10 @@ class TablaPass(pm.Pass):
             self.add_constants(node)
             a0_key = self.node_key(node.args[0])
             a1_key = self.node_key(node.args[1])
+
             if a0_key not in self.dfg:
                 raise KeyError(f"Arg0 with key {a0_key} not found in dfg for func op node {node.name}\n"
+                               f"Arg: {node.args[0].name} - {node.args[0].op_name}\n"
                                f"Args: {node.args}\n"
                                f"Graph ndoes: {node.graph.nodes.keys()}\n"
                                f"Keys: {self.dfg.keys()}")
@@ -88,7 +94,7 @@ class TablaPass(pm.Pass):
             self.add_constants(node)
             a0_key = self.node_key(node.args[0])
             if a0_key not in self.dfg:
-                raise KeyError(f"Input value {a0_key} for NonLinear node {node.name} not found in dfg\n"
+                raise KeyError(f"Input value {a0_key} for NonLinear ({node.op_name}) node {node.name} not found in dfg\n"
                                f"Args: {node.args}\n"
                                f"Keys: {self.dfg.keys()}")
             self.set_dfg_node(node, self.create_node(node.op_name, parents=[self.get_dfg_node(node.args[0])["id"]], dfg_node_name=node))
