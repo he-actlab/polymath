@@ -34,5 +34,11 @@ $ pip install -e .
 ### Step 4: Run an example
 You can look at the examples in the `examples/` directory to see how the PolyMath language works. 
 
+## Citing us
+If you use this work, please cite our paper, PolyMath, published in the 2021 IEEE International Symposium on High Performance Computer Architecture (HPCA).
+
+```
+S. Kinzer, J.K. Kim, S. Ghodrati, B. Yatham, A. Althoff, D. Mahajan, S. Lerner, and H. Esmailzadeh, "A Computational Stack for Cross-Domain Acceleration", in the IEEE International Symposium on High Performance Computer Architecture (HPCA), 2021.
+```
 
 
