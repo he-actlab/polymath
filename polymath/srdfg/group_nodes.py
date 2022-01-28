@@ -7,7 +7,7 @@ from .util import _flatten_iterable
 
 class GroupNode(Node):
     builtin_np = ["sum", "prod", "amax", "amin", "argmin", "argmax"]
-    scalar_op_map = {"sum": operator.add, "prod": operator.mul, "amax": builtins.max, "amin": builtins.min, "argmin": min_, "argmax": max_, "bitreverse": lambda a, b: (a << 1) | (b & 1)}
+    scalar_op_map = {"sum": operator.add, "prod": operator.mul, "amax": builtins.max, "amin": builtins.min, "argmin": np.argmin, "argmax": np.argmax, "bitreverse": lambda a, b: (a << 1) | (b & 1)}
     def __init__(self, target, bounds, input_node, **kwargs):
         self.output_nodes = []
         target_name = f"{target.__module__}.{target.__name__}"
@@ -76,11 +76,12 @@ class GroupNode(Node):
     def _evaluate(self, bounds, input_res, **kwargs):
 
         sum_axes = self.axes
+        if self.target.__name__ in ["argmax", "argmin"] and isinstance(sum_axes, tuple):
+            assert len(sum_axes) == 1
+            sum_axes = sum_axes[0]
         if not hasattr(input_res, "__len__"):
             value = input_res * np.prod([len(bound) for bound in bounds])
         elif self.target.__name__ in self.builtin_np:
-            # reshaped = input_res.reshape(self.args[1].domain.computed_set_shape)
-            # value = self.target(reshaped, axis=sum_axes)
             value = self.target(input_res.reshape(self.args[1].domain.computed_set_shape), axis=sum_axes)
         else:
             value = self.target(input_res.reshape(self.args[1].domain.computed_set_shape), axis=sum_axes, initial=self.initial)

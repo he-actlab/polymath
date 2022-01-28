@@ -295,7 +295,7 @@ class reshape(Transformation):
 class transpose(Transformation):
     def __init__(self, input_node, axis, **kwargs):
 
-        assert isinstance(axis, (tuple, list))
+        assert isinstance(axis, (tuple, list, np.ndarray))
         if len(input_node.shape) > 1:
             new_shape = tuple([input_node.shape[i] for i in axis])
         else:

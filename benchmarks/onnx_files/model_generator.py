@@ -235,6 +235,22 @@ def create_custom_conv(optimize_model, training_mode, convert_data_format, to_po
     convert_torch_model(input_var, model, "custom_conv", optimize_model, training_mode, to_polymath, convert_data_format=convert_data_format)
 
 
+def create_custom_matmul(optimize_model, training_mode, convert_data_format, to_polymath, M, N, P, include_bias=False):
+    class CustomMatmul(nn.Module):
+        def __init__(self):
+            super(CustomMatmul, self).__init__()
+
+            self.mmul = nn.Linear(N,  P, bias=include_bias)
+
+        def forward(self, x):
+            x = self.mmul(x)
+            return x
+    model = CustomMatmul()
+    input_var = torch.randn(M, N)
+    output = model(input_var)
+    model.eval()
+    convert_torch_model(input_var, model, "custom_matmul", optimize_model, training_mode, to_polymath, convert_data_format=convert_data_format)
+
 def create_lenet_bn(optimize_model, training_mode, convert_data_format, to_polymath):
     class LeNetBN(nn.Module):
         def __init__(self):
@@ -856,12 +872,20 @@ def main():
     stride = 2
     pad = 0
     assert (w + 2 * pad - ksize) % stride == 0, 'width does not work'
-    input_shape = (n, ic, h, w)
-    input_var = torch.randn(*input_shape)
-    l = torch.nn.Conv2d(ic, oc, ksize, stride=stride, padding=pad)
-    out = l(input_var)
+    # input_shape = (n, ic, h, w)
+    # input_var = torch.randn(*input_shape)
+    # l = torch.nn.Conv2d(ic, oc, ksize, stride=stride, padding=pad)
+    # out = l(input_var)
+    M = 128
+    N = 1024
+    P = 2048
+    size_limit1 = 518750
+    size_limit = 4190000
+    total_size = (M*N) + (N*P) + (M*P)*4 + P*4
+    assert total_size <= size_limit, f"Total size {total_size} is greater than limit {size_limit}"
     # optimize_model, training_mode, convert_data_format, to_polymath, input_shape, oc, ksize, stride, pad
-    create_custom_conv(True, True, False, False, input_shape, oc, ksize, stride, pad)
+    # create_custom_conv(True, True, False, False, input_shape, oc, ksize, stride, pad)
+    create_custom_matmul(True, True, False, False, M, N, P, include_bias=True)
     # print(out.shape)
     # output = F.conv2d(input_var)
     # oc, ksize, stride, pad

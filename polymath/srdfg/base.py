@@ -835,6 +835,9 @@ class var_index(Node):  # pylint: disable=C0103,W0223
         else:
             return self.var.shape == DEFAULT_SHAPES[0]
 
+    def scalar_result(self):
+        return all([isinstance(v, int) for v in self.args[1]])
+
     def _evaluate(self, var, indices, **kwargs):
 
         if self.is_scalar(var):
@@ -1015,7 +1018,8 @@ class slice_op(Node):
                 raise KeyError(f"Invalid key shape for {self.name}:\n"
                                f"Shape: {self.shape}\n"
                                f"Key: {key}")
-
+            if isinstance(key, list):
+                key = tuple(key)
             name = f"{self.name}{key}"
             if name not in self.nodes.keys():
                 raise KeyError(f"{name} not in {self.name} keys:\n"
@@ -1031,10 +1035,12 @@ class slice_op(Node):
                     if isinstance(k, Node):
                         name.append(k.name)
                     else:
-                        name.append(str(k))
+                        name.append(k)
+
             else:
                 name.append(key)
-            name = self.var.name + "[" + "][".join(name) + "]"
+            name = tuple(name)
+            name = self.var.name + str(name)
             if name in self.graph.nodes:
                 return self.graph.nodes[name]
             elif isinstance(key, (list)):
@@ -1068,6 +1074,9 @@ class slice_op(Node):
     def is_scalar(self, val):
         return not isinstance(val, np.ndarray) or (len(val.shape) == 1 and val.shape[0] == 1)
 
+    def scalar_result(self):
+        return False
+
     def _evaluate(self, op1, op2, context=None, **kwargs):
         if self.is_scalar(op1) or self.is_scalar(op2):
             value = self.target(op1, op2)
@@ -1080,6 +1089,8 @@ class slice_op(Node):
             op2 = np.asarray(list(map(lambda x: op2[x], op2_idx))).reshape(self.domain.computed_shape)
             value = self.target(op1, op2)
         return value
+
+
 
     def get_index_nodes(self, slice1_var=None, slice2_var=None):
         if slice1_var is None and slice2_var is None:

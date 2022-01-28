@@ -331,7 +331,7 @@ class Domain(object):
         self.computed_pairs = unraveled_set_pairs.reshape(np.prod(self.computed_set_shape), 1)
         return self.computed_pairs
 
-    def map_sub_domain(self, dom, is_index_dom=False, is_write=False, tuples=True):
+    def map_sub_domain(self, dom, is_index_dom=False, is_write=False, tuples=True, do_print=False):
 
         dom_set_pairs = self.compute_set_pairs(tuples=False)
         target_set_pairs = dom.compute_set_pairs(dom=dom, tuples=False)

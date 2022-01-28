@@ -23,7 +23,7 @@ from polymath.srdfg.serialization.serialize import pb_store, pb_load
 from polymath.srdfg.templates.data_analytics import linear_regressor_train,\
     svm_classifier_train, logistic_regressor_train, logistic_regressor
 
-from polymath.srdfg.templates.dnn import conv_bias, dense, relu, avg_pool2d,\
+from polymath.srdfg.templates.dnn import conv_bias, depthwise_conv, dense, relu, avg_pool2d,\
     batch_flatten, softmax, relu1d, dense_sigmoid, batch_norm,\
     global_avg_pool, conv, max_pool, dropout, leaky_relu, avg_pool, lrn, \
     elem_tanh, elem_sigmoid, elem_cast, conv_transpose, cross_entropy_loss, log_softmax, \
@@ -40,7 +40,8 @@ from polymath.srdfg.templates.gradient_defs import AUTODIFF_OPS
 
 from polymath.srdfg.templates.math import elem_mul, elem_sub, elem_div, reduce_sum, matmul, gemm, \
     elem_add, elem_greater, lvmatmul, rvmatmul, gemm_no_bias, reduce_min, reduce_max, elem_min, elem_max,\
-    elem_less, elem_not, elem_or, elem_and, elem_nonzero, reduce_prod, elem_equal, mean_var
+    elem_less, elem_not, elem_or, elem_and, elem_nonzero, reduce_prod, elem_equal, mean_var, reduce_mean,\
+    elem_pow
 
 from polymath.srdfg.templates.tensor_transformations import coarse_flatten, elem_gather, tensor_transpose, onnx_reshape, \
     onnx_squeeze, onnx_identity, onnx_resize, onnx_unsqueeze, tensor_pad, tensor_flip, tensor_reshape

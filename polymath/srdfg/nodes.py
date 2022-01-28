@@ -429,6 +429,23 @@ class write(Node):
     def is_scalar_write(self, dst_key):
         return len(dst_key) == 1 and dst_key[0].shape == (1,)
 
+    def scalar_dest(self):
+        return all([isinstance(v, int) for v in self.args[1]])
+
+    def constant_value_write(self):
+        if isinstance(self.args[0], var_index):
+            return self.args[0].scalar_result() and self.scalar_dest()
+        elif isinstance(self.args[0], func_op):
+            return self.scalar_dest()
+        elif isinstance(self.args[0], slice_op):
+            is_scalar_arg = []
+            for a in self.args[0].args:
+                if isinstance(a, Node):
+                    is_scalar_arg.append(a.shape == DEFAULT_SHAPES[0] or len(a.shape) == 0)
+            return all(is_scalar_arg) and self.scalar_dest()
+        else:
+            return False
+
     def _evaluate(self, src, dst_key, dst, context=None, **kwargs):
         if not self.is_shape_finalized():
             self._shape = self.args[2].shape
@@ -441,7 +458,6 @@ class write(Node):
         elif not is_iterable(src) and self.is_scalar_write(dst_key):
             dst_idx = self.shape_domain.compute_shape_domain(indices=dst_key)[0]
             value = dst.copy().astype(src.dtype)
-            print(f"{self.name}: {value}")
             value[dst_idx] = src
         else:
             dst_indices = self.shape_domain.compute_shape_domain(indices=dst_key)
@@ -454,8 +470,7 @@ class write(Node):
             # TODO: Fix logic here to check for validity
             if len(src_indices[0]) != len(src.shape):
                 src = src.squeeze()
-            # print(f"{self.name}, {src}, {dst.shape}, {dst_indices}, {src_indices}\n"
-            #       f"{self.source.name}, {self.args[0].name}\n")
+
             for i in dst_indices:
                 if i in key_indices:
                     idx = key_indices.index(i)

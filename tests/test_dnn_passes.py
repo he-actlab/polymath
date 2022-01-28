@@ -107,26 +107,29 @@ def test_layer_autodiff(filename):
     train_graph = pm.from_onnx(filename)
     batch_pass = pm.UpdateBatchSize(batch_size, train_graph.name)
     train_graph = batch_pass(train_graph)
-    target_layer = "batch_norm"
-    # for name, node in train_graph.nodes.items():
-    #     if isinstance(node, pm.Template) and node.op_name == target_layer:
-    #         for i in node.inputs:
-    #             print(f"Input {i.name} - {i.shape}")
-    #         print()
-    #         for i in node.outputs:
-    #             print(f"Output {i.name} - {i.shape}")
-    #         break
-    #
-    # print(f"\nAfter\n")
-    # for name, node in train_graph.nodes.items():
-    #     if isinstance(node, pm.Template) and node.op_name == target_layer:
-    #         for i in node.inputs:
-    #             print(f"Input {i.name} - {i.shape}")
-    #         print()
-    #         for i in node.outputs:
-    #             print(f"Output {i.name} - {i.shape}")
-    #         break
+    target_layer = "batchnorm_grad"
+    target_layers = ["batchnorm_grad", "sgd"]
+
+
     train_graph = pm.create_training_graph(train_graph)
+    grads = []
+    for name, node in train_graph.nodes.items():
+        if isinstance(node, pm.Template):
+            if node.op_name == target_layer:
+                print(f"Layer: {node.op_name}")
+                for i in node.inputs:
+                    print(f"Input {i.name} - {i.shape}")
+                print()
+                for i in node.outputs:
+                    print(f"Output {i.name} - {i.shape}")
+                    grads.append(i.name)
+                print()
+            elif any([i.name in grads for i in node.inputs]):
+                print(f"Node: {node.op_name}\n"
+                      f"")
+                for i in node.inputs:
+                    print(f"Input {i.name} - {i.shape}")
+                print()
 
 
 def test_load_maskrcnn():

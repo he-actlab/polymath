@@ -152,10 +152,17 @@ class square(NonLinear):
     def __init__(self, input_node, **kwargs):
         super(square, self).__init__(_square, input_node, **kwargs)
 
+# TODO: Fix serialization
 class cast(NonLinear):
+    SUPPORTED_DTYPES = ["float32", "int32", "float64"]
     def __init__(self, np_dtype, input_node, **kwargs):
-        kwargs['np_dtype'] = np_dtype
-        kwargs['init_extras'] = (np_dtype,)
+        if isinstance(np_dtype, np.dtype):
+            target_type = np_dtype.name
+        else:
+            assert np_dtype in cast.SUPPORTED_DTYPES
+            target_type = np_dtype
+        kwargs['np_dtype'] = target_type
+        kwargs['init_extras'] = (target_type,)
         super(cast, self).__init__(_cast, input_node, **kwargs)
 
     @property
@@ -168,7 +175,7 @@ class cast(NonLinear):
         if "domain" in kwargs:
             kwargs.pop("domain")
 
-        val = self.target(val, self.np_dtype)
+        val = self.target(val, np.dtype[self.np_dtype])
 
         if not self.is_shape_finalized():
             self.shape = val.shape
@@ -200,6 +207,8 @@ class clip(NonLinear):
         if not self.is_shape_finalized():
             self.shape = val.shape
         return val
+
+
 
 def _log(value):
     return np.log(value)
@@ -239,6 +248,9 @@ def _square(value):
 
 def _floor(value):
     return int(np.floor(value))
+
+def _pow(value, exp):
+    return np.power(value, exp)
 
 def _ceil(value):
     return int(np.ceil(value))
