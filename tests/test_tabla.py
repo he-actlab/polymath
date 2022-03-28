@@ -42,7 +42,8 @@ def test_linear_reg_embedded_values(m_):
                                               context_dict=input_info, add_kwargs=True)
 
 @pytest.mark.parametrize('l1, l2, l3',[
-    (8, 16, 1), (8, 16, 4)
+    (8, 16, 1),
+    (8, 16, 4)
 ])
 def test_backprop_embedded_values(l1, l2, l3):
     shape_dict = {"l1": l1, "l2": l2 , "l3": l3}

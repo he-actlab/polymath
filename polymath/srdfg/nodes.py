@@ -186,6 +186,11 @@ class output(placeholder):
         return self if self.write_count == 0 or len(Node._graph_stack) == 1 else self.graph.nodes[f"{self.name}{self.write_count - 1}"]
         # return self if self.write_count == 0 else self.graph.nodes[f"{self.name}{self.write_count - 1}"]
 
+    def reset_writes(self):
+        for i in range(self.write_count):
+            self.graph.nodes.pop(f"{self.name}{i}")
+        self.write_count = 0
+
     def evaluate(self, context, callback=None):
         callback = callback or _noop_callback
         with callback(self, context):

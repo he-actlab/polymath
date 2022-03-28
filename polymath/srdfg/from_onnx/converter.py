@@ -11,7 +11,8 @@ ONNX_OP_NAMES = ['max_pool', 'lrn', 'conv', 'conv_bias', 'global_avg_pool', 'dro
                 'softmax', 'elem_cast', 'elem_sigmoid', 'batch_norm', 'batch_flatten', 'avg_pool2d',
                 'leaky_relu', 'relu', 'dense_sigmoid', 'dense', 'avg_pool', 'gemm', 'gemm_no_bias', 'elem_add', 'elem_sub',
                  'elem_mul', 'dropout', 'coarse_flatten', 'cross_entropy_loss', 'reduce_sum',
-                 'tensor_transpose', 'tensor_flip', 'tensor_reshape', 'tensor_pad', 'mean_var']
+                 'tensor_transpose', 'tensor_flip', 'tensor_reshape', 'tensor_pad', 'mean_var', "elem_ceil",
+                 "reduce_mean", ""]
 
 def update_onnx_graph_names(graph):
     names = {}
@@ -169,7 +170,6 @@ def generate_srdfg(onnx_graph, verbose=False):
         else:
             node_info[o.name] = pm.output(name=o.name, shape=get_value_info_shape(o, mgdfg), graph=mgdfg)
 
-
     for i in onnx_graph.input:
         if i.name in state_variables.values():
             assert i.name in node_info
@@ -200,9 +200,11 @@ def generate_srdfg(onnx_graph, verbose=False):
 
     for k, v in initializers.items():
         if k not in node_info:
-            # TODO: Need to set the value here
-            node_info[k] = pm.state(name=k, init_value=v, shape=get_value_info_shape(v, mgdfg), graph=mgdfg)
-            state_variables[k] = node_info[k]
+            if not itercheck(v):
+                node_info[k] = pm.parameter(name=k, default=v, graph=mgdfg)
+            else:
+                node_info[k] = pm.state(name=k, init_value=v, shape=get_value_info_shape(v, mgdfg), graph=mgdfg)
+                state_variables[k] = node_info[k]
 
     for k, v in mgdfg.nodes.items():
         if isinstance(v, pm.parameter) and k not in node_info:
@@ -323,7 +325,9 @@ def _print_proto_fields(pb):
 def get_value_info_shape(vi, mgdfg):
     if isinstance(vi, np.ndarray):
         ret = vi.shape
-    else:
+    # elif isinstance(vi, int):
+    #     ret = (1,)
+    elif isinstance(vi, onnx.ValueInfoProto):
         ret = []
         for i, dim in enumerate(vi.type.tensor_type.shape.dim):
             if hasattr(dim, 'dim_param') and dim.dim_param:
@@ -340,10 +344,10 @@ def get_value_info_shape(vi, mgdfg):
                 d_val = dim.dim_value
             else:
                 continue
-
-
             ret.append(d_val)
         ret = tuple(ret)
+    else:
+        raise RuntimeError(f"Invalid type for shape: {type(vi)}.")
     return ret if len(ret) > 0 else (1,)
 
 def get_attributes(node):

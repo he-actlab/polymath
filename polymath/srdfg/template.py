@@ -4,6 +4,8 @@ import inspect
 # CONTEXT_TEMPLATE_TYPES = (pm.state, pm.output, pm.temp, pm.write)
 CONTEXT_TEMPLATE_TYPES = (pm.state, pm.output, pm.temp)
 
+
+
 class Template(pm.Node):
 
     def __init__(self, *args, **kwargs):

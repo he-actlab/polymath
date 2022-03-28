@@ -42,6 +42,79 @@ def test_resnet18_batchsize():
         for idx, s in enumerate(shapes):
             assert isinstance(s, tuple) and s == test_shapes[op_name][idx]
 
+
+@pytest.mark.parametrize('model, fusion_sequences, expected_instances', [
+    ('resnet50', [['Conv', 'Relu'],
+                  ['Conv', 'Relu', 'MaxPool'],
+                  ['Conv', 'Add', 'Relu', 'GlobalAveragePool'],
+                  ['Conv', 'Add', 'Relu']],
+     {"conv_bias_relu": 32,
+      "conv_bias_relu_max_pool": 1,
+      "conv_bias_elem_add_relu_global_avg_pool": 1,
+      "conv_bias_elem_add_relu": 15,
+      }
+     ),
+    ('resnet18', [['Conv', 'Relu'],
+                     ['Conv', 'Relu', 'MaxPool'],
+                     ['Conv', 'Add', 'Relu', 'GlobalAveragePool'],
+                     ['Conv', 'Add', 'Relu']],
+     {"conv_bias_relu": 8,
+      "conv_bias_relu_max_pool": 1,
+      "conv_bias_elem_add_relu_global_avg_pool": 1,
+      "conv_bias_elem_add_relu": 7,
+      }
+     ),
+    ('efficientnet-lite4-11-opt', [['Conv', 'Add'],
+                     ['Conv', 'Clip', 'AveragePool'],
+                     ['Conv', 'Clip', 'DepthwiseConv',],
+                     ['Conv', 'Clip', 'DepthwiseConv', 'Clip',],],
+     {"conv_bias_elem_add": 23,
+     "conv_bias_elem_clip_avg_pool": 1,
+      "conv_bias_elem_clip_depthwise_conv_bias_elem_clip": 30,
+      }
+     )
+])
+def test_model_layer_fusion(model, fusion_sequences, expected_instances):
+
+    fpath = f"{ONNX_DNNS}/{model}.onnx"
+    graph = pm.from_onnx(fpath)
+    unfused_nodes = "\n".join([f"Node: {name}, {n.op_name}" for name, n in graph.nodes.items()])
+
+    fusion_pass = pm.FuseOps(fusion_sequences)
+    fused_graph = fusion_pass(graph)
+    assert len(expected_instances) == len(fusion_pass.fusion_instances)
+    assert all([k in fusion_pass.fusion_instances for k in expected_instances.keys()])
+    for k, v in expected_instances.items():
+        assert v == fusion_pass.fusion_instances[k]
+
+@pytest.mark.parametrize('model, fusion_sequence, testnum', [
+    # ('resnet18', ['Conv', 'Relu'], 0),
+    # ('resnet18', ['Conv', 'Add', 'Relu'], 0),
+    ('resnet18', ['Conv', 'Relu', 'MaxPool'], 0),
+    # ('resnet18', ['Conv', 'Add', 'Relu', 'GlobalAveragePool'], 0),
+    # ('resnet50', ['Conv', 'Relu'], 0),
+    # ('resnet50', ['Conv', 'Add', 'Relu'], 0),
+    # ('resnet50', ['Conv', 'Relu', 'MaxPool'], 0),
+    # ('resnet50', ['Conv', 'Add', 'Relu', 'GlobalAvgPool'], 0),
+    # ('efficientnet-lite4-11-opt', ['Conv', 'Add',], 0),
+    # ('efficientnet-lite4-11-opt', ['Conv', 'Clip', 'AveragePool'], 0),
+    # ('efficientnet-lite4-11-opt', ['Conv', 'Clip', 'DepthwiseConv',], 0),
+    # ('efficientnet-lite4-11-opt', ['Conv', 'Clip', 'DepthwiseConv', 'Clip'], 0),
+])
+def test_single_layer_fusion(model, fusion_sequence, testnum):
+    fusion_name = '_'.join(fusion_sequence)
+    fname = f"{model}_{fusion_name}{testnum}.onnx"
+    fpath = f"{BENCH_DIR}/fusion_layers/{fname}"
+    graph = pm.from_onnx(fpath)
+
+    unfused_nodes = "\n".join([f"Node: {name}, {n.op_name}" for name, n in graph.nodes.items()])
+
+
+    fusion_pass = pm.FuseOps([fusion_sequence])
+    fused_graph = fusion_pass(graph)
+
+
+
 def conv2d_transpose(
     input, weight, stride=1, padding=0, out_pad=0
 ):

@@ -1,9 +1,10 @@
+import pickle
+
 from polymath.srdfg.base import Node, Graph
 from collections import OrderedDict
 from collections import deque
 import inspect
 from polymath.srdfg.util import _flatten_iterable, DebugTimer
-import pickle
 import tqdm
 import sys
 from pytools import ProcessTimer

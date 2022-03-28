@@ -178,10 +178,10 @@ def _deserialize_node(pb_node, deserialization_info, graph=None, verbose=False):
         if arg.type == pb.Attribute.Type.DOM:
             kwargs[name] = _deserialize_domain(arg, graph, pb_node.name, deserialization_info, write_graph=write_graph)
         elif arg.type == pb.Attribute.Type.NODE:
-            if arg.decode("utf-8") in graph.nodes:
-                arg_node = graph.nodes[arg.decode("utf-8")]
+            if arg.s.decode("utf-8") in graph.nodes:
+                arg_node = graph.nodes[arg.s.decode("utf-8")]
             elif write_graph and arg.decode("utf-8") in write_graph.nodes:
-                arg_node = write_graph.nodes[arg.decode("utf-8")]
+                arg_node = write_graph.nodes[arg.s.decode("utf-8")]
             else:
                 raise KeyError(f"Unable to find node in graph {arg.decode('utf-8')}")
             kwargs[name] = arg_node
@@ -290,6 +290,15 @@ def _deserialize_node(pb_node, deserialization_info, graph=None, verbose=False):
 
         if cls_name in ["func_op", "slice_op", "index_op"]:
             node = getattr(mod, cls_name)(target, *args, graph=graph, **kwargs)
+        elif cls_name in ["cast", "clip"]:
+            init_keys = ["np_dtype", "minval", "maxval"]
+            new_args = []
+            for k in list(kwargs.keys()):
+                if k in init_keys:
+                    new_args.append(kwargs.pop(k))
+            new_args += list(args)
+            new_args = tuple(new_args)
+            node = getattr(mod, cls_name)(*new_args, graph=graph, **kwargs)
         else:
             node = getattr(mod, cls_name)(*args, graph=graph, **kwargs)
     else:
@@ -454,7 +463,7 @@ def _serialize_node(node_instance):
                                 f"All args: {node_instance.args}")
 
         else:
-            raise TypeError(f"Cannot find serializable method for argument {arg} with type {type(arg)}")
+            raise TypeError(f"Cannot find serializable method for argument {arg} with type {type(arg)} in node {node_instance.name} - {node_instance.op_name}\n")
 
     for name, arg in node_instance.kwargs.items():
         if arg is None:

@@ -7,6 +7,7 @@ def get_transpose(data, perm=None, shape=None, name=None, out=None, **kwargs):
         out = pm.output(name=name, shape=shape)
     if perm is None:
         perm = tuple(list(reversed([i for i in data.shape])))
+
     pm.tensor_transpose(data, out, perm=perm)
     return out
 
@@ -59,7 +60,12 @@ def get_topk(x, k, largest=1, sorted=1, axis=-1, shapes=None, name=None, out=Non
 def get_elem_cast(data, to=None, shape=None, name=None, out=None, **kwargs):
     if not out:
         out = pm.output(name=name, shape=shape)
-    pm.elem_cast(data, out, to)
+    if isinstance(to, np.dtype):
+        target_type = to.name
+    else:
+        assert isinstance(to, str) and to in pm.cast.SUPPORTED_DTYPES
+        target_type = to
+    pm.elem_cast(data, out, target_type)
     return out
 
 def get_elem_floor(data, shape=None, name=None, out=None, **kwargs):
@@ -71,7 +77,32 @@ def get_elem_floor(data, shape=None, name=None, out=None, **kwargs):
 def get_elem_clip(data, min=None, max=None, shape=None, name=None, out=None, **kwargs):
     if not out:
         out = pm.output(name=name, shape=shape)
-    pm.elem_clip(data, out, min=min, max=max)
+    if min is not None:
+        assert min.name in data.graph.nodes
+        minval = data.graph.nodes[min.name]
+        assert isinstance(minval, pm.parameter), f"Invalid type for clip minval: {type(minval)}"
+        assert minval.default is not None, f"No default value defined for minval clip parameter: {type(minval)}"
+        minval = minval.default
+    else:
+        minval = np.iinfo(np.int32).min
+
+    if max is not None:
+        assert max.name in data.graph.nodes
+        maxval = data.graph.nodes[max.name]
+        assert isinstance(maxval, pm.parameter) and maxval.default is not None
+        maxval = maxval.default
+    else:
+        maxval = np.iinfo(np.int32).max
+
+    pm.elem_clip(data, out, minval=minval, maxval=maxval)
+    return out
+
+def get_elem_pow(val, exp, shape=None, name=None, out=None):
+    if not out:
+        out = pm.output(name=name, shape=shape)
+    assert isinstance(exp, pm.parameter)
+    exp = exp.default
+    pm.elem_pow(val, out, exp=exp)
     return out
 
 def get_elem_ceil(data, shape=None, name=None, out=None, **kwargs):
@@ -221,6 +252,19 @@ def get_reduce_min(x, shape=None, name=None, out=None, axes=(0,), **kwargs):
     pm.reduce_min(x, out, axes=axes)
     return out
 
+
+def get_reduce_mean(x, shape=None, name=None, out=None, axes=(0,), **kwargs):
+    if not out:
+        out = pm.output(name=name, shape=shape)
+    if isinstance(axes, Integral):
+        axes = (axes,)
+    elif isinstance(axes, list):
+        axes = tuple(axes)
+    else:
+        assert isinstance(axes, tuple)
+    pm.reduce_mean(x, out, axes=axes)
+    return out
+
 def get_reduce_max(x, shape=None, name=None, out=None, axes=(0,), **kwargs):
     if not out:
         out = pm.output(name=name, shape=shape)
@@ -330,14 +374,18 @@ def get_conv(x, w, bias=None, dilations=None, group=None, kernel_shape=None, pad
             pads[0] = ph - pads[1]
             pads[3] = np.floor(pw // 2)
             pads[2] = pw - pads[3]
-
-    if bias:
-        pm.conv_bias(x, w, bias, out, int(strides[0]), int(pads[-2]))
-        return out
+    if group == x.shape[1]:
+        if bias:
+            pm.depthwise_conv_bias(x, w, bias, out, int(strides[0]), int(pads[-2]), group)
+        else:
+            pm.depthwise_conv(x, w, out, int(strides[0]), int(pads[-2]), group)
     else:
-        pm.conv(x, w, out, int(strides[0]), int(pads[-2]))
+        if bias:
+            pm.conv_bias(x, w, bias, out, int(strides[0]), int(pads[-2]))
+        else:
+            pm.conv(x, w, out, int(strides[0]), int(pads[-2]))
 
-        return out
+    return out
 
 def get_roi_align(x, rois, batch_indices, mode='avg',
                   output_height=1, output_width=1,
@@ -377,7 +425,7 @@ def get_global_avg_pool(x, shape=None, name=None, out=None):
     pm.global_avg_pool(x, out)
     return out
 
-def get_avg_pool(x, auto_pad=None, ceil_mode=0, kernel_shape=None, pads=None,
+def get_avg_pool(x, auto_pad=None, ceil_mode=0, kernel_shape=None, pads=(0,0),
                  strides=None,
                  shape=None,
                  name=None,
@@ -403,8 +451,17 @@ def get_avg_pool(x, auto_pad=None, ceil_mode=0, kernel_shape=None, pads=None,
             pads[3] = np.floor(pw // 2)
             pads[2] = pw - pads[3]
 
-    pm.avg_pool(x, out, kernel_shape[0], kernel_shape[1], (int(strides[0]), int(strides[1])),
-                (int(pads[0]), int(pads[2])))
+    if isinstance(pads, tuple):
+        if len(pads) == 4:
+            ph, pw = int(pads[0]), int(pads[2])
+        else:
+            assert len(pads) == 2
+            ph, pw = pads
+    else:
+        assert isinstance(pads, int)
+        ph, pw = pads, pads
+    pm.avg_pool(x, out, (kernel_shape[0], kernel_shape[1]), (int(strides[0]), int(strides[1])),
+                (ph, pw))
     return out
 
 def get_max_pool(x, ceil_mode=0, kernel_shape=None, pads=None, auto_pad=None,
@@ -431,7 +488,7 @@ def get_max_pool(x, ceil_mode=0, kernel_shape=None, pads=None, auto_pad=None,
             pads[0] = ph - pads[1]
             pads[3] = np.floor(pw // 2)
             pads[2] = pw - pads[3]
-    pm.max_pool(x, out, kernel_shape[0], kernel_shape[1], (int(strides[0]), int(strides[1])), (int(pads[0]),int(pads[2])))
+    pm.max_pool(x, out, (kernel_shape[0], kernel_shape[1]), (int(strides[0]), int(strides[1])), (int(pads[0]),int(pads[2])))
     return out
 
 
@@ -580,18 +637,21 @@ NODE_NAMES = {
     "MatMul": get_matmul,
     "Mul": get_elem_mul,
     "Min": get_elem_min,
+    "Power": get_elem_pow,
     "Max": get_elem_max,
     "Not": get_elem_not,
     "NonZero": get_elem_nonzero,
     "NonMaxSuppression": get_nms,
     "Or": get_elem_or,
     "Pad": get_pad,
+    "Pow": get_elem_pow,
     "Relu": get_relu,
     "Range": get_range,
     "RoiAlign": get_roi_align,
     "Reshape": pm.onnx_reshape,
     "ReduceSum": get_reduce_sum,
     "ReduceMin": get_reduce_min,
+    "ReduceMean": get_reduce_mean,
     "ReduceProd": get_reduce_prod,
     "ReduceMax": get_reduce_max,
     "Resize": pm.onnx_resize,

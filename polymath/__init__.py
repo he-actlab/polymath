@@ -23,13 +23,18 @@ from polymath.srdfg.serialization.serialize import pb_store, pb_load
 from polymath.srdfg.templates.data_analytics import linear_regressor_train,\
     svm_classifier_train, logistic_regressor_train, logistic_regressor
 
-from polymath.srdfg.templates.dnn import conv_bias, depthwise_conv, dense, relu, avg_pool2d,\
+from polymath.srdfg.templates.dnn import conv_bias, depthwise_conv, depthwise_conv_bias, dense, relu, avg_pool2d,\
     batch_flatten, softmax, relu1d, dense_sigmoid, batch_norm,\
     global_avg_pool, conv, max_pool, dropout, leaky_relu, avg_pool, lrn, \
     elem_tanh, elem_sigmoid, elem_cast, conv_transpose, cross_entropy_loss, log_softmax, \
     nll_loss, conv_transpose_bias, elem_floor, elem_ceil, elem_clip, elem_exp, topk,\
     split, elem_if, elem_sqrt, elem_log, roi_align, elem_where, scatter_elements, \
     loop, nms, concat
+
+from polymath.srdfg.templates.fused_dnn import conv_bias_relu,\
+    conv_bias_relu_max_pool, \
+    conv_bias_elem_add_relu,\
+    conv_bias_elem_add_relu_global_avg_pool
 
 from polymath.srdfg.templates.optimizers import sgd
 from polymath.srdfg.templates.gradient_defs import gemm_grad, gemm_grad_no_bias, conv_grad, conv_grad_no_bias, \
@@ -51,7 +56,7 @@ from polymath.srdfg.from_pytorch.converter import from_pytorch, get_attributes, 
 DNN_TRAINING_OPS = AUTODIFF_OPS + ONNX_OP_NAMES
 
 from polymath.srdfg.passes import register_pass, Pass
-from polymath.srdfg.passes.dnn_passes import UpdateBatchSize, CollectDNNShapes, RenameMultiDimOps, UpdateLayout
+from polymath.srdfg.passes.dnn_passes import UpdateBatchSize, CollectDNNShapes, RenameMultiDimOps, UpdateLayout, FuseOps
 from polymath.srdfg.passes.compiler_passes import NormalizeGraph, Lower, CountNodes, CountOpTypes
 from polymath.srdfg.passes.autodiff import AutoDiffGraph, create_training_graph
 from polymath.codegen.tabla.tabla_translate import generate_tabla

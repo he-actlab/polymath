@@ -99,7 +99,20 @@ class log_softmax(pm.Template):
         return (self.args[2],)
 
 class avg_pool(pm.Template):
-    def define_graph(self, data, out, kh, kw, stride=(1,1), pad=(0,0)):
+    def define_graph(self, data, out, kernel_size=None, stride=(1,1), pad=(0,0)):
+        if kernel_size is None:
+            raise RuntimeError(f"Kernel size is a required parameter with no default value.\n"
+                               f"Need to provide value.")
+        elif isinstance(kernel_size, tuple):
+            assert len(kernel_size) == 2
+            kh, kw = kernel_size
+        elif isinstance(kernel_size, int):
+            kh, kw = kernel_size, kernel_size
+        elif isinstance(kernel_size, list):
+            assert len(kernel_size) == 2
+            kh, kw = kernel_size[0], kernel_size[1]
+        else:
+            raise RuntimeError(f"Invalid type for kernel size")
         sx, sy = stride
         oh = ((data.shape[-2] + 2 * pad[0] - kh) // stride[0] + 1)
         ow = ((data.shape[-1] + 2 * pad[1] - kw) // stride[1] + 1)
@@ -148,7 +161,7 @@ class avg_pool(pm.Template):
 
     @property
     def kernel_size(self):
-        return (self.args[2], self.args[3])
+        return self.kwargs['kernel_size']
 
     @property
     def pad(self):
@@ -218,7 +231,9 @@ class relu(pm.Template):
 class leaky_relu(pm.Template):
     def define_graph(self, inp, out, alpha=1e-2):
         out.set_shape(inp.shape)
-        indices = tuple([pm.index(0, s - 1) if s > 1 else 0 for s in inp.shape])
+        # indices = tuple([pm.index(0, s - 1) if s > 1 else 0 for s in inp.shape])
+        indices = tuple([pm.index(0, s - 1) for s in inp.shape])
+
         out[indices] = (0 < inp[indices]) * inp[indices] + (0 >= inp[indices]) * inp[indices] * alpha
 
     @property
@@ -228,6 +243,10 @@ class leaky_relu(pm.Template):
     @property
     def outputs(self):
         return (self.args[1],)
+
+    @property
+    def alpha(self):
+        return self.kwargs['alpha']
 
 class relu1d(pm.Template):
     def define_graph(self, inp, out):
@@ -244,7 +263,7 @@ class relu1d(pm.Template):
         return (self.args[1],)
 
 class conv_bias(pm.Template):
-    def define_graph(self, data, w, bias, out, stride=1, pad=0, dilation=1):
+    def define_graph(self, data, w, bias, out, stride=1, pad=0, dilation=1, groups=1):
         if not isinstance(stride, (tuple, list)):
             stride_h = stride_w = stride
         else:
@@ -319,6 +338,9 @@ class conv_bias(pm.Template):
     def pad(self):
         return self.kwargs['pad']
 
+    @property
+    def groups(self):
+        return self.kwargs['groups']
 
 # TODO: Make flexible for different conv shapes
 class conv_transpose_bias(pm.Template):
@@ -535,7 +557,7 @@ class scatter_elements(pm.Template):
         return (self.args[3],)
 
 class elem_cast(pm.Template):
-    def define_graph(self, x, out, to):
+    def define_graph(self, x, out, to=None):
         indices = _get_single_node_indices(out, shape=out.shape)
         out[indices] = pm.cast(to, x[indices], shape=out.shape)
 
@@ -574,9 +596,9 @@ class elem_ceil(pm.Template):
         return (self.args[1],)
 
 class elem_clip(pm.Template):
-    def define_graph(self, x, out, min=None, max=None):
+    def define_graph(self, x, out, minval=None, maxval=None):
         indices = _get_single_node_indices(out, shape=out.shape)
-        out[indices] = pm.clip(min, max, x[indices])
+        out[indices] = pm.clip(minval, maxval, x[indices])
 
     @property
     def inputs(self):
@@ -585,6 +607,15 @@ class elem_clip(pm.Template):
     @property
     def outputs(self):
         return (self.args[1],)
+
+    @property
+    def minval(self):
+        return self.minval
+
+    @property
+    def maxval(self):
+        return self.maxval
+
 
 class topk(pm.Template):
     def define_graph(self, x, k, out, out_indices, largest=1, sorted=1, axis=-1):
@@ -647,6 +678,7 @@ class elem_tanh(pm.Template):
     @property
     def outputs(self):
         return (self.args[1],)
+
 
 class elem_if(pm.Template):
     def define_graph(self, condition, out):
@@ -736,7 +768,7 @@ class global_avg_pool(pm.Template):
         return (self.args[1],)
 
 class conv(pm.Template):
-    def define_graph(self, data, w, out, stride=1, pad=0, dilation=1):
+    def define_graph(self, data, w, out, stride=1, pad=0, dilation=1, groups=1):
 
         if not isinstance(stride, (tuple, list)):
             stride_h = stride_w = stride
@@ -814,6 +846,170 @@ class conv(pm.Template):
         return self.kwargs['pad']
 
 
+class depthwise_conv(pm.Template):
+    def define_graph(self, data, w, out, stride=1, pad=0,  groups=1, dilation=1):
+
+        if not isinstance(stride, (tuple, list)):
+            stride_h = stride_w = stride
+        else:
+            stride_h, stride_w = stride
+
+        if not isinstance(stride, (tuple, list)):
+            dilation_h = dilation_w = dilation
+        else:
+            dilation_h, dilation_w = dilation
+
+        if not isinstance(stride, (tuple, list)):
+            pad = (pad, pad)
+
+        batch, in_channel, in_height, in_width = data.shape
+        num_filter, channel, kernel_h, kernel_w = w.shape
+        # compute the output shape
+        dilated_kernel_h = (kernel_h - 1) * dilation_h + 1
+        dilated_kernel_w = (kernel_w - 1) * dilation_w + 1
+        pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
+            pad, (dilated_kernel_h, dilated_kernel_w)
+        )
+        out_channel = num_filter
+        oh = (in_height - dilated_kernel_h + pad_top + pad_down) // stride_h + 1
+        ow = (in_width - dilated_kernel_w + pad_left + pad_right) // stride_w + 1
+        pad_before = [0, 0, pad_top, pad_left]
+        pad_after = [0, 0, pad_down, pad_right]
+        c = pm.index(0, w.shape[0] - 1, name="c")
+        y = pm.index(0, oh - 1, name="y_")
+        x = pm.index(0, ow - 1, name="x_")
+        dy = pm.index(0, w.shape[2] - 1, name="dy")
+        dx = pm.index(0, w.shape[3] - 1, name="dx")
+        iy = pm.index(0, data.shape[-2] - 1, name="iy")
+        ix = pm.index(0, data.shape[-1] - 1, name="ix")
+        k = pm.index(0, data.shape[-3] - 1, name="k")
+        ihp = data.shape[-2] + pad_top + pad_down
+        iwp = data.shape[-1] + pad_left + pad_right
+        ihp_ = pm.index(0, ihp - 1, name="ihp")
+        iwp_ = pm.index(0, iwp - 1, name="iwp")
+        if len(data.shape) > 3:
+            b = pm.index(0, data.shape[0] - 1, name="b")
+            o_indices = (b, c)
+            p_indices = (b, k,)
+            p_shape = (data.shape[0], data.shape[1], ihp, iwp)
+            out.set_shape((data.shape[0], w.shape[0], oh, ow))
+        else:
+            o_indices = (c,)
+            p_indices = (k,)
+            p_shape = (data.shape[0], ihp, iwp)
+            out.set_shape((w.shape[0], oh, ow))
+
+        padded = pm.temp(shape=p_shape)
+        padded[p_indices + (ihp_, iwp_)] = 0
+
+        padded[p_indices + (iy + pad_top, ix + pad_left)] = data[p_indices + (iy, ix)]
+
+        # out[o_indices + (y, x)] = pm.sum([dy, dx, k], (padded[p_indices + (dy + stride*y, dx + stride*x)] * w[c, k, dy, dx])) + bias[c]
+
+        out[o_indices + (y, x)] = pm.sum([dy, dx, k], (padded[p_indices + (dy * dilation_h + stride * y, dx * dilation_w + stride * x)] * w[c, k, dy, dx]))
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1])
+
+    @property
+    def outputs(self):
+        return (self.args[2],)
+
+    @property
+    def stride(self):
+        return self.kwargs['stride']
+
+    @property
+    def pad(self):
+        return self.kwargs['pad']
+
+    @property
+    def groups(self):
+        return self.kwargs['groups']
+
+
+class depthwise_conv_bias(pm.Template):
+    def define_graph(self, data, w, bias, out, stride=1, pad=0,  groups=1, dilation=1):
+
+        if not isinstance(stride, (tuple, list)):
+            stride_h = stride_w = stride
+        else:
+            stride_h, stride_w = stride
+
+        if not isinstance(stride, (tuple, list)):
+            dilation_h = dilation_w = dilation
+        else:
+            dilation_h, dilation_w = dilation
+
+        if not isinstance(stride, (tuple, list)):
+            pad = (pad, pad)
+
+        batch, in_channel, in_height, in_width = data.shape
+        num_filter, channel, kernel_h, kernel_w = w.shape
+        # compute the output shape
+        dilated_kernel_h = (kernel_h - 1) * dilation_h + 1
+        dilated_kernel_w = (kernel_w - 1) * dilation_w + 1
+        pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
+            pad, (dilated_kernel_h, dilated_kernel_w)
+        )
+        out_channel = num_filter
+        oh = (in_height - dilated_kernel_h + pad_top + pad_down) // stride_h + 1
+        ow = (in_width - dilated_kernel_w + pad_left + pad_right) // stride_w + 1
+        pad_before = [0, 0, pad_top, pad_left]
+        pad_after = [0, 0, pad_down, pad_right]
+        c = pm.index(0, w.shape[0] - 1, name="c")
+        y = pm.index(0, oh - 1, name="y_")
+        x = pm.index(0, ow - 1, name="x_")
+        dy = pm.index(0, w.shape[2] - 1, name="dy")
+        dx = pm.index(0, w.shape[3] - 1, name="dx")
+        iy = pm.index(0, data.shape[-2] - 1, name="iy")
+        ix = pm.index(0, data.shape[-1] - 1, name="ix")
+        k = pm.index(0, data.shape[-3] - 1, name="k")
+        ihp = data.shape[-2] + pad_top + pad_down
+        iwp = data.shape[-1] + pad_left + pad_right
+        ihp_ = pm.index(0, ihp - 1, name="ihp")
+        iwp_ = pm.index(0, iwp - 1, name="iwp")
+        if len(data.shape) > 3:
+            b = pm.index(0, data.shape[0] - 1, name="b")
+            o_indices = (b, c)
+            p_indices = (b, k,)
+            p_shape = (data.shape[0], data.shape[1], ihp, iwp)
+            out.set_shape((data.shape[0], w.shape[0], oh, ow))
+        else:
+            o_indices = (c,)
+            p_indices = (k,)
+            p_shape = (data.shape[0], ihp, iwp)
+            out.set_shape((w.shape[0], oh, ow))
+
+        padded = pm.temp(shape=p_shape)
+        padded[p_indices + (ihp_, iwp_)] = 0
+
+        padded[p_indices + (iy + pad_top, ix + pad_left)] = data[p_indices + (iy, ix)]
+
+
+        out[o_indices + (y, x)] = pm.sum([dy, dx, k], (padded[p_indices + (dy * dilation_h + stride * y, dx * dilation_w + stride * x)] * w[c, k, dy, dx])) + bias[c]
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1], self.args[2])
+
+    @property
+    def outputs(self):
+        return (self.args[3],)
+
+    @property
+    def stride(self):
+        return self.kwargs['stride']
+
+    @property
+    def pad(self):
+        return self.kwargs['pad']
+
+    @property
+    def groups(self):
+        return self.kwargs['groups']
+
 class lrn(pm.Template):
     def define_graph(self, x, y, alpha, beta, bias, nsize):
         n = pm.index(0, x.shape[0] - 1)
@@ -844,8 +1040,20 @@ class lrn(pm.Template):
 
 
 class max_pool(pm.Template):
-    def define_graph(self, data, out, kh, kw, stride=(1,1), pad=(0,0)):
-
+    def define_graph(self, data, out, kernel_size=None, stride=(1,1), pad=(0,0)):
+        if kernel_size is None:
+            raise RuntimeError(f"Kernel size is a required parameter with no default value.\n"
+                               f"Need to provide value.")
+        elif isinstance(kernel_size, tuple):
+            assert len(kernel_size) == 2
+            kh, kw = kernel_size
+        elif isinstance(kernel_size, int):
+            kh, kw = kernel_size, kernel_size
+        elif isinstance(kernel_size, list):
+            assert len(kernel_size) == 2
+            kh, kw = kernel_size[0], kernel_size[1]
+        else:
+            raise RuntimeError(f"Invalid type for kernel size: {type(kernel_size)}, value: {kernel_size}")
         oh = ((data.shape[-2] + 2 * pad[0] - kh) // stride[0] + 1)
         ow = ((data.shape[-1] + 2 * pad[1] - kw) // stride[1] + 1)
 
@@ -893,7 +1101,7 @@ class max_pool(pm.Template):
 
     @property
     def kernel_size(self):
-        return (self.args[2], self.args[3])
+        return self.kwargs['kernel_size']
 
     @property
     def pad(self):

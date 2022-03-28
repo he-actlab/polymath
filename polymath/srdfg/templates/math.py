@@ -53,6 +53,14 @@ class reduce_min(pm.Template):
     def outputs(self):
         return (self.args[1],)
 
+    @property
+    def axis(self):
+        return self.kwargs['axes']
+
+    @property
+    def axes(self):
+        return self.kwargs['axes']
+
 class reduce_max(pm.Template):
     def define_graph(self, data, out, axes=(0,), keepdims=True):
         # indices = _get_single_node_indices(data)
@@ -68,6 +76,33 @@ class reduce_max(pm.Template):
     @property
     def outputs(self):
         return (self.args[1],)
+
+class reduce_mean(pm.Template):
+    def define_graph(self, data, out, axes=(0,), keepdims=True):
+        # indices = _get_single_node_indices(data)
+        indices = tuple([pm.index(0, s - 1) for s in data.shape])
+        sum_idx = tuple([indices[i] for i in axes])
+        out_idx = tuple([indices[i] for i in range(len(indices)) if i not in axes])
+        denom = 1
+        for i in axes:
+            denom *= data.shape[i]
+        out[out_idx] = pm.sum([sum_idx], data[indices]) / (denom)
+
+    @property
+    def inputs(self):
+        return (self.args[0],)
+
+    @property
+    def outputs(self):
+        return (self.args[1],)
+
+    @property
+    def axis(self):
+        return self.kwargs['axes']
+
+    @property
+    def axes(self):
+        return self.kwargs['axes']
 
 class elem_greater(pm.Template):
     def define_graph(self, a, b, out):
@@ -243,6 +278,23 @@ class elem_div(pm.Template):
     @property
     def outputs(self):
         return (self.args[2],)
+
+class elem_pow(pm.Template):
+    def define_graph(self, val, out, exp=None):
+        indices = _get_single_node_indices(out, shape=out.shape)
+        out[indices] = (val[indices] ** exp)
+
+    @property
+    def inputs(self):
+        return (self.args[0],)
+
+    @property
+    def exp(self):
+        return self.kwargs['exp']
+
+    @property
+    def outputs(self):
+        return (self.args[1],)
 
 class matmul(pm.Template):
     def define_graph(self, a, w, out):

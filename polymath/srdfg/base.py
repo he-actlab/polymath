@@ -725,13 +725,25 @@ class Node(object):
     def __reversed__(self):
         return reversed_(self, graph=self.graph)
 
+    def update_template_index(self, temp):
+        assert isinstance(temp, Node) and hasattr(temp, 'inputs')
+        node_list = list(self.nodes.keys())
+        assert all([i.name in self.nodes for i in temp.inputs])
+        min_idx = max([node_list.index(i.name) for i in temp.inputs])
+        self.nodes.pop(temp.name)
+        self.insert_node(temp, min_idx + 1)
 
     def update_graph_key(self, old_key, new_key):
         n = list(map(lambda k: (new_key, self.nodes[k]) if k == old_key else (k, self.nodes[k]), self.nodes.keys()))
         self.nodes = Graph(n)
 
+    def replace_graph_key(self, old_key, new_node):
+        n = list(map(lambda k: (new_node.name, new_node) if k == old_key else (k, self.nodes[k]), self.nodes.keys()))
+        self.nodes = Graph(n)
+
     def insert_node(self, node, idx):
         node_list = list(self.nodes.items())
+
         node_list.insert(idx, (node.name, node))
         self.nodes = Graph(node_list)
 
