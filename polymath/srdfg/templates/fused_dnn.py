@@ -2,6 +2,18 @@ import polymath as pm
 from .template_utils import _get_indices, _get_single_node_indices, _get_elem_indices, pad_node, \
     _dim_explicit, get_pad_tuple
 
+class elem_sqrt_reciprocal(pm.Template):
+    def define_graph(self, data, out):
+        pass
+
+    @property
+    def inputs(self):
+        return (self.args[0],)
+
+    @property
+    def outputs(self):
+        return (self.args[1],)
+
 class conv_bias_relu(pm.Template):
     def define_graph(self, data, w, bias, out, stride=1, pad=0, dilation=1, groups=1):
         if not isinstance(stride, (tuple, list)):
