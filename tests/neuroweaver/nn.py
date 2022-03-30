@@ -52,7 +52,7 @@ def np_nn(input_info, file_lengths):
                 out_info['ndists'][max_idx] = out_info['z'][i]
                 if (start - REC_WINDOW) == 0:
                     out_info['first'][max_idx] = out_info['z'][i]
-                    print(f"Here: {out_info['ndists']}\n")
+                    # print(f"Here: {out_info['ndists']}\n")
 
     #
     input_info['sandbox'] = input_info['sandbox'][0:REC_WINDOW]
@@ -124,8 +124,7 @@ def nn_datagen(flist_file, neighbors, tgt_lat, tgt_long, rec_len, rec_window, lo
 
     return input_info, all_keys, out_info
 
-def nn_impl(neighbors, latitude,longitude,  coarse=False):
-
+def nn_impl_(neighbors, latitude,longitude,  coarse=False):
     with pm.Node(name="nn") as graph:
         # num = neighbors
         num = pm.parameter("num")
@@ -136,7 +135,10 @@ def nn_impl(neighbors, latitude,longitude,  coarse=False):
         longs = pm.input("longs", shape=(REC_WINDOW))
 
         # Initialize to OPEN
-        ndists = pm.state("ndists", shape=(num))
+        # ndists = pm.state("ndists", shape=(num))
+        # ndists_temp = pm.state("ndists_temp", shape=(REC_WINDOW,))
+        ndists = pm.state("ndists", shape=(REC_WINDOW,))
+        # ndists = pm.output("ndists", shape=(REC_WINDOW,))
         # entries = pm.output("entries", shape=(num))
 
         i = pm.index(0, REC_WINDOW - 1, name="i")
@@ -145,13 +147,75 @@ def nn_impl(neighbors, latitude,longitude,  coarse=False):
         # tmp_longs = sandbox[i, 1]
 
         z = pm.sqrt(((lats[i]-target_lat) * (lats[i]-target_lat)) + ((longs[i]-target_long) * (longs[i]-target_long)), name="sqrtz")
+        max_dist = pm.sum([i], ndists[i], name=f"max_dist")
+        min_dist = pm.sum([i], ndists[i], name=f"min_dist")
+        # Uncommenting this line generates this error:
+        # ndists[j] = (z[j] > min_dist) * z[j] + (z[j] <= max_dist) * z[j]
+        # ndists_temp[i] = (z[i] > min_dist) * z[i] + (z[i] <= max_dist) * z[i]
+        ndists_temp = (z[i] > min_dist) * z[i] + (z[i] <= max_dist) * z[i]
+        # Add a forloop around this computation, to get cycles for several iterations
+        for idx in range(1, REC_WINDOW):
+            max_dist = pm.sum([i], ndists_temp[i], name=f"max_dist{idx}")
+            min_dist = pm.sum([i], ndists_temp[i], name=f"min_dist{idx}")
+        # Uncommenting this line generates this error:
+        # ndists[j] = (z[j] > min_dist) * z[j] + (z[j] <= max_dist) * z[j]
+        # ndists_temp[i] = (z[i] > min_dist) * z[i] + (z[i] <= max_dist) * z[i]
+            ndists_temp = (z[i] > min_dist) * z[i] + (z[i] <= max_dist) * z[i]
+        '''
+        ndists[j] = (z[j] > min_dist)*z[j] + (z[j] <= max_dist)*z[j]
+                if state_name not in self.possible_states:
+>           raise ValueError(f"{state_name} is not a possible state for "
+                             f"{self.component_type}.")
+E           ValueError: lt is not a possible state for pe.
+        '''
+        # delta = (z[i] + max_dist).set_name(f"delta_set")
+        ndists[i] = (ndists_temp[i] + ndists[i]).set_name("ndists_set")
 
-        # ndists[j] = OPEN
+    if coarse:
+        in_info, keys, out_info = nn_datagen(f"{CWD}/openmp/nn/filelist_4", neighbors, latitude, longitude,
+                                                    REC_LENGTH, REC_WINDOW)
 
-        for idx in range(REC_WINDOW):
-            max_dist = pm.max([j], ndists[j], name=f"max_dist{idx}")[0]
-            max_idx = (pm.argmax([j], ndists[j])).set_name(f"max_idx{idx}")
-            ndists[max_idx] = (((z[idx] < max_dist) * z[idx]) + ((z[idx] >= max_dist) * ndists[max_idx]))
+        return graph, in_info, out_info, keys
+    else:
+        in_info, keys, out_info = nn_datagen(f"{CWD}/openmp/nn/filelist_4", neighbors, latitude, longitude,
+                                                    REC_LENGTH, REC_WINDOW, lowered=True)
+        shape_val_pass = pm.NormalizeGraph({"num": in_info['num']})
+        new_graph = shape_val_pass(graph)
+        return new_graph, in_info, out_info, keys
+
+def nn_impl(neighbors, latitude,longitude,  coarse=False):
+
+    with pm.Node(name="nn") as graph:
+        num = pm.parameter("num")
+        target_lat = pm.parameter("target_lat")
+        target_long = pm.parameter("target_long")
+        # target_lat = latitude
+        # target_long = longitude
+
+        lats = pm.input("lats", shape=(REC_WINDOW,))
+        longs = pm.input("longs", shape=(REC_WINDOW,))
+        # z = pm.state("z", shape=(REC_WINDOW,))
+
+        # Initialize to OPEN
+        ndists = pm.state("ndists", shape=(num,))
+
+        i = pm.index(0, REC_WINDOW - 1, name="i")
+        j = pm.index(0, num - 1, name="j")
+
+        t = (((lats[i]-target_lat) * (lats[i]-target_lat)) + ((longs[i]-target_long) * (longs[i]-target_long))).set_name("tempz")
+        # t = (lats[i]-target_lat).set_name("tempz")
+        z = pm.sqrt(t, name="sqrtz")
+        # z = pm.sqrt(((lats[i]-target_lat) * (lats[i]-target_lat)) + ((longs[i]-target_long) * (longs[i]-target_long)), name="sqrtz")
+
+
+        # for idx in range(REC_WINDOW):
+        idx = pm.index(0, 1, name="idx")
+        # idx = 0
+        max_dist = pm.max([j], ndists[j], name=f"max_dist{idx}")
+            # max_idx = (pm.argmax([j], ndists[j])).set_name(f"max_idx{idx}")
+        # ndists[0] = (((z[idx] < max_dist) * z[idx]) + ((z[idx] >= max_dist) * ndists[0]))
+        ndists[j] = ((z[j]) * max_dist).set_name("ndist_write")
+            # ndists[0] = ((t[idx]) * max_dist)
 
     if coarse:
         in_info, keys, out_info = nn_datagen(f"{CWD}/openmp/nn/filelist_4", neighbors, latitude, longitude,

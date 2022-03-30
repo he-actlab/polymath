@@ -160,6 +160,21 @@ class elem_nonzero(pm.Template):
     def outputs(self):
         return (self.args[1],)
 
+
+class reciprocal(pm.Template):
+    def define_graph(self, x, out):
+        pass
+        # indices = _get_single_node_indices(out, shape=out.shape)
+        # out[indices] = ((x[indices] != 0) * indices)
+
+    @property
+    def inputs(self):
+        return (self.args[0],)
+
+    @property
+    def outputs(self):
+        return (self.args[1],)
+
 class elem_or(pm.Template):
     def define_graph(self, a, b, out):
         a_idx, b_idx, indices = _get_elem_indices(a, b, out)

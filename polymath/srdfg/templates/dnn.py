@@ -48,8 +48,23 @@ class cross_entropy_loss(pm.Template):
         return (self.args[2],)
 
 class concat(pm.Template):
-    def define_graph(self, *args, axis=None):
-        pass
+    def define_graph(self, *input_tensors, axis=None):
+        assert isinstance(input_tensors, tuple)
+        output_tensor = input_tensors[-1]
+
+    @property
+    def inputs(self):
+        return self.args[0][:-1]
+
+    @property
+    def outputs(self):
+        return (self.args[0][-1],)
+
+    @property
+    def axis(self):
+        return self.kwargs['axis']
+
+
 
 class nll_loss(pm.Template):
     def define_graph(self, logs, targets, out, reduction="mean"):
@@ -247,6 +262,23 @@ class leaky_relu(pm.Template):
     @property
     def alpha(self):
         return self.kwargs['alpha']
+
+class one_hot(pm.Template):
+    def define_graph(self, indices, depth, values, out, axis=None):
+        pass
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[2])
+
+    @property
+    def outputs(self):
+        return (self.args[3],)
+
+    @property
+    def axis(self):
+        return self.kwargs['axis']
+
 
 class relu1d(pm.Template):
     def define_graph(self, inp, out):

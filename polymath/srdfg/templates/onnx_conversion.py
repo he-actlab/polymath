@@ -11,6 +11,25 @@ def get_transpose(data, perm=None, shape=None, name=None, out=None, **kwargs):
     pm.tensor_transpose(data, out, perm=perm)
     return out
 
+def get_one_hot(data, indices, values, axis=None, shape=None, name=None, out=None, **kwargs):
+    if not out:
+        out = pm.output(name=name, shape=shape)
+    pm.one_hot(data, indices, values, out, axis=axis)
+    return out
+
+def get_reciprocal(data, shape=None, name=None, out=None, **kwargs):
+    if not out:
+        out = pm.output(name=name, shape=shape)
+    pm.reciprocal(data, out)
+    return out
+
+def get_tensor_reshape(data, new_shape, shape=None, name=None, out=None, **kwargs):
+    assert new_shape is not None
+    if not out:
+        out = pm.output(name=name, shape=shape)
+    pm.tensor_reshape(data, out, shape)
+    return out
+
 def get_elem_sigmoid(x, shape=None, name=None, out=None):
     if not out:
         out = pm.output(name=name, shape=shape)
@@ -77,7 +96,9 @@ def get_elem_floor(data, shape=None, name=None, out=None, **kwargs):
 def get_elem_clip(data, min=None, max=None, shape=None, name=None, out=None, **kwargs):
     if not out:
         out = pm.output(name=name, shape=shape)
-    if min is not None:
+    if isinstance(min, (float, int)):
+        minval = min
+    elif min is not None:
         assert min.name in data.graph.nodes
         minval = data.graph.nodes[min.name]
         assert isinstance(minval, pm.parameter), f"Invalid type for clip minval: {type(minval)}"
@@ -86,7 +107,9 @@ def get_elem_clip(data, min=None, max=None, shape=None, name=None, out=None, **k
     else:
         minval = np.iinfo(np.int32).min
 
-    if max is not None:
+    if isinstance(max, (float, int)):
+        maxval = max
+    elif max is not None:
         assert max.name in data.graph.nodes
         maxval = data.graph.nodes[max.name]
         assert isinstance(maxval, pm.parameter) and maxval.default is not None
@@ -303,12 +326,9 @@ def get_lrn(x, alpha=None, beta=None, bias=None, size=None, name=None, shape=Non
 def get_concat(*inputs, axis=None, shape=None, name=None, out=None):
     if not out:
         out = pm.output(name=name, shape=shape)
-    pm.concat(*(inputs + (out,)), axis=axis)
-    # indices = [pm.index(0, s - 1) if s > 1 else 0 for s in shape]
-    # for idx, i in enumerate(inputs):
-    #     indices[axis] = pm.index(idx*i.shape[axis], (idx+1)*i.shape[axis]-1)
-    #     j = pm.index(0, i.shape[axis]-1)
-    #     out[tuple(indices)] = i[tuple(indices[:axis] + [j] + indices[axis+1:])]
+    input_args = inputs + (out,)
+
+    res = pm.concat(*input_args, axis=axis)
     return out
 
 def get_conv_transpose(x, w, bias=None, dilations=None, group=None, kernel_shape=None, pads=None, auto_pad=None,
@@ -422,7 +442,8 @@ def get_leaky_relu(x, alpha=0.01, shape=None, name=None, out=None):
 def get_global_avg_pool(x, shape=None, name=None, out=None):
     if not out:
         out = pm.output(shape=shape, name=name)
-    pm.global_avg_pool(x, out)
+    res = pm.global_avg_pool(x, out)
+
     return out
 
 def get_avg_pool(x, auto_pad=None, ceil_mode=0, kernel_shape=None, pads=(0,0),
@@ -642,19 +663,21 @@ NODE_NAMES = {
     "Not": get_elem_not,
     "NonZero": get_elem_nonzero,
     "NonMaxSuppression": get_nms,
+    "OneHot": get_one_hot,
     "Or": get_elem_or,
     "Pad": get_pad,
     "Pow": get_elem_pow,
     "Relu": get_relu,
     "Range": get_range,
     "RoiAlign": get_roi_align,
-    "Reshape": pm.onnx_reshape,
+    "Reshape": get_tensor_reshape,
     "ReduceSum": get_reduce_sum,
     "ReduceMin": get_reduce_min,
     "ReduceMean": get_reduce_mean,
     "ReduceProd": get_reduce_prod,
     "ReduceMax": get_reduce_max,
     "Resize": pm.onnx_resize,
+    "Reciprocal": get_reciprocal,
     "Squeeze": pm.onnx_squeeze,
     "Shape": get_shape,
     "Split": get_split,

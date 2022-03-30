@@ -92,7 +92,6 @@ class conv_bias_relu(pm.Template):
     def conv_output(self):
         return self.nodes[f"{self.name}_conv_out"]
 
-
 class conv_bias_elem_add_relu(pm.Template):
     def define_graph(self, data, w, bias, op1, out, stride=1, pad=0, dilation=1, groups=1):
         if not isinstance(stride, (tuple, list)):
@@ -187,6 +186,197 @@ class conv_bias_elem_add_relu(pm.Template):
     def groups(self):
         return self.kwargs['groups']
 
+class conv_bias_leaky_relu(pm.Template):
+    def define_graph(self, data, w, bias, out, stride=1, pad=0, dilation=1, groups=1, alpha=1e-2):
+        if not isinstance(stride, (tuple, list)):
+            stride_h = stride_w = stride
+        else:
+            stride_h, stride_w = stride
+
+        if not isinstance(stride, (tuple, list)):
+            dilation_h = dilation_w = dilation
+        else:
+            dilation_h, dilation_w = dilation
+
+        if not isinstance(stride, (tuple, list)):
+            pad = (pad, pad)
+
+        batch, in_channel, in_height, in_width = data.shape
+        num_filter, channel, kernel_h, kernel_w = w.shape
+        # compute the output shape
+        dilated_kernel_h = (kernel_h - 1) * dilation_h + 1
+        dilated_kernel_w = (kernel_w - 1) * dilation_w + 1
+        pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
+            pad, (dilated_kernel_h, dilated_kernel_w)
+        )
+        out_channel = num_filter
+        oh = (in_height - dilated_kernel_h + pad_top + pad_down) // stride_h + 1
+        ow = (in_width - dilated_kernel_w + pad_left + pad_right) // stride_w + 1
+        pad_before = [0, 0, pad_top, pad_left]
+        pad_after = [0, 0, pad_down, pad_right]
+        c = pm.index(0, w.shape[0] - 1)
+        y = pm.index(0, oh - 1)
+        x = pm.index(0, ow - 1)
+        dy = pm.index(0, w.shape[2] - 1)
+        dx = pm.index(0, w.shape[3] - 1)
+        iy = pm.index(0, data.shape[-2] - 1)
+        ix = pm.index(0, data.shape[-1] - 1)
+        k = pm.index(0, data.shape[-3] - 1)
+        ihp = data.shape[-2] + pad_top + pad_down
+        iwp = data.shape[-1] + pad_left + pad_right
+        ihp_ = pm.index(0, ihp - 1)
+        iwp_ = pm.index(0, iwp - 1)
+        if len(data.shape) > 3:
+            b = pm.index(0, data.shape[0] - 1)
+            o_indices = (b, c)
+            p_indices = (b, k,)
+            p_shape = (data.shape[0], data.shape[1], ihp, iwp)
+            conv_out_shape = (data.shape[0], w.shape[0], oh, ow)
+            # out.set_shape()
+        else:
+            o_indices = (c,)
+            p_indices = (k,)
+            p_shape = (data.shape[0], ihp, iwp)
+            conv_out_shape = (w.shape[0], oh, ow)
+
+            # out.set_shape((w.shape[0], oh, ow))
+        conv_out = pm.temp(shape=conv_out_shape, name=f"{self.name}_conv_out")
+        padded = pm.temp(shape=p_shape)
+        out.set_shape(conv_out_shape)
+
+        padded[p_indices + (ihp_, iwp_)] = 0
+        padded[p_indices + (iy + pad_top, ix + pad_left)] = data[p_indices + (iy, ix)]
+
+        conv_out[o_indices + (y, x)] = pm.sum([dy, dx, k], (padded[p_indices + (dy*dilation_h + stride*y, dx*dilation_w + stride*x)] * w[c, k, dy, dx])) + bias[c]
+        out[o_indices + (y, x)] = (0 < conv_out[o_indices + (y, x)]) * conv_out[o_indices + (y, x)] + (0 >= conv_out[o_indices + (y, x)]) * conv_out[o_indices + (y, x)] * alpha
+
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1], self.args[2])
+
+    @property
+    def outputs(self):
+        return (self.args[3],)
+
+    @property
+    def stride(self):
+        return self.kwargs['stride']
+
+    @property
+    def pad(self):
+        return self.kwargs['pad']
+
+    @property
+    def groups(self):
+        return self.kwargs['groups']
+
+    @property
+    def alpha(self):
+        return self.kwargs['alpha']
+
+    @property
+    def conv_output(self):
+        return self.nodes[f"{self.name}_conv_out"]
+
+class conv_bias_elem_add_leaky_relu(pm.Template):
+    def define_graph(self, data, w, bias, op1, out, stride=1, pad=0, dilation=1, groups=1, alpha=1e-2):
+        if not isinstance(stride, (tuple, list)):
+            stride_h = stride_w = stride
+        else:
+            stride_h, stride_w = stride
+
+        if not isinstance(stride, (tuple, list)):
+            dilation_h = dilation_w = dilation
+        else:
+            dilation_h, dilation_w = dilation
+
+        if not isinstance(stride, (tuple, list)):
+            pad = (pad, pad)
+
+        batch, in_channel, in_height, in_width = data.shape
+        num_filter, channel, kernel_h, kernel_w = w.shape
+        # compute the output shape
+        dilated_kernel_h = (kernel_h - 1) * dilation_h + 1
+        dilated_kernel_w = (kernel_w - 1) * dilation_w + 1
+        pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
+            pad, (dilated_kernel_h, dilated_kernel_w)
+        )
+        out_channel = num_filter
+        oh = (in_height - dilated_kernel_h + pad_top + pad_down) // stride_h + 1
+        ow = (in_width - dilated_kernel_w + pad_left + pad_right) // stride_w + 1
+        pad_before = [0, 0, pad_top, pad_left]
+        pad_after = [0, 0, pad_down, pad_right]
+        c = pm.index(0, w.shape[0] - 1)
+        y = pm.index(0, oh - 1)
+        x = pm.index(0, ow - 1)
+        dy = pm.index(0, w.shape[2] - 1)
+        dx = pm.index(0, w.shape[3] - 1)
+        iy = pm.index(0, data.shape[-2] - 1)
+        ix = pm.index(0, data.shape[-1] - 1)
+        k = pm.index(0, data.shape[-3] - 1)
+        ihp = data.shape[-2] + pad_top + pad_down
+        iwp = data.shape[-1] + pad_left + pad_right
+        ihp_ = pm.index(0, ihp - 1)
+        iwp_ = pm.index(0, iwp - 1)
+        if len(data.shape) > 3:
+            b = pm.index(0, data.shape[0] - 1)
+            o_indices = (b, c)
+            p_indices = (b, k,)
+            p_shape = (data.shape[0], data.shape[1], ihp, iwp)
+            conv_out_shape = (data.shape[0], w.shape[0], oh, ow)
+        else:
+            o_indices = (c,)
+            p_indices = (k,)
+            p_shape = (data.shape[0], ihp, iwp)
+            conv_out_shape = (w.shape[0], oh, ow)
+
+        conv_out = pm.temp(shape=conv_out_shape, name=f"{self.name}_conv_out")
+        add_out = pm.temp(shape=conv_out_shape, name=f"{self.name}_add_out")
+        out.set_shape(conv_out_shape)
+
+        padded = pm.temp(shape=p_shape)
+
+        padded[p_indices + (ihp_, iwp_)] = 0
+        padded[p_indices + (iy + pad_top, ix + pad_left)] = data[p_indices + (iy, ix)]
+
+        # out[o_indices + (y, x)] = pm.sum([dy, dx, k], (padded[p_indices + (dy + stride*y, dx + stride*x)] * w[c, k, dy, dx])) + bias[c]
+        conv_out[o_indices + (y, x)] = pm.sum([dy, dx, k], (padded[p_indices + (dy*dilation_h + stride*y, dx*dilation_w + stride*x)] * w[c, k, dy, dx])) + bias[c]
+        add_out[o_indices + (y, x)] = conv_out[o_indices + (y, x)] + op1[conv_out[o_indices + (y, x)]]
+        out[o_indices + (y, x)] = (0 < add_out[o_indices + (y, x)]) * add_out[o_indices + (y, x)] + (0 >= add_out[o_indices + (y, x)]) * add_out[o_indices + (y, x)] * alpha
+
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1], self.args[2], self.args[3])
+
+    @property
+    def conv_output(self):
+        return self.nodes[f"{self.name}_conv_out"]
+
+    @property
+    def add_output(self):
+        return self.nodes[f"{self.name}_add_out"]
+
+    @property
+    def outputs(self):
+        return (self.args[4],)
+
+    @property
+    def stride(self):
+        return self.kwargs['stride']
+
+    @property
+    def pad(self):
+        return self.kwargs['pad']
+
+    @property
+    def groups(self):
+        return self.kwargs['groups']
+
+    @property
+    def alpha(self):
+        return self.kwargs['alpha']
 
 class conv_bias_relu_max_pool(pm.Template):
     def define_graph(self, data, w, bias, out,
@@ -778,7 +968,6 @@ class conv_bias_elem_clip_depthwise_conv_bias(pm.Template):
         ## End special case
 
         conv_out, indices = self.define_conv(data, w, bias, stride=stride, pad=p1, dilation=dilation, groups=groups)
-        print(f"Conv out shape: {conv_out.shape}")
         clip_out = self.define_clip(conv_out, indices, minval, maxval)
         self.define_depthwise_conv(clip_out, dw_conv_weight, dw_conv_bias, out,
                                    depthwise_conv_bias_stride,

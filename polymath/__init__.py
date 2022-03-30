@@ -29,7 +29,7 @@ from polymath.srdfg.templates.dnn import conv_bias, depthwise_conv, depthwise_co
     elem_tanh, elem_sigmoid, elem_cast, conv_transpose, cross_entropy_loss, log_softmax, \
     nll_loss, conv_transpose_bias, elem_floor, elem_ceil, elem_clip, elem_exp, topk,\
     split, elem_if, elem_sqrt, elem_log, roi_align, elem_where, scatter_elements, \
-    loop, nms, concat
+    loop, nms, concat, one_hot
 
 from polymath.srdfg.templates.fused_dnn import conv_bias_relu,\
     conv_bias_relu_max_pool, \
@@ -46,7 +46,7 @@ from polymath.srdfg.templates.gradient_defs import AUTODIFF_OPS
 from polymath.srdfg.templates.math import elem_mul, elem_sub, elem_div, reduce_sum, matmul, gemm, \
     elem_add, elem_greater, lvmatmul, rvmatmul, gemm_no_bias, reduce_min, reduce_max, elem_min, elem_max,\
     elem_less, elem_not, elem_or, elem_and, elem_nonzero, reduce_prod, elem_equal, mean_var, reduce_mean,\
-    elem_pow
+    elem_pow, reciprocal
 
 from polymath.srdfg.templates.tensor_transformations import coarse_flatten, elem_gather, tensor_transpose, onnx_reshape, \
     onnx_squeeze, onnx_identity, onnx_resize, onnx_unsqueeze, tensor_pad, tensor_flip, tensor_reshape

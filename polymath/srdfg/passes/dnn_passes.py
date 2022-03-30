@@ -13,6 +13,7 @@ FusionDescription = namedtuple('FusionDescription', ['output', 'layer'])
 FUSION_NAME_MAPPING = {
     'conv': 'conv_bias',
     'relu': 'relu',
+    'leakyrelu': 'leaky_relu',
     'add': 'elem_add',
     'depthwiseconv': 'depthwise_conv_bias',
     'maxpool': 'max_pool',
