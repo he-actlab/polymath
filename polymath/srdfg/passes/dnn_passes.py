@@ -24,7 +24,8 @@ FUSION_NAME_MAPPING = {
 
 @register_pass
 class FuseOps(Pass):
-    def __init__(self, fusion_seqs):
+    def __init__(self, fusion_seqs, pad_conv_constraint=False):
+
         fusion_ops = []
         for o in fusion_seqs:
             seq = []
@@ -36,6 +37,7 @@ class FuseOps(Pass):
                     seq.append(sl)
             fusion_ops.append(seq)
         assert isinstance(fusion_ops, list) and len(fusion_ops) > 0
+        self.pad_conv_constraint = pad_conv_constraint
         self.check_valid_fusions(fusion_ops)
         self.fusion_sequences = fusion_ops
         self.fusion_sequences = sorted(self.fusion_sequences, key=lambda x: len(x), reverse=True)
@@ -55,6 +57,28 @@ class FuseOps(Pass):
                 raise RuntimeError(f"Fusion template does not exist for sequence: {f} with name {name}")
 
 
+    def is_conv_dw_conv(self, seq) -> bool:
+        return "conv_bias" == seq[0] and "depthwise_conv_bias" in seq
+
+    def is_valid_conv_dw_conv(self, conv_node) -> bool:
+        assert conv_node.op_name == "conv_bias"
+        return conv_node.inputs[1].shape[2:] == (1, 1)
+
+    def get_possible_fusions(self, n):
+        possible_fusions = []
+        if self.pad_conv_constraint:
+            for s in self.fusion_sequences:
+                if s[0] == n.op_name:
+                    if not self.is_conv_dw_conv(s):
+                        possible_fusions.append(s)
+                    elif self.is_valid_conv_dw_conv(n):
+                        possible_fusions.append(s)
+        else:
+            for s in self.fusion_sequences:
+                if s[0] == n.op_name:
+                    possible_fusions.append(s)
+        return possible_fusions
+
     def initialize_pass(self, graph, ctx):
         nidx = 0
         node_list = list(graph.nodes.values())
@@ -71,11 +95,9 @@ class FuseOps(Pass):
                 continue
 
             if n.op_name in self.fusion_starts:
-
-                possible_fusions = [s for s in self.fusion_sequences if s[0] == n.op_name]
+                possible_fusions = self.get_possible_fusions(n)
                 for pf in possible_fusions:
                     fused_nodes = self.get_fused_nodes(graph, pf, n)
-
                     if fused_nodes is not None:
                         self.fuse_layers(graph, fused_nodes, pf)
                         break

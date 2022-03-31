@@ -112,10 +112,10 @@ def test_single_layer_fusion(model, fusion_sequence, testnum):
     fusion_pass = pm.FuseOps([fusion_sequence])
     fused_graph = fusion_pass(graph)
 @pytest.mark.parametrize('model_name', [
-    "resnet18",
+    # "resnet18",
     # "resnet50",
     # "efficientnet-lite4-11-opt-no-softmax",
-    # "mobilenet27-opt",
+    "mobilenet27-opt",
     # "yolov3-opt-static",
     # "bertsquad-12-opt1"
 ])
@@ -130,8 +130,10 @@ def test_conversion(model_name):
     ]
     fpath = f"{BENCH_DIR}/full_dnns/{model_name}.onnx"
     graph = pm.from_onnx(fpath)
-    fusion_pass = pm.FuseOps(all_fusions)
+    fusion_pass = pm.FuseOps(all_fusions, pad_conv_constraint=True)
     fused_graph = fusion_pass(graph)
+
+
 
 
 def conv2d_transpose(
