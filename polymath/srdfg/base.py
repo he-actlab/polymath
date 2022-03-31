@@ -727,10 +727,11 @@ class Node(object):
 
     def update_template_index(self, temp):
         assert isinstance(temp, Node) and hasattr(temp, 'inputs')
-        node_list = list(self.nodes.keys())
         assert all([i.name in self.nodes for i in temp.inputs])
-        min_idx = max([node_list.index(i.name) for i in temp.inputs])
         self.nodes.pop(temp.name)
+        node_list = list(self.nodes.keys())
+        min_idx = max([node_list.index(i.name) for i in temp.inputs])
+
         self.insert_node(temp, min_idx + 1)
 
     def update_graph_key(self, old_key, new_key):

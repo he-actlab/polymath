@@ -58,7 +58,6 @@ class FuseOps(Pass):
     def initialize_pass(self, graph, ctx):
         nidx = 0
         node_list = list(graph.nodes.values())
-
         while nidx < len(node_list):
             n = node_list[nidx]
             if not isinstance(n, pm.Template):
@@ -76,6 +75,7 @@ class FuseOps(Pass):
                 possible_fusions = [s for s in self.fusion_sequences if s[0] == n.op_name]
                 for pf in possible_fusions:
                     fused_nodes = self.get_fused_nodes(graph, pf, n)
+
                     if fused_nodes is not None:
                         self.fuse_layers(graph, fused_nodes, pf)
                         break
@@ -147,8 +147,23 @@ class FuseOps(Pass):
 
         with graph:
             node = getattr(fused_dnn, fusion_name)(*layer_inputs, name=instance_name, **layer_kwargs)
-        graph.update_template_index(node)
 
+        self.topological_insert(graph, node)
+
+    def topological_insert(self, graph, node):
+        assert isinstance(node, pm.Node) and hasattr(node, 'inputs')
+        assert all([i.name in graph.nodes for i in node.inputs])
+        graph.nodes.pop(node.name)
+        min_idx = 0
+        for i, n in enumerate(graph.nodes.values()):
+            if isinstance(n, pm.Template):
+                for o in n.outputs:
+                    if o in node.inputs and i > min_idx:
+                        min_idx = i
+            elif n in node.inputs and i > min_idx:
+                min_idx = i
+
+        graph.insert_node(node, min_idx + 1)
 
     def get_fused_nodes(self, graph, sequence, initial_layer):
         # TODO: Make sure the output isnt used in multiple places
