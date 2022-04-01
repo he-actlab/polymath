@@ -114,8 +114,8 @@ def test_single_layer_fusion(model, fusion_sequence, testnum):
 @pytest.mark.parametrize('model_name', [
     # "resnet18",
     # "resnet50",
-    # "efficientnet-lite4-11-opt-no-softmax",
-    "mobilenet27-opt",
+    "efficientnet-lite4-11-opt-no-softmax",
+    # "mobilenet27-opt",
     # "yolov3-opt-static",
     # "bertsquad-12-opt1"
 ])
@@ -125,6 +125,7 @@ def test_conversion(model_name):
         ['Conv', 'LeakyRelu'],
         ['Conv', 'Add', 'Relu'],
         ['Conv', 'Add', 'LeakyRelu'],
+        ['Conv', 'LeakyRelu', 'Add'],
         ['Conv', 'Clip', 'DepthwiseConv'],
         ['Conv', 'Clip', 'DepthwiseConv', 'Clip'],
     ]
@@ -132,6 +133,7 @@ def test_conversion(model_name):
     graph = pm.from_onnx(fpath)
     fusion_pass = pm.FuseOps(all_fusions, pad_conv_constraint=True)
     fused_graph = fusion_pass(graph)
+    print(fusion_pass.fusion_instances)
 
 
 

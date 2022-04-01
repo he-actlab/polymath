@@ -89,6 +89,19 @@ class coarse_flatten(pm.Template):
         return (self.args[1],)
 
 
+class tensor_squeeze(pm.Template):
+    def define_graph(self, data, out):
+        pass
+
+    @property
+    def inputs(self):
+        return (self.args[0],)
+
+    @property
+    def outputs(self):
+        return (self.args[1],)
+
+
 class elem_gather(pm.Template):
     def define_graph(self, data, indices, output, axis=0):
         # TODO: Fix this to use manual implementation

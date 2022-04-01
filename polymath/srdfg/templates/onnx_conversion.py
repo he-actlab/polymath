@@ -11,6 +11,14 @@ def get_transpose(data, perm=None, shape=None, name=None, out=None, **kwargs):
     pm.tensor_transpose(data, out, perm=perm)
     return out
 
+
+def get_squeeze(data, shape=None, name=None, out=None, **kwargs):
+    if not out:
+        out = pm.output(name=name, shape=shape)
+
+    pm.tensor_squeeze(data, out)
+    return out
+
 def get_one_hot(data, indices, values, axis=None, shape=None, name=None, out=None, **kwargs):
     if not out:
         out = pm.output(name=name, shape=shape)
@@ -678,7 +686,7 @@ NODE_NAMES = {
     "ReduceMax": get_reduce_max,
     "Resize": pm.onnx_resize,
     "Reciprocal": get_reciprocal,
-    "Squeeze": pm.onnx_squeeze,
+    "Squeeze": get_squeeze,
     "Shape": get_shape,
     "Split": get_split,
     "SoftmaxCrossEntropyLoss": get_cross_entropy_loss,

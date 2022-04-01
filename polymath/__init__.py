@@ -49,7 +49,8 @@ from polymath.srdfg.templates.math import elem_mul, elem_sub, elem_div, reduce_s
     elem_pow, reciprocal
 
 from polymath.srdfg.templates.tensor_transformations import coarse_flatten, elem_gather, tensor_transpose, onnx_reshape, \
-    onnx_squeeze, onnx_identity, onnx_resize, onnx_unsqueeze, tensor_pad, tensor_flip, tensor_reshape
+    onnx_squeeze, onnx_identity, onnx_resize, \
+    onnx_unsqueeze, tensor_pad, tensor_flip, tensor_reshape, tensor_squeeze
 
 from polymath.srdfg.from_onnx.converter import from_onnx, get_attributes, get_value_info_shape, ONNX_OP_NAMES
 from polymath.srdfg.from_pytorch.converter import from_pytorch, get_attributes, get_value_info_shape, PYTORCH_OP_NAMES
