@@ -15,6 +15,10 @@ FUSION_NAME_MAPPING = {
     'relu': 'relu',
     'leakyrelu': 'leaky_relu',
     'add': 'elem_add',
+    'sub': 'elem_sub',
+    'reducemean': 'reduce_mean',
+    'mul': 'elem_mul',
+    'sqrt': 'elem_sqrt',
     'depthwiseconv': 'depthwise_conv_bias',
     'maxpool': 'max_pool',
     'globalaveragepool': 'global_avg_pool',
@@ -119,6 +123,13 @@ class FuseOps(Pass):
         assert result.op_name == "output"
         result.reset_writes()
 
+    def get_fusion_name(self, fusion_ops):
+        fusion_name = "_".join(fusion_ops)
+        fusion_name.replace("elem_", "")
+        fusion_name.replace("reduce_", "")
+        return fusion_name
+
+
     def fuse_layers(self, graph, layers, fusion_ops):
         intermediate_nodes = [l.output for l in layers[:-1]]
 
@@ -147,7 +158,8 @@ class FuseOps(Pass):
         self.all_fused_nodes['fusion_inputs'] += layer_inputs
         self.all_fused_nodes['fusion_outputs'].append(result)
 
-        fusion_name = "_".join(fusion_ops)
+
+        fusion_name = self.get_fusion_name(fusion_ops)
         instance_name = f"{fusion_name}{self.fusion_instances[fusion_name]}"
         self.fusion_instances[fusion_name] += 1
         signature = inspect.signature(getattr(fused_dnn, fusion_name).define_graph)

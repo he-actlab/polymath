@@ -11,6 +11,12 @@ def get_transpose(data, perm=None, shape=None, name=None, out=None, **kwargs):
     pm.tensor_transpose(data, out, perm=perm)
     return out
 
+def get_resize(data, scales, mode=None, name=None, shape=None, out=None, **kwargs):
+    if not out:
+        out = pm.output(name=name, shape=shape)
+
+    pm.resize(data, scales, out, mode=mode)
+    return out
 
 def get_squeeze(data, shape=None, name=None, out=None, **kwargs):
     if not out:
@@ -630,6 +636,7 @@ def get_nms(boxes, scores, max_output_boxes_per_class=0, iou_threshold=0, score_
            iou_threshold=iou_threshold, score_threshold=score_threshold, center_point_box=center_point_box)
     return out
 
+
 NODE_NAMES = {
     "Add": get_elem_add,
     "AveragePool": get_avg_pool,
@@ -684,7 +691,7 @@ NODE_NAMES = {
     "ReduceMean": get_reduce_mean,
     "ReduceProd": get_reduce_prod,
     "ReduceMax": get_reduce_max,
-    "Resize": pm.onnx_resize,
+    "Resize": get_resize,
     "Reciprocal": get_reciprocal,
     "Squeeze": get_squeeze,
     "Shape": get_shape,

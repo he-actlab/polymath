@@ -123,6 +123,18 @@ class elem_expand(pm.Template):
     def outputs(self):
         return (self.args[2],)
 
+class resize(pm.Template):
+    def define_graph(self, data, scales, output, mode=0):
+        pass
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1])
+
+    @property
+    def outputs(self):
+        return (self.args[2],)
+
 # TODO: Need to fix this functionality to create a new node
 def onnx_unsqueeze(x, *args, axes=None, shape=None, name=None, **kwargs):
     out = pm.unsqueeze(x, axis=axes, name=name, shape=shape)
