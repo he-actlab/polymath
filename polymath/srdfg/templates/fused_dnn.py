@@ -1,8 +1,9 @@
 import polymath as pm
+from collections import defaultdict
 from .template_utils import _get_indices, _get_single_node_indices, _get_elem_indices, pad_node, \
     _dim_explicit, get_pad_tuple
 
-class elem_sqrt_reciprocal(pm.Template):
+class sqrt_reciprocal(pm.Template):
     def define_graph(self, data, out):
         pass
 
@@ -104,7 +105,7 @@ class conv_bias_relu(pm.Template):
     def conv_output(self):
         return self.nodes[f"{self.name}_conv_out"]
 
-class conv_bias_elem_add_relu(pm.Template):
+class conv_bias_add_relu(pm.Template):
     def define_graph(self, data, w, bias, op1, out, stride=1, pad=0, dilation=1, groups=1):
         if not isinstance(stride, (tuple, list)):
             stride_h = stride_w = stride
@@ -164,7 +165,6 @@ class conv_bias_elem_add_relu(pm.Template):
 
         padded[p_indices + (ihp_, iwp_)] = 0
         padded[p_indices + (iy + pad_top, ix + pad_left)] = data[p_indices + (iy, ix)]
-
         # out[o_indices + (y, x)] = pm.sum([dy, dx, k], (padded[p_indices + (dy + stride*y, dx + stride*x)] * w[c, k, dy, dx])) + bias[c]
         conv_out[o_indices + (y, x)] = pm.sum([dy, dx, k], (padded[p_indices + (dy*dilation_h + stride*y, dx*dilation_w + stride*x)] * w[c, k, dy, dx])) + bias[c]
         add_out[o_indices + (y, x)] = conv_out[o_indices + (y, x)] + op1[conv_out[o_indices + (y, x)]]
@@ -292,7 +292,7 @@ class conv_bias_leaky_relu(pm.Template):
     def conv_output(self):
         return self.nodes[f"{self.name}_conv_out"]
 
-class conv_bias_elem_add_leaky_relu(pm.Template):
+class conv_bias_add_leaky_relu(pm.Template):
     def define_graph(self, data, w, bias, op1, out, stride=1, pad=0, dilation=1, groups=1, alpha=1e-2):
         if not isinstance(stride, (tuple, list)):
             stride_h = stride_w = stride
@@ -392,7 +392,7 @@ class conv_bias_elem_add_leaky_relu(pm.Template):
         return self.kwargs['alpha']
 
 
-class conv_bias_leaky_relu_elem_add(pm.Template):
+class conv_bias_leaky_relu_add(pm.Template):
     def define_graph(self, data, w, bias, op1, out, stride=1, pad=0, dilation=1, groups=1, alpha=1e-2):
         if not isinstance(stride, (tuple, list)):
             stride_h = stride_w = stride
@@ -494,7 +494,7 @@ class conv_bias_leaky_relu_elem_add(pm.Template):
 class conv_bias_relu_max_pool(pm.Template):
     def define_graph(self, data, w, bias, out,
                      stride=1, pad=0, dilation=1, groups=1,
-                     kernel_size=None, max_pool_stride=(1,1), max_pool_pad=(0,0)
+                     kernel_size=None, stride0=(1,1), pad0=(0,0)
                      ):
         if kernel_size is None:
             raise RuntimeError(f"Kernel size is a required parameter with no default value.\n"
@@ -511,7 +511,7 @@ class conv_bias_relu_max_pool(pm.Template):
             kh, kw = kernel_size[0], kernel_size[1]
         else:
             raise RuntimeError(f"Invalid type for kernel size")
-        self.define_max_pool(relu_out, out, kh, kw, max_pool_stride, max_pool_pad)
+        self.define_max_pool(relu_out, out, kh, kw, stride0, pad0)
 
 
     def define_max_pool(self, relu_out, out, kh, kw, stride, pad):
@@ -631,16 +631,16 @@ class conv_bias_relu_max_pool(pm.Template):
         return self.kwargs['pad']
 
     @property
-    def max_pool_stride(self):
-        return self.kwargs['max_pool_stride']
+    def stride0(self):
+        return self.kwargs['stride0']
 
     @property
     def kernel_size(self):
         return self.kwargs['kernel_size']
 
     @property
-    def max_pool_pad(self):
-        return self.kwargs['max_pool_pad']
+    def pad0(self):
+        return self.kwargs['pad0']
 
 
     @property
@@ -656,7 +656,7 @@ class conv_bias_relu_max_pool(pm.Template):
         return self.nodes[f"{self.name}_relu_out"]
 
 
-class conv_bias_elem_add_relu_global_avg_pool(pm.Template):
+class conv_bias_add_relu_global_avg_pool(pm.Template):
     def define_graph(self, data, w, bias, op1, out,
                      stride=1, pad=0, dilation=1, groups=1
                      ):
@@ -781,7 +781,7 @@ class conv_bias_elem_add_relu_global_avg_pool(pm.Template):
     def relu_output(self):
         return self.nodes[f"{self.name}_relu_out"]
 
-class conv_bias_elem_add(pm.Template):
+class conv_bias_add(pm.Template):
     def define_graph(self, data, w, bias, op1, out, stride=1, pad=0, dilation=1, groups=1):
         conv_out, indices = self.define_conv(data, w, bias, stride=stride, pad=pad, dilation=dilation, groups=groups)
         self.define_add(conv_out, op1, out, indices)
@@ -875,11 +875,11 @@ class conv_bias_elem_add(pm.Template):
         return self.kwargs['groups']
 
 
-class conv_bias_elem_clip_avg_pool(pm.Template):
+class conv_bias_clip_avg_pool(pm.Template):
     def define_graph(self, data, w, bias, out,
                      stride=1, pad=0, dilation=1, groups=1,
                      minval=None, maxval=None,
-                     kernel_size=None, avg_pool_stride=(1,1), avg_pool_pad=(0,0)
+                     kernel_size=None, stride0=(1,1), pad0=(0,0)
                      ):
         if kernel_size is None:
             raise RuntimeError(f"Kernel size is a required parameter with no default value.\n"
@@ -897,7 +897,7 @@ class conv_bias_elem_clip_avg_pool(pm.Template):
             kh, kw = kernel_size[0], kernel_size[1]
         else:
             raise RuntimeError(f"Invalid type for kernel size")
-        self.define_avg_pool(clip_out, out, kh, kw, avg_pool_stride, avg_pool_pad)
+        self.define_avg_pool(clip_out, out, kh, kw, stride0, pad0)
 
 
     def define_avg_pool(self, clip_out, out, kh, kw, stride, pad):
@@ -1025,16 +1025,16 @@ class conv_bias_elem_clip_avg_pool(pm.Template):
         return self.kwargs['maxval']
 
     @property
-    def avg_pool_stride(self):
-        return self.kwargs['avg_pool_stride']
+    def stride0(self):
+        return self.kwargs['stride0']
 
     @property
     def kernel_size(self):
         return self.kwargs['kernel_size']
 
     @property
-    def avg_pool_pad(self):
-        return self.kwargs['avg_pool_pad']
+    def pad0(self):
+        return self.kwargs['pad0']
 
     @property
     def groups(self):
@@ -1049,18 +1049,18 @@ class conv_bias_elem_clip_avg_pool(pm.Template):
         return self.nodes[f"{self.name}_clip_out"]
 
 
-class conv_bias_elem_clip_depthwise_conv_bias(pm.Template):
+class conv_bias_clip_depthwise_conv_bias(pm.Template):
     def define_graph(self, data, w, bias, dw_conv_weight, dw_conv_bias, out,
                      stride=1, pad=0, dilation=1, groups=1,
                      minval=None, maxval=None,
-                     depthwise_conv_bias_stride=1, depthwise_conv_bias_pad=0,
-                     depthwise_conv_bias_dilation=1, depthwise_conv_bias_groups=1,
+                     stride0=1, pad0=0,
+                     dilation0=1, groups0=1,
                      ):
         ## Merging padding--special case
         ih = data.shape[2]
         iw = data.shape[3]
         p1 = pad
-        p2 = depthwise_conv_bias_pad
+        p2 = pad0
         s1 = stride
         kh = w.shape[2]
         kw = w.shape[3]
@@ -1076,16 +1076,16 @@ class conv_bias_elem_clip_depthwise_conv_bias(pm.Template):
         p1 = (ih1_ - ih) // 2
         p2 = 0
         self.kwargs['pad'] = p1
-        self.kwargs['depthwise_conv_bias_pad'] = p2
+        self.kwargs['pad0'] = p2
         ## End special case
 
         conv_out, indices = self.define_conv(data, w, bias, stride=stride, pad=p1, dilation=dilation, groups=groups)
         clip_out = self.define_clip(conv_out, indices, minval, maxval)
         self.define_depthwise_conv(clip_out, dw_conv_weight, dw_conv_bias, out,
-                                   depthwise_conv_bias_stride,
+                                   stride0,
                                    p2,
-                                   depthwise_conv_bias_groups,
-                                   depthwise_conv_bias_dilation
+                                   groups0,
+                                   dilation0
                                    )
 
 
@@ -1255,32 +1255,32 @@ class conv_bias_elem_clip_depthwise_conv_bias(pm.Template):
         return self.nodes[f"{self.name}_clip_out"]
 
     @property
-    def depthwise_conv_bias_stride(self):
-        return self.kwargs['depthwise_conv_bias_stride']
+    def stride0(self):
+        return self.kwargs['stride0']
 
     @property
-    def depthwise_conv_bias_pad(self):
-        return self.kwargs['depthwise_conv_bias_pad']
+    def pad0(self):
+        return self.kwargs['pad0']
 
     @property
-    def depthwise_conv_bias_groups(self):
-        return self.kwargs['depthwise_conv_bias_groups']
+    def groups0(self):
+        return self.kwargs['groups0']
 
 
 
-class conv_bias_elem_clip_depthwise_conv_bias_elem_clip(pm.Template):
+class conv_bias_clip_depthwise_conv_bias_clip(pm.Template):
     def define_graph(self, data, w, bias, dw_conv_weight, dw_conv_bias, out,
                      stride=1, pad=0, dilation=1, groups=1,
                      minval=None, maxval=None,
-                     depthwise_conv_bias_stride=1, depthwise_conv_bias_pad=0,
-                     depthwise_conv_bias_dilation=1, depthwise_conv_bias_groups=1,
-                     elem_clip_minval=None, elem_clip_maxval=None,
+                     stride0=1, pad0=0,
+                     dilation0=1, groups0=1,
+                     minval0=None, maxval0=None,
                      ):
         ## Merging padding--special case
         ih = data.shape[2]
         iw = data.shape[3]
         p1 = pad
-        p2 = depthwise_conv_bias_pad
+        p2 = pad0
         s1 = stride
         kh = w.shape[2]
         kw = w.shape[3]
@@ -1296,18 +1296,18 @@ class conv_bias_elem_clip_depthwise_conv_bias_elem_clip(pm.Template):
         p1 = (ih1_ - ih) // 2
         p2 = 0
         self.kwargs['pad'] = p1
-        self.kwargs['depthwise_conv_bias_pad'] = p2
+        self.kwargs['pad0'] = p2
         ## End special case
         conv_out, indices = self.define_conv(data, w, bias, stride=stride, pad=p1, dilation=dilation, groups=groups)
         clip_out = self.define_clip(conv_out, indices, minval, maxval)
 
         dw_conv_out, indices = self.define_depthwise_conv(clip_out, dw_conv_weight, dw_conv_bias,
-                                   depthwise_conv_bias_stride,
+                                   stride0,
                                    p2,
-                                   depthwise_conv_bias_groups,
-                                   depthwise_conv_bias_dilation
+                                   groups0,
+                                   dilation0
                                    )
-        self.define_clip(dw_conv_out, indices, elem_clip_minval, elem_clip_maxval, clip_out=out)
+        self.define_clip(dw_conv_out, indices, minval0, maxval0, clip_out=out)
 
     def define_depthwise_conv(self, clip_out, w, bias, stride, pad,  groups, dilation, out=None):
 
@@ -1482,19 +1482,235 @@ class conv_bias_elem_clip_depthwise_conv_bias_elem_clip(pm.Template):
         return self.nodes[f"{self.name}_clip_out"]
 
     @property
-    def depthwise_conv_bias_stride(self):
-        return self.kwargs['depthwise_conv_bias_stride']
+    def stride0(self):
+        return self.kwargs['stride0']
 
     @property
-    def depthwise_conv_bias_pad(self):
-        return self.kwargs['depthwise_conv_bias_pad']
+    def pad0(self):
+        return self.kwargs['pad0']
 
     @property
-    def depthwise_conv_bias_groups(self):
-        return self.kwargs['depthwise_conv_bias_groups']
+    def groups0(self):
+        return self.kwargs['groups0']
 
 
 
-# class matmul_elem_add_elem_add_reduce_mean_elem_sub_elem_mul_reduce_mean_elem_add_elem_sqrt_reciprocal_elem_mul_elem_sub_elem_mul_elem_add(pm.Template):
-class matmul_add_add_mean_sub_mul_mean_add_sqrt_reciprocal_mul_sub_mul_add(pm.Template):
-    pass
+class gemm_add_mean_sub_mul_mean_add_sqrt_reciprocal_mul_mul_mul_sub_add(pm.Template):
+    def define_graph(self, data, wgt, bias, add_lhs1, add_lhs2, mul_lhs, sub_rhs, output,
+                     alpha=1.0, beta=0.0, transA=None, transB=None, strict_shapes=False,
+                     axes=(0,), axes0=(0,), keepdims=True, keepdims0=True
+                     ):
+        gemm_out, indices = self.define_gemm(data, wgt, bias,
+                         alpha=alpha, beta=beta, transA=transA,
+                         transB=transB, strict_shapes=strict_shapes
+                         )
+        add_out, add_indices = self.define_add(gemm_out, add_lhs1)
+        mean_out, indices = self.define_mean(add_out, axes=axes, keepdims=keepdims)
+        sub_out = pm.temp(shape=add_out.shape, name=f"{self.name}_sub_out")
+        sub_out[add_indices] = (add_out[add_indices] - mean_out[indices]) * (add_out[add_indices] - mean_out[indices])
+
+
+
+    def define_add(self, a, b):
+        if len(a.shape) > len(b.shape):
+            out_shape = a.shape
+        else:
+            out_shape = b.shape
+        out = pm.temp(shape=out_shape, name=f"{self.name}_add_out")
+        a_idx, b_idx, indices = _get_elem_indices(a, b, out)
+        # a_idx, b_idx, indices = _get_binop_idx(a, b, out)
+        out[indices] = (a[a_idx] + b[b_idx])
+        return out, indices
+
+    def define_mean(self, data, axes=(0, ), keepdims=True):
+        indices = tuple([pm.index(0, s - 1) for s in data.shape])
+        sum_idx = tuple([indices[i] for i in axes])
+        out_idx = tuple([indices[i] for i in range(len(indices)) if i not in axes])
+        out_shape = []
+        for i, s in enumerate(data.shape):
+            if i in axes:
+                if keepdims:
+                    out_shape.append(1)
+                else:
+                    continue
+            else:
+                out_shape.append(s)
+        out = pm.temp(shape=tuple(out_shape), name=f"{self.name}_reduce_mean_out")
+        denom = 1
+        for i in axes:
+            denom *= data.shape[i]
+        out[out_idx] = pm.sum([sum_idx], data[indices]) / (denom)
+
+        return out, out_idx
+
+    def define_gemm(self, a, b, c, alpha=1.0, beta=0.0, transA=None, transB=None, strict_shapes=False):
+        if strict_shapes:
+            assert b.shape[0] == a.shape[1]
+            assert c.shape[0] == b.shape[1]
+            assert bool(transB) == bool(transA) and bool(transA) == False, f"Strict shape check failed: {transA} != {transB}"
+
+        if transA:
+            i = pm.index(0, a.shape[1] - 1)
+            j = pm.index(0, b.shape[0] - 1)
+            k = pm.index(0, b.shape[1] - 1)
+            out_shape = (a.shape[1], b.shape[1])
+            y = pm.temp(shape=out_shape, name=f"{self.name}_gemm_out")
+            y[i, k] = pm.sum([j], a[j, i]*b[j, k]) + c[i, k]
+        elif transB:
+            i = pm.index(0, a.shape[0] - 1)
+            j = pm.index(0, b.shape[1] - 1)
+            k = pm.index(0, b.shape[0] - 1)
+            out_shape = (a.shape[0], b.shape[0])
+            y = pm.temp(shape=out_shape, name=f"{self.name}_gemm_out")
+            y[i, k] = pm.sum([j], a[i, j]*b[k, j]) + c[i, k]
+        else:
+            i = pm.index(0, a.shape[0] - 1)
+            j = pm.index(0, b.shape[0] - 1)
+            k = pm.index(0, b.shape[1] - 1)
+            out_shape = (a.shape[0], b.shape[1])
+            y = pm.temp(shape=out_shape, name=f"{self.name}_gemm_out")
+            y[i, k] = pm.sum([j], a[i, j]*b[j, k]) + c[i, k]
+        return y, (i, k)
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1], self.args[2], self.args[3], self.args[4], self.args[5], self.args[6])
+
+    @property
+    def outputs(self):
+        return (self.args[7],)
+
+
+class matmul_reshape_add_add_mean_sub_mul_mean_add_sqrt_reciprocal_mul_mul_mul_sub_add(pm.Template):
+    def define_graph(self, data, wgt, add_lhs1, add_lhs2, add_lhs3, mul_lhs, sub_rhs, output,
+                     axes=(0,), axes0=(0,), keepdims=True, keepdims0=True
+                     ):
+        self.names = defaultdict(int)
+        gemm_out, indices = self.define_matmul(data, wgt)
+        add_out0, add_indices = self.define_add(gemm_out, add_lhs1)
+        add_out1, add_indices = self.define_add(add_out0, add_lhs1)
+        mean_out, indices = self.define_mean(add_out1, axes=axes, keepdims=keepdims)
+        sub_out = pm.temp(shape=add_out1.shape, name=f"{self.name}_sub_out")
+        sub_out[add_indices] = (add_out1[add_indices] - mean_out[indices]) * (add_out1[add_indices] - mean_out[indices])
+
+
+    def get_name(self, base_name):
+        name = f"{self.names[base_name]}{base_name}"
+        self.names[base_name] += 1
+        return name
+
+    def define_add(self, a, b):
+        if len(a.shape) > len(b.shape):
+            out_shape = a.shape
+        else:
+            out_shape = b.shape
+        out = pm.temp(shape=out_shape, name=self.get_name(f"{self.name}_add_out"))
+        a_idx, b_idx, indices = _get_elem_indices(a, b, out)
+        # a_idx, b_idx, indices = _get_binop_idx(a, b, out)
+        out[indices] = (a[a_idx] + b[b_idx])
+        return out, indices
+
+    def define_mean(self, data, axes=(0,), keepdims=True):
+        indices = tuple([pm.index(0, s - 1) for s in data.shape])
+        sum_idx = tuple([indices[i] for i in axes])
+        out_idx = tuple([indices[i] for i in range(len(indices)) if i not in axes])
+        out_shape = []
+        for i, s in enumerate(data.shape):
+            if i in axes:
+                if keepdims:
+                    out_shape.append(1)
+                else:
+                    continue
+            else:
+                out_shape.append(s)
+        out = pm.temp(shape=tuple(out_shape), name=f"{self.name}_reduce_mean_out")
+        denom = 1
+        for i in axes:
+            denom *= data.shape[i]
+        out[out_idx] = pm.sum([sum_idx], data[indices]) / (denom)
+
+        return out, out_idx
+
+    def define_matmul(self, a, w):
+        indices = _get_single_node_indices(a)
+        sum_idx = indices[-1]
+        o_idx = pm.index(0, w.shape[0]-1) if w.shape[-1] == a.shape[-1] else pm.index(0, w.shape[1]-1)
+        o_shape = (a.shape[0], w.shape[0]) if w.shape[-1] == a.shape[-1] else (a.shape[0], w.shape[1])
+        w_idx = (o_idx, sum_idx) if w.shape[-1] == a.shape[-1] else (sum_idx, o_idx)
+        out_idx = indices[:-1] + (o_idx,)
+        out = pm.temp(shape=o_shape, name=f"{self.name}_matmul_out")
+
+        out[out_idx] = pm.sum([sum_idx], a[indices]*w[w_idx])
+
+        return out, out_idx
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1], self.args[2], self.args[3], self.args[4], self.args[5], self.args[6])
+
+    @property
+    def outputs(self):
+        return (self.args[7],)
+
+
+class matmul_mul_add_softmax(pm.Template):
+    def define_graph(self, data, weight, mul_rhs, add_lhs, out, axis=(0,)):
+        pass
+
+    @property
+    def axis(self):
+        return self.kwargs['axis']
+
+    @property
+    def inputs(self):
+        return (self.args[0],self.args[1], self.args[2], self.args[3],)
+
+    @property
+    def outputs(self):
+        return (self.args[-1],)
+
+class gemm_reshape_transpose(pm.Template):
+    def define_graph(self, data, wgt, bias, output,
+                     alpha=1.0, beta=0.0, transA=None, transB=None, strict_shapes=False, perm=None):
+        pass
+
+
+    @property
+    def perm(self):
+        return self.kwargs['perm']
+
+    @property
+    def inputs(self):
+        return (self.args[0],self.args[1], self.args[2],)
+
+    @property
+    def outputs(self):
+        return (self.args[-1],)
+
+class matmul_transpose(pm.Template):
+    def define_graph(self, data, w, output,
+                     perm=None):
+        pass
+
+    @property
+    def inputs(self):
+        return (self.args[0],self.args[1],)
+
+    @property
+    def outputs(self):
+        return (self.args[-1],)
+
+
+class gemm_pow_mul_add_mul_tanh_add_mul_mul(pm.Template):
+    def define_graph(self, data, wgt, bias, mul_lhs0, mul_lhs1, add_lhs, mul_lhs2, output,
+                     alpha=1.0, beta=0.0, transA=None, transB=None, strict_shapes=False,
+                     exp=None):
+        pass
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1], self.args[2], self.args[3], self.args[4], self.args[5], self.args[6])
+
+    @property
+    def outputs(self):
+        return (self.args[-1],)

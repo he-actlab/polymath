@@ -23,22 +23,40 @@ FUSION_NAME_MAPPING = {
     'maxpool': 'max_pool',
     'globalaveragepool': 'global_avg_pool',
     'clip': 'elem_clip',
-    'averagepool': 'avg_pool'
+    'averagepool': 'avg_pool',
+    'reciprocal': 'reciprocal',
+    'matmul': 'matmul',
+    'gemm': 'gemm',
+    'softmax': 'softmax',
+    'transpose': 'tensor_transpose',
+    'pow' : 'elem_pow',
+    'reshape': 'tensor_reshape',
+    'tanh': 'elem_tanh'
 }
 
 @register_pass
 class FuseOps(Pass):
-    def __init__(self, fusion_seqs, pad_conv_constraint=False):
-
+    def __init__(self, fusion_seqs, pad_conv_constraint=False, test_run=False):
+        self.test_run = test_run
         fusion_ops = []
         for o in fusion_seqs:
             seq = []
             for s in o:
-                sl = s.lower()
-                if sl in FUSION_NAME_MAPPING:
-                    seq.append(FUSION_NAME_MAPPING[sl])
+                if isinstance(s, list):
+                    subseq = []
+                    for sub in s:
+                        sl = sub.lower()
+                        if sl in FUSION_NAME_MAPPING:
+                            subseq.append(FUSION_NAME_MAPPING[sl])
+                        else:
+                            subseq.append(sl)
+                    seq.append(subseq)
                 else:
-                    seq.append(sl)
+                    sl = s.lower()
+                    if sl in FUSION_NAME_MAPPING:
+                        seq.append(FUSION_NAME_MAPPING[sl])
+                    else:
+                        seq.append(sl)
             fusion_ops.append(seq)
         assert isinstance(fusion_ops, list) and len(fusion_ops) > 0
         self.pad_conv_constraint = pad_conv_constraint
@@ -55,10 +73,14 @@ class FuseOps(Pass):
         super(FuseOps, self).__init__()
 
     def check_valid_fusions(self, fusion_ops):
+        missing_ops = []
         for f in fusion_ops:
-            name = "_".join(f)
+            name = self.get_fusion_name(f)
             if name not in dir(fused_dnn):
-                raise RuntimeError(f"Fusion template does not exist for sequence: {f} with name {name}")
+                missing_ops.append((name, f))
+        if len(missing_ops) > 0:
+            raise RuntimeError(f"Fusion templates do not exist for sequences:"
+                               f"\n{missing_ops}")
 
 
     def is_conv_dw_conv(self, seq) -> bool:
@@ -69,6 +91,7 @@ class FuseOps(Pass):
         return conv_node.inputs[1].shape[2:] == (1, 1)
 
     def get_possible_fusions(self, n):
+        # TODO: Might need to validate the first operation is not a list
         possible_fusions = []
         if self.pad_conv_constraint:
             for s in self.fusion_sequences:
@@ -111,9 +134,10 @@ class FuseOps(Pass):
         return graph
 
     def cleanup_writes(self, graph, layers, intermediate_nodes, result):
-        for l in layers:
-            assert l.layer.name in graph.nodes
-            graph.nodes.pop(l.layer.name)
+        for layer_list in layers:
+            for l in layer_list:
+                assert l.layer.name in graph.nodes
+                graph.nodes.pop(l.layer.name)
 
         for i in intermediate_nodes:
             if i.op_name == "output":
@@ -123,33 +147,55 @@ class FuseOps(Pass):
         assert result.op_name == "output"
         result.reset_writes()
 
+    def flatten_seq(self, list_of_lists):
+        if len(list_of_lists) == 0:
+            return list_of_lists
+        if isinstance(list_of_lists[0], list):
+            return self.flatten_seq(list_of_lists[0]) + self.flatten_seq(list_of_lists[1:])
+        return list_of_lists[:1] + self.flatten_seq(list_of_lists[1:])
+
     def get_fusion_name(self, fusion_ops):
+        fusion_ops = self.flatten_seq(fusion_ops)
         fusion_name = "_".join(fusion_ops)
-        fusion_name.replace("elem_", "")
-        fusion_name.replace("reduce_", "")
+        fusion_name = fusion_name.replace("elem_", "").replace("reduce_", "").replace('tensor_', '')
         return fusion_name
 
 
     def fuse_layers(self, graph, layers, fusion_ops):
-        intermediate_nodes = [l.output for l in layers[:-1]]
+        fusion_name = self.get_fusion_name(fusion_ops)
+        instance_name = f"{fusion_name}{self.fusion_instances[fusion_name]}"
+        self.fusion_instances[fusion_name] += 1
+        if self.test_run:
+            return
+        intermediate_nodes = []
+        for layer_list in layers[:-1]:
+            for l in layer_list:
+                intermediate_nodes.append(l.output)
 
-        fused_templates = [l.layer for l in layers]
+        fused_templates = []
+        for layer_list in layers:
+            for l in layer_list:
+                fused_templates.append(l.layer)
+
         layer_inputs = []
         layer_kwargs = {}
-        assert layers[0].layer.name in graph.nodes
-        for l in layers:
-            for i in l.layer.inputs:
-                if i not in intermediate_nodes:
-                    layer_inputs.append(i)
+        assert layers[0][0].layer.name in graph.nodes
+        argname_counts = defaultdict(int)
+        for layer_list in layers:
+            for l in layer_list:
+                for i in l.layer.inputs:
+                    if i not in intermediate_nodes:
+                        layer_inputs.append(i)
 
-            for k, v in l.layer.kwargs.items():
-                if k in layer_kwargs:
-                    layer_kwargs[f"{l.layer.op_name}_{k}"] = v
-                else:
-                    layer_kwargs[k] = v
+                for k, v in l.layer.kwargs.items():
+                    if k in layer_kwargs:
+                        layer_kwargs[f"{k}{argname_counts[k]}"] = v
+                        argname_counts[k] += 1
+                    else:
+                        layer_kwargs[k] = v
 
 
-        result = layers[-1].output
+        result = layers[-1][-1].output
         self.cleanup_writes(graph, layers, intermediate_nodes, result)
         layer_inputs.append(result)
 
@@ -159,26 +205,25 @@ class FuseOps(Pass):
         self.all_fused_nodes['fusion_outputs'].append(result)
 
 
-        fusion_name = self.get_fusion_name(fusion_ops)
-        instance_name = f"{fusion_name}{self.fusion_instances[fusion_name]}"
-        self.fusion_instances[fusion_name] += 1
+
         signature = inspect.signature(getattr(fused_dnn, fusion_name).define_graph)
 
         all_arg_len = len(signature.parameters.keys()) - 1
-        if all_arg_len != len(layer_inputs) + len(layer_kwargs):
-            args = []
-            kwargs = []
-            for k, v in signature.parameters.items():
-                if v.default is v.empty:
-                    args.append(k)
-                else:
-                    kwargs.append(k)
+        args = []
+        kwargs = []
+        for k, v in signature.parameters.items():
+            if v.default is v.empty:
+                args.append(k)
+            else:
+                kwargs.append(k)
+        if len(args) - 1 != len(layer_inputs) or len(kwargs) != len(layer_kwargs):
+        # if all_arg_len != len(layer_inputs) + len(layer_kwargs):
+
             raise RuntimeError(f"Invalid arguments for layer fusion in {fusion_name}:\n"
                                f"Fusion signature args: {args}\n"
                                f"Fusion signature kwargs: {kwargs}\n"
                                f"Layer args: {[n.name for n in layer_inputs]}\n"
                                f"Kwargs: {layer_kwargs.keys()}")
-
         with graph:
             node = getattr(fused_dnn, fusion_name)(*layer_inputs, name=instance_name, **layer_kwargs)
 
@@ -189,6 +234,7 @@ class FuseOps(Pass):
         assert all([i.name in graph.nodes for i in node.inputs])
         graph.nodes.pop(node.name)
         min_idx = 0
+
         for i, n in enumerate(graph.nodes.values()):
             if isinstance(n, pm.Template):
                 for o in n.outputs:
@@ -203,22 +249,36 @@ class FuseOps(Pass):
         # TODO: Make sure the output isnt used in multiple places
         assert hasattr(initial_layer, "outputs") and len(initial_layer.outputs) == 1
         tgt_input = initial_layer.outputs[0]
-        fdescriptors = [FusionDescription(output=tgt_input, layer=initial_layer)]
-        for l in sequence[1:]:
+        fdescriptors = [
+            [FusionDescription(output=tgt_input, layer=initial_layer)]]
+        for i, l in enumerate(sequence[1:]):
             fl = self.get_fusable_layer(graph, l, tgt_input)
             if fl is None:
                 return None
             else:
-                assert isinstance(fl, FusionDescription)
-                tgt_input = fl.output
+                assert isinstance(fl, list)
+                tgt_input = fl[0].output
                 fdescriptors.append(fl)
         return fdescriptors
 
     def get_fusable_layer(self, graph, layer_name, input_node):
-        for name, n in graph.nodes.items():
-            if isinstance(n, pm.Template) and n.op_name == layer_name and input_node in n.inputs:
-                assert hasattr(n, "outputs") and len(n.outputs) == 1
-                return FusionDescription(output=n.outputs[0], layer=n)
+        if isinstance(layer_name, list):
+            out_layers = []
+            outputs = []
+            for l in layer_name:
+                for name, n in graph.nodes.items():
+                    if isinstance(n, pm.Template) and n.op_name == l and input_node in n.inputs and n.outputs[0] not in outputs:
+                        assert hasattr(n, "outputs") and len(n.outputs) == 1
+                        out_layers.append(FusionDescription(output=n.outputs[0], layer=n))
+                        outputs.append(n.outputs[0])
+            if len(out_layers) == len(layer_name):
+                return out_layers
+
+        else:
+            for name, n in graph.nodes.items():
+                if isinstance(n, pm.Template) and n.op_name == layer_name and input_node in n.inputs:
+                    assert hasattr(n, "outputs") and len(n.outputs) == 1
+                    return [FusionDescription(output=n.outputs[0], layer=n)]
         return None
 
     def num_fusions(self):

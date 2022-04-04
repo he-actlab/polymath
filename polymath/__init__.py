@@ -33,8 +33,8 @@ from polymath.srdfg.templates.dnn import conv_bias, depthwise_conv, depthwise_co
 
 from polymath.srdfg.templates.fused_dnn import conv_bias_relu,\
     conv_bias_relu_max_pool, \
-    conv_bias_elem_add_relu,\
-    conv_bias_elem_add_relu_global_avg_pool
+    conv_bias_add_relu,\
+    conv_bias_add_relu_global_avg_pool
 
 from polymath.srdfg.templates.optimizers import sgd
 from polymath.srdfg.templates.gradient_defs import gemm_grad, gemm_grad_no_bias, conv_grad, conv_grad_no_bias, \
