@@ -18,6 +18,7 @@ FUSION_NAME_MAPPING = {
     'sub': 'elem_sub',
     'reducemean': 'reduce_mean',
     'mul': 'elem_mul',
+    'div': 'elem_div',
     'sqrt': 'elem_sqrt',
     'depthwiseconv': 'depthwise_conv_bias',
     'maxpool': 'max_pool',
@@ -31,7 +32,8 @@ FUSION_NAME_MAPPING = {
     'transpose': 'tensor_transpose',
     'pow' : 'elem_pow',
     'reshape': 'tensor_reshape',
-    'tanh': 'elem_tanh'
+    'tanh': 'elem_tanh',
+    "gelu": "gelu"
 }
 
 @register_pass
@@ -111,6 +113,7 @@ class FuseOps(Pass):
         node_list = list(graph.nodes.values())
         while nidx < len(node_list):
             n = node_list[nidx]
+
             if not isinstance(n, pm.Template):
                 nidx += 1
                 continue
@@ -118,8 +121,8 @@ class FuseOps(Pass):
                 nidx += 1
                 continue
             elif any([o in self.all_fused_nodes['fusion_inputs'] for o in n.outputs]):
-                nidx += 1
-                continue
+                    nidx += 1
+                    continue
 
             if n.op_name in self.fusion_starts:
                 possible_fusions = self.get_possible_fusions(n)
@@ -184,7 +187,7 @@ class FuseOps(Pass):
         for layer_list in layers:
             for l in layer_list:
                 for i in l.layer.inputs:
-                    if i not in intermediate_nodes:
+                    if i not in intermediate_nodes and i not in layer_inputs:
                         layer_inputs.append(i)
 
                 for k, v in l.layer.kwargs.items():
@@ -240,8 +243,9 @@ class FuseOps(Pass):
                 for o in n.outputs:
                     if o in node.inputs and i > min_idx:
                         min_idx = i
-            elif n in node.inputs and i > min_idx:
-                min_idx = i
+            # elif n in node.inputs and i > min_idx:
+            #     min_idx = i
+
 
         graph.insert_node(node, min_idx + 1)
 
@@ -322,22 +326,33 @@ class UpdateBatchSize(Pass):
 
 @register_pass
 class RenameMultiDimOps(Pass):
-    MULTI_DIM_OPS = ['sgd', 'elem_tanh', 'elem_tanh_grad', 'relu', 'relu_grad', "elem_ceil", "elem_pow",
-                     "reduce_mean", "reduce_min", "tensor_transpose"]
+    MULTI_DIM_OP_DEFAULTS = {
+        'sgd': -1, 'elem_tanh': -1, 'elem_tanh_grad': -1, 'relu': 4, 'relu_grad': 4, "elem_ceil": -1, "elem_pow": -1,
+        "reduce_mean": -1, "reduce_min": -1, "tensor_transpose": -1, "matmul": 2, 'softmax': 2
+    }
+    MULTI_OPERAND_OPS = ['tensor_reshape']
+    # MULTI_DIM_OPS = ['sgd', 'elem_tanh', 'elem_tanh_grad', 'relu', 'relu_grad', "elem_ceil", "elem_pow",
+    #                  "reduce_mean", "reduce_min", "tensor_transpose", "matmul"]
     def __init__(self):
         super(RenameMultiDimOps, self).__init__()
 
     def apply_pass(self, node, ctx):
-        if node.op_name in RenameMultiDimOps.MULTI_DIM_OPS:
+        if node.op_name in RenameMultiDimOps.MULTI_DIM_OP_DEFAULTS.keys():
             node = self.rename_op(node)
+        elif node.op_name in RenameMultiDimOps.MULTI_OPERAND_OPS:
+            node = self.rename_multi_operand_op(node)
         return node
 
+    def rename_multi_operand_op(self, node):
+        assert len(node.inputs) == 1 and len(node.outputs) == 1
+        node.op_name = f"{node.op_name}{str(len(node.inputs[0].shape))}d{str(len(node.outputs[0].shape))}d"
+
     def rename_op(self, node):
-        if node.op_name in ["elem_tanh", "elem_tanh_grad", "relu", "relu_grad"] and len(node.inputs[0].shape) == 4:
-            op_name = node._op_name
-        else:
-            op_name = f"{node.op_name}{str(len(node.inputs[0].shape))}d"
-        node._op_name = op_name
+
+        default_size = RenameMultiDimOps.MULTI_DIM_OP_DEFAULTS[node.op_name]
+        if len(node.inputs[0].shape) != default_size:
+            node.op_name = f"{node.op_name}{str(len(node.inputs[0].shape))}d"
+
         return node
 
 @register_pass

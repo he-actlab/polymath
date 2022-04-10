@@ -22,12 +22,12 @@ class conv_bias_relu(pm.Template):
         else:
             stride_h, stride_w = stride
 
-        if not isinstance(stride, (tuple, list)):
+        if not isinstance(dilation, (tuple, list)):
             dilation_h = dilation_w = dilation
         else:
             dilation_h, dilation_w = dilation
 
-        if not isinstance(stride, (tuple, list)):
+        if not isinstance(pad, (tuple, list)):
             pad = (pad, pad)
 
         batch, in_channel, in_height, in_width = data.shape
@@ -35,12 +35,19 @@ class conv_bias_relu(pm.Template):
         # compute the output shape
         dilated_kernel_h = (kernel_h - 1) * dilation_h + 1
         dilated_kernel_w = (kernel_w - 1) * dilation_w + 1
-        pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
-            pad, (dilated_kernel_h, dilated_kernel_w)
-        )
+        if len(pad) == 2:
+            print(pad)
+            pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
+                pad, (dilated_kernel_h, dilated_kernel_w)
+            )
+        else:
+            assert len(pad) == 4
+            pad_top, pad_left, pad_down, pad_right = pad
         out_channel = num_filter
-        oh = (in_height - dilated_kernel_h + pad_top + pad_down) // stride_h + 1
-        ow = (in_width - dilated_kernel_w + pad_left + pad_right) // stride_w + 1
+        oh = (in_height + pad_top + pad_down - dilation_h*(kernel_h - 1) - 1) / stride_h + 1
+        ow = (in_width + pad_left + pad_right - dilation_w*(kernel_w - 1) - 1) / stride_w + 1
+        oh = int(oh)
+        ow = int(ow)
         pad_before = [0, 0, pad_top, pad_left]
         pad_after = [0, 0, pad_down, pad_right]
         c = pm.index(0, w.shape[0] - 1)
@@ -98,6 +105,13 @@ class conv_bias_relu(pm.Template):
         return self.kwargs['pad']
 
     @property
+    def pad_int(self):
+        if isinstance(self.kwargs['pad'], tuple):
+            return self.kwargs['pad'][0] + self.kwargs['pad'][2]
+        else:
+            return self.kwargs['pad']
+
+    @property
     def groups(self):
         return self.kwargs['groups']
 
@@ -112,12 +126,12 @@ class conv_bias_add_relu(pm.Template):
         else:
             stride_h, stride_w = stride
 
-        if not isinstance(stride, (tuple, list)):
+        if not isinstance(dilation, (tuple, list)):
             dilation_h = dilation_w = dilation
         else:
             dilation_h, dilation_w = dilation
 
-        if not isinstance(stride, (tuple, list)):
+        if not isinstance(pad, (tuple, list)):
             pad = (pad, pad)
 
         batch, in_channel, in_height, in_width = data.shape
@@ -125,12 +139,18 @@ class conv_bias_add_relu(pm.Template):
         # compute the output shape
         dilated_kernel_h = (kernel_h - 1) * dilation_h + 1
         dilated_kernel_w = (kernel_w - 1) * dilation_w + 1
-        pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
-            pad, (dilated_kernel_h, dilated_kernel_w)
-        )
+        if len(pad) == 2:
+            pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
+                pad, (dilated_kernel_h, dilated_kernel_w)
+            )
+        else:
+            assert len(pad) == 4
+            pad_top, pad_left, pad_down, pad_right = pad
         out_channel = num_filter
-        oh = (in_height - dilated_kernel_h + pad_top + pad_down) // stride_h + 1
-        ow = (in_width - dilated_kernel_w + pad_left + pad_right) // stride_w + 1
+        oh = (in_height + pad_top + pad_down - dilation_h*(kernel_h - 1) - 1) / stride_h + 1
+        ow = (in_width + pad_left + pad_right - dilation_w*(kernel_w - 1) - 1) / stride_w + 1
+        oh = int(oh)
+        ow = int(ow)
         pad_before = [0, 0, pad_top, pad_left]
         pad_after = [0, 0, pad_down, pad_right]
         c = pm.index(0, w.shape[0] - 1)
@@ -195,9 +215,15 @@ class conv_bias_add_relu(pm.Template):
         return self.kwargs['pad']
 
     @property
+    def pad_int(self):
+        if isinstance(self.kwargs['pad'], tuple):
+            return self.kwargs['pad'][0] + self.kwargs['pad'][2]
+        else:
+            return self.kwargs['pad']
+
+    @property
     def groups(self):
         return self.kwargs['groups']
-
 
 class conv_bias_leaky_relu(pm.Template):
     def define_graph(self, data, w, bias, out, stride=1, pad=0, dilation=1, groups=1, alpha=1e-2):
@@ -206,12 +232,12 @@ class conv_bias_leaky_relu(pm.Template):
         else:
             stride_h, stride_w = stride
 
-        if not isinstance(stride, (tuple, list)):
+        if not isinstance(dilation, (tuple, list)):
             dilation_h = dilation_w = dilation
         else:
             dilation_h, dilation_w = dilation
 
-        if not isinstance(stride, (tuple, list)):
+        if not isinstance(pad, (tuple, list)):
             pad = (pad, pad)
 
         batch, in_channel, in_height, in_width = data.shape
@@ -219,12 +245,18 @@ class conv_bias_leaky_relu(pm.Template):
         # compute the output shape
         dilated_kernel_h = (kernel_h - 1) * dilation_h + 1
         dilated_kernel_w = (kernel_w - 1) * dilation_w + 1
-        pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
-            pad, (dilated_kernel_h, dilated_kernel_w)
-        )
+        if len(pad) == 2:
+            pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
+                pad, (dilated_kernel_h, dilated_kernel_w)
+            )
+        else:
+            assert len(pad) == 4
+            pad_top, pad_left, pad_down, pad_right = pad
         out_channel = num_filter
-        oh = (in_height - dilated_kernel_h + pad_top + pad_down) // stride_h + 1
-        ow = (in_width - dilated_kernel_w + pad_left + pad_right) // stride_w + 1
+        oh = (in_height + pad_top + pad_down - dilation_h*(kernel_h - 1) - 1) / stride_h + 1
+        ow = (in_width + pad_left + pad_right - dilation_w*(kernel_w - 1) - 1) / stride_w + 1
+        oh = int(oh)
+        ow = int(ow)
         pad_before = [0, 0, pad_top, pad_left]
         pad_after = [0, 0, pad_down, pad_right]
         c = pm.index(0, w.shape[0] - 1)
@@ -281,6 +313,13 @@ class conv_bias_leaky_relu(pm.Template):
         return self.kwargs['pad']
 
     @property
+    def pad_int(self):
+        if isinstance(self.kwargs['pad'], tuple):
+            return self.kwargs['pad'][0] + self.kwargs['pad'][2]
+        else:
+            return self.kwargs['pad']
+
+    @property
     def groups(self):
         return self.kwargs['groups']
 
@@ -299,12 +338,12 @@ class conv_bias_add_leaky_relu(pm.Template):
         else:
             stride_h, stride_w = stride
 
-        if not isinstance(stride, (tuple, list)):
+        if not isinstance(dilation, (tuple, list)):
             dilation_h = dilation_w = dilation
         else:
             dilation_h, dilation_w = dilation
 
-        if not isinstance(stride, (tuple, list)):
+        if not isinstance(pad, (tuple, list)):
             pad = (pad, pad)
 
         batch, in_channel, in_height, in_width = data.shape
@@ -312,12 +351,18 @@ class conv_bias_add_leaky_relu(pm.Template):
         # compute the output shape
         dilated_kernel_h = (kernel_h - 1) * dilation_h + 1
         dilated_kernel_w = (kernel_w - 1) * dilation_w + 1
-        pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
-            pad, (dilated_kernel_h, dilated_kernel_w)
-        )
+        if len(pad) == 2:
+            pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
+                pad, (dilated_kernel_h, dilated_kernel_w)
+            )
+        else:
+            assert len(pad) == 4
+            pad_top, pad_left, pad_down, pad_right = pad
         out_channel = num_filter
-        oh = (in_height - dilated_kernel_h + pad_top + pad_down) // stride_h + 1
-        ow = (in_width - dilated_kernel_w + pad_left + pad_right) // stride_w + 1
+        oh = (in_height + pad_top + pad_down - dilation_h * (kernel_h - 1) - 1) / stride_h + 1
+        ow = (in_width + pad_left + pad_right - dilation_w * (kernel_w - 1) - 1) / stride_w + 1
+        oh = int(oh)
+        ow = int(ow)
         pad_before = [0, 0, pad_top, pad_left]
         pad_after = [0, 0, pad_down, pad_right]
         c = pm.index(0, w.shape[0] - 1)
@@ -384,13 +429,19 @@ class conv_bias_add_leaky_relu(pm.Template):
         return self.kwargs['pad']
 
     @property
+    def pad_int(self):
+        if isinstance(self.kwargs['pad'], tuple):
+            return self.kwargs['pad'][0] + self.kwargs['pad'][2]
+        else:
+            return self.kwargs['pad']
+
+    @property
     def groups(self):
         return self.kwargs['groups']
 
     @property
     def alpha(self):
         return self.kwargs['alpha']
-
 
 class conv_bias_leaky_relu_add(pm.Template):
     def define_graph(self, data, w, bias, op1, out, stride=1, pad=0, dilation=1, groups=1, alpha=1e-2):
@@ -399,12 +450,12 @@ class conv_bias_leaky_relu_add(pm.Template):
         else:
             stride_h, stride_w = stride
 
-        if not isinstance(stride, (tuple, list)):
+        if not isinstance(dilation, (tuple, list)):
             dilation_h = dilation_w = dilation
         else:
             dilation_h, dilation_w = dilation
 
-        if not isinstance(stride, (tuple, list)):
+        if not isinstance(pad, (tuple, list)):
             pad = (pad, pad)
 
         batch, in_channel, in_height, in_width = data.shape
@@ -412,12 +463,18 @@ class conv_bias_leaky_relu_add(pm.Template):
         # compute the output shape
         dilated_kernel_h = (kernel_h - 1) * dilation_h + 1
         dilated_kernel_w = (kernel_w - 1) * dilation_w + 1
-        pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
-            pad, (dilated_kernel_h, dilated_kernel_w)
-        )
+        if len(pad) == 2:
+            pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
+                pad, (dilated_kernel_h, dilated_kernel_w)
+            )
+        else:
+            assert len(pad) == 4
+            pad_top, pad_left, pad_down, pad_right = pad
         out_channel = num_filter
-        oh = (in_height - dilated_kernel_h + pad_top + pad_down) // stride_h + 1
-        ow = (in_width - dilated_kernel_w + pad_left + pad_right) // stride_w + 1
+        oh = (in_height + pad_top + pad_down - dilation_h * (kernel_h - 1) - 1) / stride_h + 1
+        ow = (in_width + pad_left + pad_right - dilation_w * (kernel_w - 1) - 1) / stride_w + 1
+        oh = int(oh)
+        ow = int(ow)
         pad_before = [0, 0, pad_top, pad_left]
         pad_after = [0, 0, pad_down, pad_right]
         c = pm.index(0, w.shape[0] - 1)
@@ -482,6 +539,13 @@ class conv_bias_leaky_relu_add(pm.Template):
     @property
     def pad(self):
         return self.kwargs['pad']
+
+    @property
+    def pad_int(self):
+        if isinstance(self.kwargs['pad'], tuple):
+            return self.kwargs['pad'][0] + self.kwargs['pad'][2]
+        else:
+            return self.kwargs['pad']
 
     @property
     def groups(self):
@@ -560,12 +624,12 @@ class conv_bias_relu_max_pool(pm.Template):
         else:
             stride_h, stride_w = stride
 
-        if not isinstance(stride, (tuple, list)):
+        if not isinstance(dilation, (tuple, list)):
             dilation_h = dilation_w = dilation
         else:
             dilation_h, dilation_w = dilation
 
-        if not isinstance(stride, (tuple, list)):
+        if not isinstance(pad, (tuple, list)):
             pad = (pad, pad)
 
         batch, in_channel, in_height, in_width = data.shape
@@ -573,12 +637,18 @@ class conv_bias_relu_max_pool(pm.Template):
         # compute the output shape
         dilated_kernel_h = (kernel_h - 1) * dilation_h + 1
         dilated_kernel_w = (kernel_w - 1) * dilation_w + 1
-        pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
-            pad, (dilated_kernel_h, dilated_kernel_w)
-        )
+        if len(pad) == 2:
+            pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
+                pad, (dilated_kernel_h, dilated_kernel_w)
+            )
+        else:
+            assert len(pad) == 4
+            pad_top, pad_left, pad_down, pad_right = pad
         out_channel = num_filter
-        oh = (in_height - dilated_kernel_h + pad_top + pad_down) // stride_h + 1
-        ow = (in_width - dilated_kernel_w + pad_left + pad_right) // stride_w + 1
+        oh = (in_height + pad_top + pad_down - dilation_h*(kernel_h - 1) - 1) / stride_h + 1
+        ow = (in_width + pad_left + pad_right - dilation_w*(kernel_w - 1) - 1) / stride_w + 1
+        oh = int(oh)
+        ow = int(ow)
         pad_before = [0, 0, pad_top, pad_left]
         pad_after = [0, 0, pad_down, pad_right]
         c = pm.index(0, w.shape[0] - 1)
@@ -631,6 +701,13 @@ class conv_bias_relu_max_pool(pm.Template):
         return self.kwargs['pad']
 
     @property
+    def pad_int(self):
+        if isinstance(self.kwargs['pad'], tuple):
+            return self.kwargs['pad'][0] + self.kwargs['pad'][2]
+        else:
+            return self.kwargs['pad']
+
+    @property
     def stride0(self):
         return self.kwargs['stride0']
 
@@ -641,6 +718,13 @@ class conv_bias_relu_max_pool(pm.Template):
     @property
     def pad0(self):
         return self.kwargs['pad0']
+
+    @property
+    def pad_int0(self):
+        if isinstance(self.kwargs['pad0'], tuple):
+            return self.kwargs['pad0'][0] + self.kwargs['pad0'][2]
+        else:
+            return self.kwargs['pad0']
 
 
     @property
@@ -654,7 +738,6 @@ class conv_bias_relu_max_pool(pm.Template):
     @property
     def relu_output(self):
         return self.nodes[f"{self.name}_relu_out"]
-
 
 class conv_bias_add_relu_global_avg_pool(pm.Template):
     def define_graph(self, data, w, bias, op1, out,
@@ -694,13 +777,12 @@ class conv_bias_add_relu_global_avg_pool(pm.Template):
             stride_h = stride_w = stride
         else:
             stride_h, stride_w = stride
-
-        if not isinstance(stride, (tuple, list)):
+        if not isinstance(dilation, (tuple, list)):
             dilation_h = dilation_w = dilation
         else:
             dilation_h, dilation_w = dilation
 
-        if not isinstance(stride, (tuple, list)):
+        if not isinstance(pad, (tuple, list)):
             pad = (pad, pad)
 
         batch, in_channel, in_height, in_width = data.shape
@@ -708,12 +790,18 @@ class conv_bias_add_relu_global_avg_pool(pm.Template):
         # compute the output shape
         dilated_kernel_h = (kernel_h - 1) * dilation_h + 1
         dilated_kernel_w = (kernel_w - 1) * dilation_w + 1
-        pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
-            pad, (dilated_kernel_h, dilated_kernel_w)
-        )
+        if len(pad) == 2:
+            pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
+                pad, (dilated_kernel_h, dilated_kernel_w)
+            )
+        else:
+            assert len(pad) == 4
+            pad_top, pad_left, pad_down, pad_right = pad
         out_channel = num_filter
-        oh = (in_height - dilated_kernel_h + pad_top + pad_down) // stride_h + 1
-        ow = (in_width - dilated_kernel_w + pad_left + pad_right) // stride_w + 1
+        oh = (in_height + pad_top + pad_down - dilation_h*(kernel_h - 1) - 1) / stride_h + 1
+        ow = (in_width + pad_left + pad_right - dilation_w*(kernel_w - 1) - 1) / stride_w + 1
+        oh = int(oh)
+        ow = int(ow)
         pad_before = [0, 0, pad_top, pad_left]
         pad_after = [0, 0, pad_down, pad_right]
         c = pm.index(0, w.shape[0] - 1)
@@ -766,6 +854,13 @@ class conv_bias_add_relu_global_avg_pool(pm.Template):
         return self.kwargs['pad']
 
     @property
+    def pad_int(self):
+        if isinstance(self.kwargs['pad'], tuple):
+            return self.kwargs['pad'][0] + self.kwargs['pad'][2]
+        else:
+            return self.kwargs['pad']
+
+    @property
     def groups(self):
         return self.kwargs['groups']
 
@@ -796,12 +891,12 @@ class conv_bias_add(pm.Template):
         else:
             stride_h, stride_w = stride
 
-        if not isinstance(stride, (tuple, list)):
+        if not isinstance(dilation, (tuple, list)):
             dilation_h = dilation_w = dilation
         else:
             dilation_h, dilation_w = dilation
 
-        if not isinstance(stride, (tuple, list)):
+        if not isinstance(pad, (tuple, list)):
             pad = (pad, pad)
 
         batch, in_channel, in_height, in_width = data.shape
@@ -809,12 +904,18 @@ class conv_bias_add(pm.Template):
         # compute the output shape
         dilated_kernel_h = (kernel_h - 1) * dilation_h + 1
         dilated_kernel_w = (kernel_w - 1) * dilation_w + 1
-        pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
-            pad, (dilated_kernel_h, dilated_kernel_w)
-        )
+        if len(pad) == 2:
+            pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
+                pad, (dilated_kernel_h, dilated_kernel_w)
+            )
+        else:
+            assert len(pad) == 4
+            pad_top, pad_left, pad_down, pad_right = pad
         out_channel = num_filter
-        oh = (in_height - dilated_kernel_h + pad_top + pad_down) // stride_h + 1
-        ow = (in_width - dilated_kernel_w + pad_left + pad_right) // stride_w + 1
+        oh = (in_height + pad_top + pad_down - dilation_h*(kernel_h - 1) - 1) / stride_h + 1
+        ow = (in_width + pad_left + pad_right - dilation_w*(kernel_w - 1) - 1) / stride_w + 1
+        oh = int(oh)
+        ow = int(ow)
         pad_before = [0, 0, pad_top, pad_left]
         pad_after = [0, 0, pad_down, pad_right]
         c = pm.index(0, w.shape[0] - 1)
@@ -871,9 +972,249 @@ class conv_bias_add(pm.Template):
         return self.kwargs['pad']
 
     @property
+    def pad_int(self):
+        if isinstance(self.kwargs['pad'], tuple):
+            return self.kwargs['pad'][0] + self.kwargs['pad'][2]
+        else:
+            return self.kwargs['pad']
+
+    @property
     def groups(self):
         return self.kwargs['groups']
 
+
+class conv_bias_clip(pm.Template):
+    def define_graph(self, data, w, bias, out, stride=1, pad=0, dilation=1, groups=1, minval=None, maxval=None):
+        conv_out, indices = self.define_conv(data, w, bias, stride=stride, pad=pad, dilation=dilation, groups=groups)
+        self.define_clip(conv_out, out, indices, minval, maxval)
+
+    def define_clip(self, conv_out, out, indices, minval, maxval):
+        out[indices] = pm.clip(minval, maxval, conv_out[indices])
+
+    def define_conv(self, data, w, bias,
+                     stride=1, pad=0, dilation=1, groups=1):
+        if not isinstance(stride, (tuple, list)):
+            stride_h = stride_w = stride
+        else:
+            stride_h, stride_w = stride
+
+        if not isinstance(dilation, (tuple, list)):
+            dilation_h = dilation_w = dilation
+        else:
+            dilation_h, dilation_w = dilation
+
+        if not isinstance(pad, (tuple, list)):
+            pad = (pad, pad)
+
+        batch, in_channel, in_height, in_width = data.shape
+        num_filter, channel, kernel_h, kernel_w = w.shape
+        # compute the output shape
+        dilated_kernel_h = (kernel_h - 1) * dilation_h + 1
+        dilated_kernel_w = (kernel_w - 1) * dilation_w + 1
+        if len(pad) == 2:
+            pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
+                pad, (dilated_kernel_h, dilated_kernel_w)
+            )
+        else:
+            assert len(pad) == 4
+            pad_top, pad_left, pad_down, pad_right = pad
+        out_channel = num_filter
+        oh = (in_height + pad_top + pad_down - dilation_h*(kernel_h - 1) - 1) / stride_h + 1
+        ow = (in_width + pad_left + pad_right - dilation_w*(kernel_w - 1) - 1) / stride_w + 1
+        oh = int(oh)
+        ow = int(ow)
+        pad_before = [0, 0, pad_top, pad_left]
+        pad_after = [0, 0, pad_down, pad_right]
+        c = pm.index(0, w.shape[0] - 1)
+        y = pm.index(0, oh - 1)
+        x = pm.index(0, ow - 1)
+        dy = pm.index(0, w.shape[2] - 1)
+        dx = pm.index(0, w.shape[3] - 1)
+        iy = pm.index(0, data.shape[-2] - 1)
+        ix = pm.index(0, data.shape[-1] - 1)
+        k = pm.index(0, data.shape[-3] - 1)
+        ihp = data.shape[-2] + pad_top + pad_down
+        iwp = data.shape[-1] + pad_left + pad_right
+        ihp_ = pm.index(0, ihp - 1)
+        iwp_ = pm.index(0, iwp - 1)
+        if len(data.shape) > 3:
+            b = pm.index(0, data.shape[0] - 1)
+            o_indices = (b, c)
+            p_indices = (b, k,)
+            p_shape = (data.shape[0], data.shape[1], ihp, iwp)
+            conv_out_shape = (data.shape[0], w.shape[0], oh, ow)
+        else:
+            o_indices = (c,)
+            p_indices = (k,)
+            p_shape = (data.shape[0], ihp, iwp)
+            conv_out_shape = (w.shape[0], oh, ow)
+
+        conv_out = pm.temp(shape=conv_out_shape, name=f"{self.name}_conv_out")
+        padded = pm.temp(shape=p_shape)
+
+        padded[p_indices + (ihp_, iwp_)] = 0
+        padded[p_indices + (iy + pad_top, ix + pad_left)] = data[p_indices + (iy, ix)]
+        out_indices = o_indices + (y, x)
+        conv_out[out_indices] = pm.sum([dy, dx, k], (padded[p_indices + (dy*dilation_h + stride*y, dx*dilation_w + stride*x)] * w[c, k, dy, dx])) + bias[c]
+        return conv_out, out_indices
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1], self.args[2],)
+
+    @property
+    def conv_output(self):
+        return self.nodes[f"{self.name}_conv_out"]
+
+    @property
+    def outputs(self):
+        return (self.args[3],)
+
+    @property
+    def stride(self):
+        return self.kwargs['stride']
+
+    @property
+    def pad(self):
+        return self.kwargs['pad']
+
+    @property
+    def pad_int(self):
+        if isinstance(self.kwargs['pad'], tuple):
+            return self.kwargs['pad'][0] + self.kwargs['pad'][2]
+        else:
+            return self.kwargs['pad']
+
+    @property
+    def groups(self):
+        return self.kwargs['groups']
+
+    @property
+    def minval(self):
+        return self.kwargs['minval']
+
+    @property
+    def maxval(self):
+        return self.kwargs['maxval']
+
+
+class depthwise_conv_bias_clip(pm.Template):
+    def define_graph(self, data, w, bias, out, stride=1, pad=0, dilation=1, groups=1, minval=None, maxval=None):
+        conv_out, indices = self.define_depthwise_conv(data, w, bias, stride=stride, pad=pad, dilation=dilation, groups=groups)
+        self.define_clip(conv_out, out, indices, minval, maxval)
+
+    def define_clip(self, conv_out, out, indices, minval, maxval):
+        out[indices] = pm.clip(minval, maxval, conv_out[indices])
+
+    def define_depthwise_conv(self, clip_out, w, bias, stride, pad, groups, dilation, out=None):
+
+        if not isinstance(stride, (tuple, list)):
+            stride_h = stride_w = stride
+        else:
+            stride_h, stride_w = stride
+
+        if not isinstance(dilation, (tuple, list)):
+            dilation_h = dilation_w = dilation
+        else:
+            dilation_h, dilation_w = dilation
+
+        if not isinstance(pad, (tuple, list)):
+            pad = (pad, pad)
+
+        batch, in_channel, in_height, in_width = clip_out.shape
+        num_filter, channel, kernel_h, kernel_w = w.shape
+        # compute the output shape
+        dilated_kernel_h = (kernel_h - 1) * dilation_h + 1
+        dilated_kernel_w = (kernel_w - 1) * dilation_w + 1
+        if len(pad) == 2:
+            pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
+                pad, (dilated_kernel_h, dilated_kernel_w)
+            )
+        else:
+            assert len(pad) == 4
+            pad_top, pad_left, pad_down, pad_right = pad
+        out_channel = num_filter
+        oh = (in_height + pad_top + pad_down - dilation_h * (kernel_h - 1) - 1) / stride_h + 1
+        ow = (in_width + pad_left + pad_right - dilation_w * (kernel_w - 1) - 1) / stride_w + 1
+        oh = int(oh)
+        ow = int(ow)
+        pad_before = [0, 0, pad_top, pad_left]
+        pad_after = [0, 0, pad_down, pad_right]
+        c = pm.index(0, w.shape[0] - 1, name="c")
+        y = pm.index(0, oh - 1, name="y_")
+        x = pm.index(0, ow - 1, name="x_")
+        dy = pm.index(0, w.shape[2] - 1, name="dy")
+        dx = pm.index(0, w.shape[3] - 1, name="dx")
+        iy = pm.index(0, clip_out.shape[-2] - 1, name="iy")
+        ix = pm.index(0, clip_out.shape[-1] - 1, name="ix")
+        k = pm.index(0, clip_out.shape[-3] - 1, name="k")
+        ihp = clip_out.shape[-2] + pad_top + pad_down
+        iwp = clip_out.shape[-1] + pad_left + pad_right
+        ihp_ = pm.index(0, ihp - 1, name="ihp")
+        iwp_ = pm.index(0, iwp - 1, name="iwp")
+        if len(clip_out.shape) > 3:
+            b = pm.index(0, clip_out.shape[0] - 1, name="b")
+            o_indices = (b, c)
+            p_indices = (b, k,)
+            p_shape = (clip_out.shape[0], clip_out.shape[1], ihp, iwp)
+            out_shape = (clip_out.shape[0], w.shape[0], oh, ow)
+        else:
+            o_indices = (c,)
+            p_indices = (k,)
+            p_shape = (clip_out.shape[0], ihp, iwp)
+            out_shape = (w.shape[0], oh, ow)
+
+        if out is None:
+            out = pm.temp(shape=out_shape, name=f"{self.name}_depthwise_conv_out")
+
+        padded = pm.temp(shape=p_shape)
+        padded[p_indices + (ihp_, iwp_)] = 0
+
+        padded[p_indices + (iy + pad_top, ix + pad_left)] = clip_out[p_indices + (iy, ix)]
+        out_indices = o_indices + (y, x)
+        out[out_indices] = pm.sum([dy, dx, k], (
+                padded[p_indices + (dy * dilation_h + stride * y, dx * dilation_w + stride * x)] * w[
+            c, k, dy, dx])) + bias[c]
+        return out, out_indices
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1], self.args[2])
+
+    @property
+    def conv_output(self):
+        return self.nodes[f"{self.name}_conv_out"]
+
+    @property
+    def outputs(self):
+        return (self.args[3],)
+
+    @property
+    def stride(self):
+        return self.kwargs['stride']
+
+    @property
+    def pad(self):
+        return self.kwargs['pad']
+
+    @property
+    def pad_int(self):
+        if isinstance(self.kwargs['pad'], tuple):
+            return self.kwargs['pad'][0] + self.kwargs['pad'][2]
+        else:
+            return self.kwargs['pad']
+
+    @property
+    def groups(self):
+        return self.kwargs['groups']
+
+    @property
+    def minval(self):
+        return self.kwargs['minval']
+
+    @property
+    def maxval(self):
+        return self.kwargs['maxval']
 
 class conv_bias_clip_avg_pool(pm.Template):
     def define_graph(self, data, w, bias, out,
@@ -946,12 +1287,12 @@ class conv_bias_clip_avg_pool(pm.Template):
         else:
             stride_h, stride_w = stride
 
-        if not isinstance(stride, (tuple, list)):
+        if not isinstance(dilation, (tuple, list)):
             dilation_h = dilation_w = dilation
         else:
             dilation_h, dilation_w = dilation
 
-        if not isinstance(stride, (tuple, list)):
+        if not isinstance(pad, (tuple, list)):
             pad = (pad, pad)
 
         batch, in_channel, in_height, in_width = data.shape
@@ -959,12 +1300,18 @@ class conv_bias_clip_avg_pool(pm.Template):
         # compute the output shape
         dilated_kernel_h = (kernel_h - 1) * dilation_h + 1
         dilated_kernel_w = (kernel_w - 1) * dilation_w + 1
-        pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
-            pad, (dilated_kernel_h, dilated_kernel_w)
-        )
+        if len(pad) == 2:
+            pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
+                pad, (dilated_kernel_h, dilated_kernel_w)
+            )
+        else:
+            assert len(pad) == 4
+            pad_top, pad_left, pad_down, pad_right = pad
         out_channel = num_filter
-        oh = (in_height - dilated_kernel_h + pad_top + pad_down) // stride_h + 1
-        ow = (in_width - dilated_kernel_w + pad_left + pad_right) // stride_w + 1
+        oh = (in_height + pad_top + pad_down - dilation_h*(kernel_h - 1) - 1) / stride_h + 1
+        ow = (in_width + pad_left + pad_right - dilation_w*(kernel_w - 1) - 1) / stride_w + 1
+        oh = int(oh)
+        ow = int(ow)
         pad_before = [0, 0, pad_top, pad_left]
         pad_after = [0, 0, pad_down, pad_right]
         c = pm.index(0, w.shape[0] - 1)
@@ -1017,6 +1364,13 @@ class conv_bias_clip_avg_pool(pm.Template):
         return self.kwargs['pad']
 
     @property
+    def pad_int(self):
+        if isinstance(self.kwargs['pad'], tuple):
+            return self.kwargs['pad'][0] + self.kwargs['pad'][2]
+        else:
+            return self.kwargs['pad']
+
+    @property
     def minval(self):
         return self.kwargs['minval']
 
@@ -1037,6 +1391,13 @@ class conv_bias_clip_avg_pool(pm.Template):
         return self.kwargs['pad0']
 
     @property
+    def pad_int0(self):
+        if isinstance(self.kwargs['pad0'], tuple):
+            return self.kwargs['pad0'][0] + self.kwargs['pad0'][2]
+        else:
+            return self.kwargs['pad0']
+
+    @property
     def groups(self):
         return self.kwargs['groups']
 
@@ -1048,7 +1409,6 @@ class conv_bias_clip_avg_pool(pm.Template):
     def clip_output(self):
         return self.nodes[f"{self.name}_clip_out"]
 
-
 class conv_bias_clip_depthwise_conv_bias(pm.Template):
     def define_graph(self, data, w, bias, dw_conv_weight, dw_conv_bias, out,
                      stride=1, pad=0, dilation=1, groups=1,
@@ -1059,8 +1419,51 @@ class conv_bias_clip_depthwise_conv_bias(pm.Template):
         ## Merging padding--special case
         ih = data.shape[2]
         iw = data.shape[3]
-        p1 = pad
-        p2 = pad0
+
+        if not isinstance(pad, (tuple, list)):
+            pad = (pad, pad)
+
+        if not isinstance(pad0, (tuple, list)):
+            pad0 = (pad0, pad0)
+
+        num_filter, channel, kernel_h, kernel_w = w.shape
+        # compute the output shape
+        if not isinstance(dilation, (tuple, list)):
+            dilation_h = dilation_w = dilation
+        else:
+            dilation_h, dilation_w = dilation
+        dilated_kernel_h = (kernel_h - 1) * dilation_h + 1
+        dilated_kernel_w = (kernel_w - 1) * dilation_w + 1
+
+
+        i, n, kernel_h0, kernel_w0 = dw_conv_weight.shape
+        # compute the output shape
+        if not isinstance(dilation0, (tuple, list)):
+            dilation_h0 = dilation_w0 = dilation0
+        else:
+            dilation_h0, dilation_w0 = dilation0
+        dilated_kernel_h0 = (kernel_h0 - 1) * dilation_h0 + 1
+        dilated_kernel_w0 = (kernel_w0 - 1) * dilation_w0 + 1
+
+        if len(pad) == 2:
+            pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
+                pad, (dilated_kernel_h, dilated_kernel_w)
+            )
+        else:
+            assert len(pad) == 4
+            pad_top, pad_left, pad_down, pad_right = pad
+
+
+        if len(pad0) == 2:
+            pad_top0, pad_left0, pad_down0, pad_right0 = get_pad_tuple(
+                pad0, (dilated_kernel_h0, dilated_kernel_w0)
+            )
+        else:
+            assert len(pad0) == 4
+            pad_top0, pad_left0, pad_down0, pad_right0= pad0
+
+        p1 = pad_top + pad_down
+        p2 = pad_top0 + pad_down0
         s1 = stride
         kh = w.shape[2]
         kw = w.shape[3]
@@ -1096,12 +1499,12 @@ class conv_bias_clip_depthwise_conv_bias(pm.Template):
         else:
             stride_h, stride_w = stride
 
-        if not isinstance(stride, (tuple, list)):
+        if not isinstance(dilation, (tuple, list)):
             dilation_h = dilation_w = dilation
         else:
             dilation_h, dilation_w = dilation
 
-        if not isinstance(stride, (tuple, list)):
+        if not isinstance(pad, (tuple, list)):
             pad = (pad, pad)
 
         batch, in_channel, in_height, in_width = clip_out.shape
@@ -1109,12 +1512,18 @@ class conv_bias_clip_depthwise_conv_bias(pm.Template):
         # compute the output shape
         dilated_kernel_h = (kernel_h - 1) * dilation_h + 1
         dilated_kernel_w = (kernel_w - 1) * dilation_w + 1
-        pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
-            pad, (dilated_kernel_h, dilated_kernel_w)
-        )
+        if len(pad) == 2:
+            pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
+                pad, (dilated_kernel_h, dilated_kernel_w)
+            )
+        else:
+            assert len(pad) == 4
+            pad_top, pad_left, pad_down, pad_right = pad
         out_channel = num_filter
-        oh = (in_height - dilated_kernel_h + pad_top + pad_down) // stride_h + 1
-        ow = (in_width - dilated_kernel_w + pad_left + pad_right) // stride_w + 1
+        oh = (in_height + pad_top + pad_down - dilation_h*(kernel_h - 1) - 1) / stride_h + 1
+        ow = (in_width + pad_left + pad_right - dilation_w*(kernel_w - 1) - 1) / stride_w + 1
+        oh = int(oh)
+        ow = int(ow)
         pad_before = [0, 0, pad_top, pad_left]
         pad_after = [0, 0, pad_down, pad_right]
         c = pm.index(0, w.shape[0] - 1, name="c")
@@ -1162,13 +1571,12 @@ class conv_bias_clip_depthwise_conv_bias(pm.Template):
             stride_h = stride_w = stride
         else:
             stride_h, stride_w = stride
-
-        if not isinstance(stride, (tuple, list)):
+        if not isinstance(dilation, (tuple, list)):
             dilation_h = dilation_w = dilation
         else:
             dilation_h, dilation_w = dilation
 
-        if not isinstance(stride, (tuple, list)):
+        if not isinstance(pad, (tuple, list)):
             pad = (pad, pad)
 
         batch, in_channel, in_height, in_width = data.shape
@@ -1176,12 +1584,18 @@ class conv_bias_clip_depthwise_conv_bias(pm.Template):
         # compute the output shape
         dilated_kernel_h = (kernel_h - 1) * dilation_h + 1
         dilated_kernel_w = (kernel_w - 1) * dilation_w + 1
-        pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
-            pad, (dilated_kernel_h, dilated_kernel_w)
-        )
+        if len(pad) == 2:
+            pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
+                pad, (dilated_kernel_h, dilated_kernel_w)
+            )
+        else:
+            assert len(pad) == 4
+            pad_top, pad_left, pad_down, pad_right = pad
         out_channel = num_filter
-        oh = (in_height - dilated_kernel_h + pad_top + pad_down) // stride_h + 1
-        ow = (in_width - dilated_kernel_w + pad_left + pad_right) // stride_w + 1
+        oh = (in_height + pad_top + pad_down - dilation_h*(kernel_h - 1) - 1) / stride_h + 1
+        ow = (in_width + pad_left + pad_right - dilation_w*(kernel_w - 1) - 1) / stride_w + 1
+        oh = int(oh)
+        ow = int(ow)
         pad_before = [0, 0, pad_top, pad_left]
         pad_after = [0, 0, pad_down, pad_right]
         c = pm.index(0, w.shape[0] - 1)
@@ -1234,6 +1648,13 @@ class conv_bias_clip_depthwise_conv_bias(pm.Template):
         return self.kwargs['pad']
 
     @property
+    def pad_int(self):
+        if isinstance(self.kwargs['pad'], tuple):
+            return self.kwargs['pad'][0] + self.kwargs['pad'][2]
+        else:
+            return self.kwargs['pad']
+
+    @property
     def groups(self):
         return self.kwargs['groups']
 
@@ -1263,10 +1684,15 @@ class conv_bias_clip_depthwise_conv_bias(pm.Template):
         return self.kwargs['pad0']
 
     @property
+    def pad_int0(self):
+        if isinstance(self.kwargs['pad0'], tuple):
+            return self.kwargs['pad0'][0] + self.kwargs['pad0'][2]
+        else:
+            return self.kwargs['pad0']
+
+    @property
     def groups0(self):
         return self.kwargs['groups0']
-
-
 
 class conv_bias_clip_depthwise_conv_bias_clip(pm.Template):
     def define_graph(self, data, w, bias, dw_conv_weight, dw_conv_bias, out,
@@ -1279,8 +1705,51 @@ class conv_bias_clip_depthwise_conv_bias_clip(pm.Template):
         ## Merging padding--special case
         ih = data.shape[2]
         iw = data.shape[3]
-        p1 = pad
-        p2 = pad0
+        num_filter, channel, kernel_h, kernel_w = w.shape
+        # compute the output shape
+        if not isinstance(dilation, (tuple, list)):
+            dilation_h = dilation_w = dilation
+        else:
+            dilation_h, dilation_w = dilation
+        dilated_kernel_h = (kernel_h - 1) * dilation_h + 1
+        dilated_kernel_w = (kernel_w - 1) * dilation_w + 1
+
+
+        i, n, kernel_h0, kernel_w0 = dw_conv_weight.shape
+        # compute the output shape
+        if not isinstance(dilation0, (tuple, list)):
+            dilation_h0 = dilation_w0 = dilation0
+        else:
+            dilation_h0, dilation_w0 = dilation0
+        dilated_kernel_h0 = (kernel_h0 - 1) * dilation_h0 + 1
+        dilated_kernel_w0 = (kernel_w0 - 1) * dilation_w0 + 1
+
+        if not isinstance(pad, (tuple, list)):
+            pad = (pad, pad)
+
+        if not isinstance(pad0, (tuple, list)):
+            pad0 = (pad0, pad0)
+
+        if len(pad) == 2:
+            pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
+                pad, (dilated_kernel_h, dilated_kernel_w)
+            )
+        else:
+            assert len(pad) == 4
+            pad_top, pad_left, pad_down, pad_right = pad
+
+
+        if len(pad0) == 2:
+            pad_top0, pad_left0, pad_down0, pad_right0 = get_pad_tuple(
+                pad0, (dilated_kernel_h0, dilated_kernel_w0)
+            )
+        else:
+            assert len(pad0) == 4
+            pad_top0, pad_left0, pad_down0, pad_right0 = pad0
+
+        p1 = pad_top + pad_down
+        p2 = pad_top0 + pad_down0
+
         s1 = stride
         kh = w.shape[2]
         kw = w.shape[3]
@@ -1316,12 +1785,12 @@ class conv_bias_clip_depthwise_conv_bias_clip(pm.Template):
         else:
             stride_h, stride_w = stride
 
-        if not isinstance(stride, (tuple, list)):
+        if not isinstance(dilation, (tuple, list)):
             dilation_h = dilation_w = dilation
         else:
             dilation_h, dilation_w = dilation
 
-        if not isinstance(stride, (tuple, list)):
+        if not isinstance(pad, (tuple, list)):
             pad = (pad, pad)
 
         batch, in_channel, in_height, in_width = clip_out.shape
@@ -1329,12 +1798,18 @@ class conv_bias_clip_depthwise_conv_bias_clip(pm.Template):
         # compute the output shape
         dilated_kernel_h = (kernel_h - 1) * dilation_h + 1
         dilated_kernel_w = (kernel_w - 1) * dilation_w + 1
-        pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
-            pad, (dilated_kernel_h, dilated_kernel_w)
-        )
+        if len(pad) == 2:
+            pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
+                pad, (dilated_kernel_h, dilated_kernel_w)
+            )
+        else:
+            assert len(pad) == 4
+            pad_top, pad_left, pad_down, pad_right = pad
         out_channel = num_filter
-        oh = (in_height - dilated_kernel_h + pad_top + pad_down) // stride_h + 1
-        ow = (in_width - dilated_kernel_w + pad_left + pad_right) // stride_w + 1
+        oh = (in_height + pad_top + pad_down - dilation_h*(kernel_h - 1) - 1) / stride_h + 1
+        ow = (in_width + pad_left + pad_right - dilation_w*(kernel_w - 1) - 1) / stride_w + 1
+        oh = int(oh)
+        ow = int(ow)
         pad_before = [0, 0, pad_top, pad_left]
         pad_after = [0, 0, pad_down, pad_right]
         c = pm.index(0, w.shape[0] - 1, name="c")
@@ -1390,12 +1865,12 @@ class conv_bias_clip_depthwise_conv_bias_clip(pm.Template):
         else:
             stride_h, stride_w = stride
 
-        if not isinstance(stride, (tuple, list)):
+        if not isinstance(dilation, (tuple, list)):
             dilation_h = dilation_w = dilation
         else:
             dilation_h, dilation_w = dilation
 
-        if not isinstance(stride, (tuple, list)):
+        if not isinstance(pad, (tuple, list)):
             pad = (pad, pad)
 
         batch, in_channel, in_height, in_width = data.shape
@@ -1403,12 +1878,18 @@ class conv_bias_clip_depthwise_conv_bias_clip(pm.Template):
         # compute the output shape
         dilated_kernel_h = (kernel_h - 1) * dilation_h + 1
         dilated_kernel_w = (kernel_w - 1) * dilation_w + 1
-        pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
-            pad, (dilated_kernel_h, dilated_kernel_w)
-        )
+        if len(pad) == 2:
+            pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
+                pad, (dilated_kernel_h, dilated_kernel_w)
+            )
+        else:
+            assert len(pad) == 4
+            pad_top, pad_left, pad_down, pad_right = pad
         out_channel = num_filter
-        oh = (in_height - dilated_kernel_h + pad_top + pad_down) // stride_h + 1
-        ow = (in_width - dilated_kernel_w + pad_left + pad_right) // stride_w + 1
+        oh = (in_height + pad_top + pad_down - dilation_h*(kernel_h - 1) - 1) / stride_h + 1
+        ow = (in_width + pad_left + pad_right - dilation_w*(kernel_w - 1) - 1) / stride_w + 1
+        oh = int(oh)
+        ow = int(ow)
         pad_before = [0, 0, pad_top, pad_left]
         pad_after = [0, 0, pad_down, pad_right]
         c = pm.index(0, w.shape[0] - 1)
@@ -1461,6 +1942,13 @@ class conv_bias_clip_depthwise_conv_bias_clip(pm.Template):
         return self.kwargs['pad']
 
     @property
+    def pad_int(self):
+        if isinstance(self.kwargs['pad'], tuple):
+            return self.kwargs['pad'][0] + self.kwargs['pad'][2]
+        else:
+            return self.kwargs['pad']
+
+    @property
     def groups(self):
         return self.kwargs['groups']
 
@@ -1490,10 +1978,15 @@ class conv_bias_clip_depthwise_conv_bias_clip(pm.Template):
         return self.kwargs['pad0']
 
     @property
+    def pad_int0(self):
+        if isinstance(self.kwargs['pad0'], tuple):
+            return self.kwargs['pad0'][0] + self.kwargs['pad0'][2]
+        else:
+            return self.kwargs['pad0']
+
+    @property
     def groups0(self):
         return self.kwargs['groups0']
-
-
 
 class gemm_add_mean_sub_mul_mean_add_sqrt_reciprocal_mul_mul_mul_sub_add(pm.Template):
     def define_graph(self, data, wgt, bias, add_lhs1, add_lhs2, mul_lhs, sub_rhs, output,
@@ -1579,7 +2072,6 @@ class gemm_add_mean_sub_mul_mean_add_sqrt_reciprocal_mul_mul_mul_sub_add(pm.Temp
     @property
     def outputs(self):
         return (self.args[7],)
-
 
 class matmul_reshape_add_add_mean_sub_mul_mean_add_sqrt_reciprocal_mul_mul_mul_sub_add(pm.Template):
     def define_graph(self, data, wgt, add_lhs1, add_lhs2, add_lhs3, mul_lhs, sub_rhs, output,
@@ -1700,7 +2192,6 @@ class matmul_transpose(pm.Template):
     def outputs(self):
         return (self.args[-1],)
 
-
 class gemm_pow_mul_add_mul_tanh_add_mul_mul(pm.Template):
     def define_graph(self, data, wgt, bias, mul_lhs0, mul_lhs1, add_lhs, mul_lhs2, output,
                      alpha=1.0, beta=0.0, transA=None, transB=None, strict_shapes=False,
@@ -1714,3 +2205,166 @@ class gemm_pow_mul_add_mul_tanh_add_mul_mul(pm.Template):
     @property
     def outputs(self):
         return (self.args[-1],)
+
+class matmul_add(pm.Template):
+    def define_graph(self, data, wgt, bias, out):
+        pass
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1], self.args[2])
+
+    @property
+    def outputs(self):
+        return (self.args[-1],)
+
+class matmul_add_gelu(pm.Template):
+    def define_graph(self, data, wgt, bias, out):
+        pass
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1], self.args[2])
+
+    @property
+    def outputs(self):
+        return (self.args[-1],)
+
+class matmul_add_add(pm.Template):
+    def define_graph(self, data, wgt, bias, add_lhs, out):
+        pass
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1], self.args[2], self.args[3])
+
+    @property
+    def outputs(self):
+        return (self.args[-1],)
+
+class mul_add(pm.Template):
+    def define_graph(self, data, mul_rhs, add_rhs, out):
+        pass
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1], self.args[2])
+
+    @property
+    def outputs(self):
+        return (self.args[-1],)
+
+
+class matmul_div_add(pm.Template):
+    def define_graph(self, data, wgt, div_rhs, add_rhs, out):
+        pass
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1], self.args[3],)
+
+    @property
+    def outputs(self):
+        return (self.args[-1],)
+
+    @property
+    def div_lhs(self):
+        return self.args[2].default
+
+class add_add(pm.Template):
+    def define_graph(self, data, add1_rhs, add2_rhs, out):
+        pass
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1], self.args[2])
+
+    @property
+    def outputs(self):
+        return (self.args[-1],)
+
+class sub_mul(pm.Template):
+    def define_graph(self, data, sub_rhs, mul_rhs, out):
+        self.kwargs['mul_rhs'] = mul_rhs.default
+        self.kwargs['sub_rhs'] = data.default
+
+    @property
+    def inputs(self):
+        return (self.args[1],)
+
+    @property
+    def outputs(self):
+        return (self.args[-1],)
+
+    @property
+    def mul_rhs(self):
+        return self.args[2].default
+
+    @property
+    def sub_rhs(self):
+        return self.args[0].default
+
+
+class mean_sub_pow_mean_add_sqrt_div(pm.Template):
+    def define_graph(self, data, add_val, out,
+                     axes=None,
+                     keepdims=True,
+                     exp=None,
+                     axes0=None,
+                     keepdims0=None):
+        pass
+
+    @property
+    def axes(self):
+        return self.kwargs['axes']
+
+    @property
+    def axes0(self):
+        return self.kwargs['axes0']
+
+    @property
+    def exp(self):
+        return self.kwargs['exp']
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1], self.args[2])
+
+    @property
+    def outputs(self):
+        return (self.args[-1],)
+
+
+class sub_pow(pm.Template):
+    def define_graph(self, data, sub_lhs, out,
+                     exp=None):
+        pass
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1],)
+
+    @property
+    def outputs(self):
+        return (self.args[-1],)
+
+    @property
+    def exp(self):
+        return self.kwargs['exp']
+
+class add_sqrt_div(pm.Template):
+    def define_graph(self, data, add_lhs, div_rhs, out):
+        self.kwargs['add_lhs'] = add_lhs.default
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[2])
+
+    @property
+    def outputs(self):
+        return (self.args[-1],)
+
+
+    @property
+    def add_lhs(self):
+        return self.args[1].default

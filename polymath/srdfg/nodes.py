@@ -162,11 +162,11 @@ class output(placeholder):
 
     def set_shape(self, shape=None, init=False):
         if isinstance(shape, Integral):
-            self._shape = tuple([shape])
+            new_shape = tuple([shape])
         elif isinstance(shape, Node):
-            self._shape = tuple([shape])
+            new_shape = tuple([shape])
         elif not shape or len(shape) == 0:
-            self._shape = UNSET_SHAPE
+            new_shape = UNSET_SHAPE
         else:
             shapes = []
             for dim in shape:
@@ -179,7 +179,13 @@ class output(placeholder):
                                     f"\tDim: {dim}"
                                     f"\n\t{self.kwargs} ")
 
-            self._shape = tuple(shapes)
+            new_shape = tuple(shapes)
+        if self.is_shape_finalized() and new_shape != self._shape:
+            raise RuntimeError(f"Overwriting shape which has already been set for node\n"
+                               f"Initial shape: {self._shape}\n"
+                               f"New shape: {new_shape}")
+        self._shape = new_shape
+
 
     # TODO: Need to freeze the graph after exiting scope
     def current_value(self):

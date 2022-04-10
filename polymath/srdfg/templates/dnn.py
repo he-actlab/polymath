@@ -4,6 +4,7 @@ from .template_utils import _get_indices, _get_single_node_indices, _get_elem_in
 from polymath.srdfg.util import squeeze_shape
 from numbers import Integral
 import numpy as np
+from math import ceil
 import functools
 
 class cross_entropy_loss(pm.Template):
@@ -182,6 +183,10 @@ class avg_pool(pm.Template):
     def pad(self):
         return self.kwargs['pad']
 
+    @property
+    def pad_int(self):
+        return self.kwargs['pad'][0] + self.kwargs['pad'][2]
+
 class dense(pm.Template):
     def define_graph(self, x, w, y):
         i = pm.index(0, (w.shape[1] - 1), name="i")
@@ -229,6 +234,21 @@ class dense_sigmoid(pm.Template):
 
 
 class relu(pm.Template):
+    def define_graph(self, inp, out):
+        out.set_shape(inp.shape)
+        # indices = tuple([pm.index(0, s - 1) if s > 1 else 0 for s in inp.shape])
+        indices = tuple([pm.index(0, s - 1) for s in inp.shape])
+        out[indices] = (0 < inp[indices]) * inp[indices]
+
+    @property
+    def inputs(self):
+        return (self.args[0],)
+
+    @property
+    def outputs(self):
+        return (self.args[1],)
+
+class gelu(pm.Template):
     def define_graph(self, inp, out):
         out.set_shape(inp.shape)
         # indices = tuple([pm.index(0, s - 1) if s > 1 else 0 for s in inp.shape])
@@ -301,12 +321,13 @@ class conv_bias(pm.Template):
         else:
             stride_h, stride_w = stride
 
-        if not isinstance(stride, (tuple, list)):
+        if not isinstance(dilation, (tuple, list)):
             dilation_h = dilation_w = dilation
         else:
             dilation_h, dilation_w = dilation
 
-        if not isinstance(stride, (tuple, list)):
+
+        if not isinstance(pad, (tuple, list)):
             pad = (pad, pad)
 
         batch, in_channel, in_height, in_width = data.shape
@@ -314,12 +335,21 @@ class conv_bias(pm.Template):
         # compute the output shape
         dilated_kernel_h = (kernel_h - 1) * dilation_h + 1
         dilated_kernel_w = (kernel_w - 1) * dilation_w + 1
-        pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
-            pad, (dilated_kernel_h, dilated_kernel_w)
-        )
+        if len(pad) == 2:
+            pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
+                pad, (dilated_kernel_h, dilated_kernel_w)
+            )
+        else:
+            assert len(pad) == 4
+            pad_top, pad_left, pad_down, pad_right = pad
         out_channel = num_filter
-        oh = (in_height - dilated_kernel_h + pad_top + pad_down) // stride_h + 1
-        ow = (in_width - dilated_kernel_w + pad_left + pad_right) // stride_w + 1
+
+
+
+        oh = (in_height + pad_top + pad_down - dilation_h*(kernel_h - 1) - 1) / stride_h + 1
+        ow = (in_width + pad_left + pad_right - dilation_w*(kernel_w - 1) - 1) / stride_w + 1
+        oh = int(oh)
+        ow = int(ow)
         pad_before = [0, 0, pad_top, pad_left]
         pad_after = [0, 0, pad_down, pad_right]
         c = pm.index(0, w.shape[0] - 1)
@@ -345,6 +375,7 @@ class conv_bias(pm.Template):
             p_indices = (k,)
             p_shape = (data.shape[0], ihp, iwp)
             out.set_shape((w.shape[0], oh, ow))
+
         # padded = pm.temp(shape=p_shape)
         padded = pm.temp(shape=p_shape)
 
@@ -369,6 +400,10 @@ class conv_bias(pm.Template):
     @property
     def pad(self):
         return self.kwargs['pad']
+
+    @property
+    def pad_int(self):
+        return self.kwargs['pad'][0] + self.kwargs['pad'][2]
 
     @property
     def groups(self):
@@ -807,12 +842,12 @@ class conv(pm.Template):
         else:
             stride_h, stride_w = stride
 
-        if not isinstance(stride, (tuple, list)):
+        if not isinstance(dilation, (tuple, list)):
             dilation_h = dilation_w = dilation
         else:
             dilation_h, dilation_w = dilation
 
-        if not isinstance(stride, (tuple, list)):
+        if not isinstance(pad, (tuple, list)):
             pad = (pad, pad)
 
         batch, in_channel, in_height, in_width = data.shape
@@ -820,12 +855,21 @@ class conv(pm.Template):
         # compute the output shape
         dilated_kernel_h = (kernel_h - 1) * dilation_h + 1
         dilated_kernel_w = (kernel_w - 1) * dilation_w + 1
-        pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
-            pad, (dilated_kernel_h, dilated_kernel_w)
-        )
+        if len(pad) == 2:
+            pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
+                pad, (dilated_kernel_h, dilated_kernel_w)
+            )
+        else:
+            assert len(pad) == 4
+            pad_top, pad_left, pad_down, pad_right = pad
         out_channel = num_filter
-        oh = (in_height - dilated_kernel_h + pad_top + pad_down) // stride_h + 1
-        ow = (in_width - dilated_kernel_w + pad_left + pad_right) // stride_w + 1
+
+        oh = (in_height + pad_top + pad_down - dilation_h*(kernel_h - 1) - 1) / stride_h + 1
+        ow = (in_width + pad_left + pad_right - dilation_w*(kernel_w - 1) - 1) / stride_w + 1
+        oh = int(oh)
+        ow = int(ow)
+
+
         pad_before = [0, 0, pad_top, pad_left]
         pad_after = [0, 0, pad_down, pad_right]
         c = pm.index(0, w.shape[0] - 1, name="c")
@@ -876,6 +920,10 @@ class conv(pm.Template):
     @property
     def pad(self):
         return self.kwargs['pad']
+
+    @property
+    def pad_int(self):
+        return self.kwargs['pad'][0] + self.kwargs['pad'][2]
 
 
 class depthwise_conv(pm.Template):
@@ -886,12 +934,12 @@ class depthwise_conv(pm.Template):
         else:
             stride_h, stride_w = stride
 
-        if not isinstance(stride, (tuple, list)):
+        if not isinstance(dilation, (tuple, list)):
             dilation_h = dilation_w = dilation
         else:
             dilation_h, dilation_w = dilation
 
-        if not isinstance(stride, (tuple, list)):
+        if not isinstance(pad, (tuple, list)):
             pad = (pad, pad)
 
         batch, in_channel, in_height, in_width = data.shape
@@ -955,6 +1003,10 @@ class depthwise_conv(pm.Template):
     @property
     def pad(self):
         return self.kwargs['pad']
+
+    @property
+    def pad_int(self):
+        return self.kwargs['pad'][0] + self.kwargs['pad'][2]
 
     @property
     def groups(self):
@@ -969,12 +1021,12 @@ class depthwise_conv_bias(pm.Template):
         else:
             stride_h, stride_w = stride
 
-        if not isinstance(stride, (tuple, list)):
+        if not isinstance(dilation, (tuple, list)):
             dilation_h = dilation_w = dilation
         else:
             dilation_h, dilation_w = dilation
 
-        if not isinstance(stride, (tuple, list)):
+        if not isinstance(pad, (tuple, list)):
             pad = (pad, pad)
 
         batch, in_channel, in_height, in_width = data.shape
@@ -982,12 +1034,18 @@ class depthwise_conv_bias(pm.Template):
         # compute the output shape
         dilated_kernel_h = (kernel_h - 1) * dilation_h + 1
         dilated_kernel_w = (kernel_w - 1) * dilation_w + 1
-        pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
-            pad, (dilated_kernel_h, dilated_kernel_w)
-        )
+        if len(pad) == 2:
+            pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
+                pad, (dilated_kernel_h, dilated_kernel_w)
+            )
+        else:
+            assert len(pad) == 4
+            pad_top, pad_left, pad_down, pad_right = pad
         out_channel = num_filter
-        oh = (in_height - dilated_kernel_h + pad_top + pad_down) // stride_h + 1
-        ow = (in_width - dilated_kernel_w + pad_left + pad_right) // stride_w + 1
+        oh = (in_height + pad_top + pad_down - dilation_h*(kernel_h - 1) - 1) / stride_h + 1
+        ow = (in_width + pad_left + pad_right - dilation_w*(kernel_w - 1) - 1) / stride_w + 1
+        oh = int(oh)
+        ow = int(ow)
         pad_before = [0, 0, pad_top, pad_left]
         pad_after = [0, 0, pad_down, pad_right]
         c = pm.index(0, w.shape[0] - 1, name="c")
@@ -1037,6 +1095,10 @@ class depthwise_conv_bias(pm.Template):
     @property
     def pad(self):
         return self.kwargs['pad']
+
+    @property
+    def pad_int(self):
+        return self.kwargs['pad'][0] + self.kwargs['pad'][2]
 
     @property
     def groups(self):
@@ -1138,3 +1200,7 @@ class max_pool(pm.Template):
     @property
     def pad(self):
         return self.kwargs['pad']
+
+    @property
+    def pad_int(self):
+        return self.kwargs['pad'][0] + self.kwargs['pad'][2]

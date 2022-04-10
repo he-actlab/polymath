@@ -204,7 +204,7 @@ class Node(object):
         self.kwargs[key] = value
 
     def is_shape_finalized(self):
-        if self.shape == UNSET_SHAPE:
+        if self.shape == UNSET_SHAPE or isinstance(self.shape, OrderedDict):
             return False
         for s in self.shape:
             if not isinstance(s, Integral):
@@ -213,14 +213,14 @@ class Node(object):
 
     def set_shape(self, shape=None, init=False):
         if isinstance(shape, float):
-            self._shape = tuple([np.int(shape)])
+            new_shape = tuple([np.int(shape)])
         elif isinstance(shape, Integral):
-            self._shape = tuple([shape])
+            new_shape = tuple([shape])
         elif isinstance(shape, Node):
-            self._shape = tuple([shape])
+            new_shape = tuple([shape])
         elif not shape or len(shape) == 0:
             # TODO: Change in order to enable "is shape finalized" to work
-            self._shape = UNSET_SHAPE
+            new_shape = UNSET_SHAPE
         else:
             shapes = []
             for dim in shape:
@@ -232,7 +232,14 @@ class Node(object):
                     raise TypeError(f"Shape value must be placeholder or integer value for {self.name}\n"
                                     f"\tDim: {dim}"
                                     f"\n\t{self.kwargs} ")
-            self._shape = tuple(shapes)
+            new_shape = tuple(shapes)
+        if self.is_shape_finalized() and new_shape != self._shape:
+            raise RuntimeError(f"Overwriting shape which has already been set for node\n"
+                               f"Initial shape: {self._shape}\n"
+                               f"New shape: {new_shape}")
+
+        self._shape = new_shape
+
 
     @staticmethod
     def get_active_graph(graph=None):

@@ -115,10 +115,10 @@ def test_single_layer_fusion(model, fusion_sequence, testnum):
     # "resnet18",
     # "resnet50",
     # "efficientnet-lite4-11-opt-no-softmax",
-    "bertsquad-12-opt-trimmed",
-    # "mobilenet27-opt",
+    # "bertsquad-12-opt-trimmed",
+    # "mobilenetv2-opt",
     # "yolov3-opt-static",
-    # "bertsquad-12-opt1"
+    "bert-base-cased-transpose-opt-trimmed-ort",
 ])
 def test_conversion(model_name):
     all_fusions = [
@@ -128,41 +128,46 @@ def test_conversion(model_name):
         # ['Conv', 'Add'],
         # ['Conv', 'Add', 'LeakyRelu'],
         # ['Conv', 'LeakyRelu', 'Add'],
+        # ['DepthwiseConv', 'Clip'],
+        # ['Conv', 'Clip'],
         # ['Conv', 'Clip', 'DepthwiseConv'],
         # ['Conv', 'Clip', 'DepthwiseConv', 'Clip'],
-
-        ["MatMul", "Reshape", "Add", "Add",
-         "ReduceMean",
-         "Sub",
-         "Mul",
-         "ReduceMean",
-         "Add",
-         "Sqrt",
-         "Reciprocal",
-         "Mul", ["Mul", "Mul"], "Sub", "Add"],
-        ["Gemm", "Add", "ReduceMean", "Sub", "Mul", "ReduceMean",
-         "Add", "Sqrt", "Reciprocal", "Mul", ["Mul", "Mul"],
-         "Sub", "Add"],
-        ["MatMul", "Mul", "Add", "Softmax"],
-        ["Gemm", "Reshape", "Transpose"], ["MatMul", "Transpose"],
-        ["Gemm", "Pow", "Mul", "Add", "Mul", "Tanh", "Add", "Mul", "Mul"]
+        ["Add", "Add"],
+        ["Mul", "Add"],
+        ["Sub", "Pow"],
+        ["Add", "Sqrt", "Div"],
+        ["MatMul", "Add"],
+        ["MatMul", "Add", "Add"],
+        ["MatMul", "Add", "Gelu"],
+        ["MatMul", "Div", "Add"],
+        ["Sub", "Mul"],
     ]
     import onnx
+    from collections import defaultdict
     fpath = f"{BENCH_DIR}/full_dnns/{model_name}.onnx"
-    model = onnx.load(fpath)
-    graph = pm.from_onnx(fpath)
-    # for n, node in graph.nodes.items():
-    #     if isinstance(node, pm.Template):
-    #         print(f"{node.op_name}")
+    graph = pm.from_onnx(fpath, infer_shapes=False)
+
     fusion_pass = pm.FuseOps(all_fusions, pad_conv_constraint=True)
     fused_graph = fusion_pass(graph)
+    # print(fusion_pass.fusion_instances)
+    counts = defaultdict(int)
+    signatures = defaultdict(int)
     for n, node in fused_graph.nodes.items():
         if isinstance(node, pm.Template):
+            sig = node.signature
             print(f"{node.op_name}")
-            print(f"{node.inputs[0].shape}")
-            break
-    print(fusion_pass.fusion_instances)
 
+            counts[node.op_name] += 1
+            signatures[node.signature] += 1
+            counts['total'] += 1
+    import pprint
+    print(f"Total ops:\n"
+          f"")
+    pprint.pprint(counts)
+
+    print(f"Total signatures:\n"
+          f"")
+    pprint.pprint(signatures)
 
 
 

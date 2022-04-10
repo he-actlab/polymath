@@ -107,6 +107,14 @@ class elem_gather(pm.Template):
         # TODO: Fix this to use manual implementation
         output.write(pm.gather(data, indices, axis=axis))
 
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1])
+
+    @property
+    def outputs(self):
+        return (self.args[2],)
+
 class elem_expand(pm.Template):
     def define_graph(self, data, new_shape, output, axis=0):
         # TODO: Fix this to use manual implementation

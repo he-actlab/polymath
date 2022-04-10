@@ -29,7 +29,7 @@ from polymath.srdfg.templates.dnn import conv_bias, depthwise_conv, depthwise_co
     elem_tanh, elem_sigmoid, elem_cast, conv_transpose, cross_entropy_loss, log_softmax, \
     nll_loss, conv_transpose_bias, elem_floor, elem_ceil, elem_clip, elem_exp, topk,\
     split, elem_if, elem_sqrt, elem_log, roi_align, elem_where, scatter_elements, \
-    loop, nms, concat, one_hot
+    loop, nms, concat, one_hot, gelu
 
 from polymath.srdfg.templates.fused_dnn import conv_bias_relu,\
     conv_bias_relu_max_pool, \

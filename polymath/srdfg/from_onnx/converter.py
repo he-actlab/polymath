@@ -1,5 +1,6 @@
 from onnx import load, numpy_helper, helper, shape_inference
 from onnx.mapping import TENSOR_TYPE_TO_NP_TYPE
+from onnxruntime.tools.symbolic_shape_infer import SymbolicShapeInference
 import onnx
 import pathlib
 import numpy as np
@@ -78,11 +79,15 @@ def update_edge_names(model_proto):
                 node_name_map[o] = new_name
 
     for v in model_proto.graph.value_info:
-        assert v.name in node_name_map
+        if v.name not in node_name_map:
+            continue
+        # assert v.name in node_name_map, f"Unable to find node with name {v.name} in node map."
         v.name = node_name_map[v.name]
 
     for i in model_proto.graph.initializer:
-        assert i.name in node_name_map
+        if i.name not in node_name_map:
+            continue
+        # assert i.name in node_name_map, f"Unable to find node with name {i.name} in node map."
         i.name = node_name_map[i.name]
 
     for n in model_proto.graph.node:
@@ -101,9 +106,11 @@ def from_onnx(filepath, infer_shapes=True, use_filename=True, lower=False, verbo
     onnx_proto, graph_name = load_onnx_proto(filepath)
     onnx_proto = update_node_names(onnx_proto)
     onnx_proto = update_edge_names(onnx_proto)
-    attr = get_model_attributes(onnx_proto)
+
     if infer_shapes:
-        onnx_graph = shape_inference.infer_shapes(onnx_proto).graph
+        # onnx_graph = shape_inference.infer_shapes(onnx_proto).graph
+        onnx_graph = SymbolicShapeInference.infer_shapes(onnx_proto, 2 ** 31 - 1, True,
+                                                False, False).graph
     else:
         onnx_graph = onnx_proto.graph
     for n in onnx_graph.node:

@@ -138,3 +138,27 @@ class Template(pm.Node):
         else:
             return n.name
 
+    @property
+    def inputs(self):
+        raise NotImplementedError(f"Inputs are not defined for {self.op_name}")
+
+    @property
+    def outputs(self):
+        raise NotImplementedError(f"Outputs are not defined for {self.op_name}")
+
+    @property
+    def signature(self):
+        sig = [self.op_name]
+        ipt_shapes = []
+        for i in self.inputs:
+            # if not i.is_shape_finalized():
+            #     raise RuntimeError(f"Cannot create signature for unitialized input variable {i.name} in {self.op_name}")
+            ipt_shapes.append(len(i.shape))
+        sig.append(tuple(ipt_shapes))
+        opt_shapes = []
+        for o in self.outputs:
+            # if not o.is_shape_finalized():
+            #     raise RuntimeError(f"Cannot create signature for unitialized output variable {o.name} in {self.op_name}")
+            opt_shapes.append(len(o.shape))
+        sig.append(tuple(opt_shapes))
+        return tuple(sig)

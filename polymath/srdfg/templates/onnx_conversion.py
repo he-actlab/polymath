@@ -1,6 +1,42 @@
 import polymath as pm
 from numbers import Integral
 import numpy as np
+def get_pad_tuple2d(padding):
+    """Common code to get the pad option
+    Parameters
+    ----------
+    padding : Union[int, Tuple[int, ...]]
+        Padding size
+    Returns
+    -------
+    pad_top : int
+        Padding size on top
+    pad_left : int
+        Padding size on left
+    pad_down : int
+        Padding size on down.
+    pad_right : int
+        Padding size on right.
+    """
+    # compute the padding size
+    if isinstance(padding, np.ndarray):
+        padding = list(padding)
+    assert isinstance(padding, (tuple, list)), f"Wrong type for padding: {type(padding)}, value: {padding}"
+    if isinstance(padding, (tuple, list)):
+        if len(padding) == 2:
+            pad_h = padding[0] * 2
+            pad_w = padding[1] * 2
+        elif len(padding) == 4:
+            return padding[0], padding[1], padding[2], padding[3]
+        else:
+            raise ValueError("Size of padding can only be 2 or 4")
+    elif isinstance(padding, int):
+        pad_h = pad_w = padding * 2
+    else:
+        raise ValueError("Unknown padding option %s" % padding)
+    pad_top = (pad_h + 1) // 2
+    pad_left = (pad_w + 1) // 2
+    return pad_top, pad_left, pad_h - pad_top, pad_w - pad_left
 
 def get_transpose(data, perm=None, shape=None, name=None, out=None, **kwargs):
     if not out:
@@ -387,11 +423,10 @@ def get_conv(x, w, bias=None, dilations=None, group=None, kernel_shape=None, pad
              name=None,
              out=None):
 
-
     if not out:
         out = pm.output(shape=shape, name=name)
 
-    if auto_pad:
+    if auto_pad and auto_pad != 'NOTSET':
 
         h_out = np.ceil(x.shape[-2] / strides[0])
         w_out = np.ceil(x.shape[-1] / strides[1])
@@ -408,16 +443,26 @@ def get_conv(x, w, bias=None, dilations=None, group=None, kernel_shape=None, pad
             pads[0] = ph - pads[1]
             pads[3] = np.floor(pw // 2)
             pads[2] = pw - pads[3]
+    else:
+
+        pads = get_pad_tuple2d(pads)
+    if not all([isinstance(i, int) for i in pads]):
+        pads = tuple([int(p) for p in pads])
+    if not isinstance(pads, tuple):
+        assert isinstance(pads, list)
+        pads = tuple(pads)
+
+    assert len(pads) == 4 and all([isinstance(i, int) for i in pads]) and isinstance(pads, tuple)
     if group == x.shape[1]:
         if bias:
-            pm.depthwise_conv_bias(x, w, bias, out, int(strides[0]), int(pads[-2]), group)
+            pm.depthwise_conv_bias(x, w, bias, out, int(strides[0]), pads, group)
         else:
-            pm.depthwise_conv(x, w, out, int(strides[0]), int(pads[-2]), group)
+            pm.depthwise_conv(x, w, out, int(strides[0]), pads, group)
     else:
         if bias:
-            pm.conv_bias(x, w, bias, out, int(strides[0]), int(pads[-2]))
+            pm.conv_bias(x, w, bias, out, int(strides[0]), pads)
         else:
-            pm.conv(x, w, out, int(strides[0]), int(pads[-2]))
+            pm.conv(x, w, out, int(strides[0]), pads)
 
     return out
 
@@ -564,7 +609,7 @@ def get_gemm(a, b , c=None, shape=None, name=None, alpha=None,
         out = pm.output(shape=shape, name=name)
     if transB:
         assert len(b.shape) == 2
-        b.shape = (b.shape[1], b.shape[0])
+        b._shape = (b.shape[1], b.shape[0])
         transB = False
 
     if c:
@@ -636,6 +681,11 @@ def get_nms(boxes, scores, max_output_boxes_per_class=0, iou_threshold=0, score_
            iou_threshold=iou_threshold, score_threshold=score_threshold, center_point_box=center_point_box)
     return out
 
+def get_gelu(x, shape=None, name=None, out=None):
+    if not out:
+        out = pm.output(shape=shape, name=name)
+    pm.gelu(x, out)
+    return out
 
 NODE_NAMES = {
     "Add": get_elem_add,
@@ -709,5 +759,7 @@ NODE_NAMES = {
     "Tanh": get_elem_tanh,
     "TopK": get_topk,
     "Unsqueeze": pm.onnx_unsqueeze,
-    "Where": get_where
+    "Where": get_where,
+    "Gelu": get_gelu,
+
 }
