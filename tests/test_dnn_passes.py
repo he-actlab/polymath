@@ -115,7 +115,6 @@ def test_single_layer_fusion(model, fusion_sequence, testnum):
     # "resnet18",
     # "resnet50",
     # "efficientnet-lite4-11-opt-no-softmax",
-    # "bertsquad-12-opt-trimmed",
     # "mobilenetv2-opt",
     # "yolov3-opt-static",
     "bert-base-cased-transpose-opt-trimmed-ort",
@@ -128,19 +127,38 @@ def test_conversion(model_name):
         # ['Conv', 'Add'],
         # ['Conv', 'Add', 'LeakyRelu'],
         # ['Conv', 'LeakyRelu', 'Add'],
-        # ['DepthwiseConv', 'Clip'],
         # ['Conv', 'Clip'],
         # ['Conv', 'Clip', 'DepthwiseConv'],
         # ['Conv', 'Clip', 'DepthwiseConv', 'Clip'],
-        ["Add", "Add"],
-        ["Mul", "Add"],
-        ["Sub", "Pow"],
-        ["Add", "Sqrt", "Div"],
+        # ['DepthwiseConv', 'Clip'],
+
+        ## BERT
         ["MatMul", "Add"],
         ["MatMul", "Add", "Add"],
         ["MatMul", "Add", "Gelu"],
         ["MatMul", "Div", "Add"],
+        ["Add", "Add"],
+        ["Mul", "Add"],
+        ["Sub", "Pow"],
+        ["Add", "Sqrt", "Div"],
         ["Sub", "Mul"],
+        # SW PIPELINE FUSIONS
+        # ["Div", "Add"],
+        # ['Add', 'Relu'],
+        # ['Add', 'LeakyRelu'],
+        # ['LeakyRelu', 'Add'],
+        # ['Clip', 'DepthwiseConv'],
+        # ['Clip', 'DepthwiseConv', 'Clip'],
+        #
+        # ["MatMul", "Add"],
+        # ["Add", "Add"],
+        # ["Mul", "Add"],
+        # ["Add", "Sqrt", "Div"],
+        # ['DepthwiseConv', 'Clip'],
+        # ["Sub", "Mul"],
+        # ["Sub", "Pow"],
+
+        ## BERT SW PIPELINE
     ]
     import onnx
     from collections import defaultdict
@@ -156,7 +174,6 @@ def test_conversion(model_name):
         if isinstance(node, pm.Template):
             sig = node.signature
             print(f"{node.op_name}")
-
             counts[node.op_name] += 1
             signatures[node.signature] += 1
             counts['total'] += 1

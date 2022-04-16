@@ -137,15 +137,23 @@ class FuseOps(Pass):
         return graph
 
     def cleanup_writes(self, graph, layers, intermediate_nodes, result):
+        layer_nodes = []
         for layer_list in layers:
             for l in layer_list:
                 assert l.layer.name in graph.nodes
+                layer_nodes.append(l.layer)
                 graph.nodes.pop(l.layer.name)
 
         for i in intermediate_nodes:
             if i.op_name == "output":
                 i.reset_writes()
-            graph.nodes.pop(i.name)
+            is_read = False
+            for n in graph.nodes.values():
+                if isinstance(n, pm.Template) and n not in layer_nodes and i in n.inputs:
+                    is_read = True
+                    break
+            if not is_read:
+                graph.nodes.pop(i.name)
 
         assert result.op_name == "output"
         result.reset_writes()
@@ -238,16 +246,20 @@ class FuseOps(Pass):
         graph.nodes.pop(node.name)
         min_idx = 0
 
-        for i, n in enumerate(graph.nodes.values()):
+        for k, n in graph.nodes.items():
+            i = list(graph.nodes.keys()).index(k)
             if isinstance(n, pm.Template):
                 for o in n.outputs:
                     if o in node.inputs and i > min_idx:
                         min_idx = i
-            # elif n in node.inputs and i > min_idx:
-            #     min_idx = i
+            elif n in node.inputs and i > min_idx:
+                min_idx = i
 
-
+        out = graph.nodes.pop(node.outputs[0].name)
+        graph.insert_node(out, min_idx + 1)
         graph.insert_node(node, min_idx + 1)
+
+
 
     def get_fused_nodes(self, graph, sequence, initial_layer):
         # TODO: Make sure the output isnt used in multiple places
@@ -328,11 +340,9 @@ class UpdateBatchSize(Pass):
 class RenameMultiDimOps(Pass):
     MULTI_DIM_OP_DEFAULTS = {
         'sgd': -1, 'elem_tanh': -1, 'elem_tanh_grad': -1, 'relu': 4, 'relu_grad': 4, "elem_ceil": -1, "elem_pow": -1,
-        "reduce_mean": -1, "reduce_min": -1, "tensor_transpose": -1, "matmul": 2, 'softmax': 2
+        "reduce_mean": -1, "reduce_min": -1, "tensor_transpose": -1, "matmul": 2, 'softmax': 2, 'add_add': 3, "elem_add": 4
     }
     MULTI_OPERAND_OPS = ['tensor_reshape']
-    # MULTI_DIM_OPS = ['sgd', 'elem_tanh', 'elem_tanh_grad', 'relu', 'relu_grad', "elem_ceil", "elem_pow",
-    #                  "reduce_mean", "reduce_min", "tensor_transpose", "matmul"]
     def __init__(self):
         super(RenameMultiDimOps, self).__init__()
 
