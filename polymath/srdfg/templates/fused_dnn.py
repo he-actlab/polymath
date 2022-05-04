@@ -43,6 +43,7 @@ class conv_bias_relu(pm.Template):
         else:
             assert len(pad) == 4
             pad_top, pad_left, pad_down, pad_right = pad
+
         out_channel = num_filter
         oh = (in_height + pad_top + pad_down - dilation_h*(kernel_h - 1) - 1) / stride_h + 1
         ow = (in_width + pad_left + pad_right - dilation_w*(kernel_w - 1) - 1) / stride_w + 1
@@ -1702,6 +1703,7 @@ class conv_bias_clip_depthwise_conv_bias_clip(pm.Template):
                      dilation0=1, groups0=1,
                      minval0=None, maxval0=None,
                      ):
+
         ## Merging padding--special case
         ih = data.shape[2]
         iw = data.shape[3]
