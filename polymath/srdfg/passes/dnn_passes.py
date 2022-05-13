@@ -3,7 +3,7 @@ from polymath.srdfg.templates import fused_dnn
 import polymath as pm
 import inspect
 from collections import defaultdict, namedtuple
-
+ALL_TEMPLATES = dir(pm.srdfg.templates.math) + dir(pm.srdfg.templates.dnn) + dir(pm.srdfg.templates.tensor_transformations)
 NON_DNN_NODE_OPS = (pm.write, pm.placeholder, pm.index, pm.var_index,
                     pm.slice_op, pm.func_op, pm.GroupNode, pm.NonLinear)
 BATCH_FUNCS = {}
@@ -20,7 +20,9 @@ FUSION_NAME_MAPPING = {
     'mul': 'elem_mul',
     'div': 'elem_div',
     'sqrt': 'elem_sqrt',
-    'depthwiseconv': 'depthwise_conv_bias',
+    'depthwiseconv': 'depthwise_conv',
+    'depthwiseconvbias': 'depthwise_conv_bias',
+    'biasadd': 'bias_add',
     'maxpool': 'max_pool',
     'globalaveragepool': 'global_avg_pool',
     'clip': 'elem_clip',
@@ -35,6 +37,158 @@ FUSION_NAME_MAPPING = {
     'tanh': 'elem_tanh',
     "gelu": "gelu"
 }
+
+@register_pass
+class SplitOps(Pass):
+    def __init__(self, op_splits):
+        assert isinstance(op_splits, dict)
+        self.split_layer_counter = 0
+        self.validate_splits(op_splits)
+        self.op_splits = op_splits
+        self.all_split_nodes = {'layers': [],
+                           'split_inputs': [],
+                           'split_outputs': [],
+                           'intermediate': []
+                           }
+        self.split_instances = defaultdict(int)
+
+        super(SplitOps, self).__init__()
+
+
+    def split_layer(self, node, split_def, out_node=None):
+        op_name, out_idx, all_args = split_def
+        instance_name = f"{op_name}{self.split_instances[op_name]}"
+        self.split_instances[op_name] += 1
+
+
+        if isinstance(all_args, tuple):
+            assert len(all_args) == 2
+            args, kwargs = all_args
+        else:
+            assert isinstance(all_args, list), f"Not a valid type for non-kwargs: {all_args}"
+            args = all_args
+            kwargs = {}
+        assert isinstance(kwargs, dict), f"Keyword arguments must be mapped from target layer to split layer"
+        op_kwargs = {}
+        op_args = []
+        for init_arg, map_name in kwargs.items():
+            op_kwargs[map_name] = node.kwargs[init_arg]
+        for a in args:
+            if isinstance(a, int):
+                op_args.append(node.args[a])
+            elif isinstance(a, tuple):
+                op_args.append(self.split_layer(node, a))
+
+        with node.graph:
+            if out_node is None:
+                out_node = pm.output(name=f"{node.outputs[0].name}_split{self.split_layer_counter}",
+                                     shape=node.args[out_idx].shape)
+                self.split_layer_counter += 1
+            op_args.append(out_node)
+            new_node = getattr(pm, op_name)(*op_args, name=instance_name, **op_kwargs)
+        self.all_split_nodes['layers'].append(new_node)
+        self.all_split_nodes['split_inputs'].append(out_node)
+        self.topological_insert(node.graph, new_node)
+        return out_node
+
+    def initialize_pass(self, graph, ctx):
+        nidx = 0
+        node_list = list(graph.nodes.values())
+        while nidx < len(node_list):
+            n = node_list[nidx]
+
+            if not isinstance(n, pm.Template):
+                nidx += 1
+                continue
+            elif n in self.all_split_nodes['layers']:
+                nidx += 1
+                continue
+            elif any([o in self.all_split_nodes['split_inputs'] for o in n.outputs]):
+                    nidx += 1
+                    continue
+
+            if n.op_name in self.op_splits:
+                self.split_layer(n, self.op_splits[n.op_name], out_node=n.outputs[0])
+                self.remove_fused_node(graph, n)
+
+            nidx += 1
+        return graph
+
+    def remove_fused_node(self, graph, node):
+        graph.nodes.pop(node.name)
+
+    def validate_splits(self, splits):
+        for fused_op, split in splits.items():
+            missing_ops = self.validate_split(split, [])
+            if len(missing_ops) > 0:
+                raise RuntimeError(f"Missing operations found for split definitions:\n"
+                                   f"{missing_ops}")
+
+    def validate_split(self, op_info, missing_ops):
+        assert isinstance(op_info, tuple) and len(op_info) == 3
+
+        op_name, out_idx, all_args = op_info
+        assert isinstance(out_idx, int)
+        if op_name not in ALL_TEMPLATES:
+            missing_ops.append(op_name)
+            return missing_ops
+        if isinstance(all_args, tuple):
+            assert len(all_args) == 2
+            args, kwargs = all_args
+        else:
+            assert isinstance(all_args, list), f"Not a valid type for non-kwargs: {all_args}"
+            args = all_args
+            kwargs = {}
+        assert isinstance(kwargs, dict), f"Keyword arguments must be mapped from target layer to split layer"
+        self.check_signature(op_name, args, kwargs)
+
+        for a in args:
+            if isinstance(a, tuple):
+                missing_ops = self.validate_split(a, missing_ops)
+
+        return missing_ops
+
+    def check_signature(self, split_name, layer_inputs, layer_kwargs):
+        signature = inspect.signature(getattr(pm, split_name).define_graph)
+
+        args = []
+        kwargs = []
+        for k, v in signature.parameters.items():
+            if v.default is v.empty:
+                args.append(k)
+            else:
+                kwargs.append(k)
+        for k in layer_kwargs.keys():
+            if k not in kwargs:
+                raise RuntimeError(f"Non-existent keyword argument to split: {k} in operation {split_name}")
+        # TODO: Need to remove the hardcoded '2', as there could be more than 1 output argument
+        # This assumes 1 argument is 'self', another argument is 'output'
+        if len(args) - 2 != len(layer_inputs) or len(kwargs) != len(layer_kwargs):
+
+            raise RuntimeError(f"Invalid arguments split in {split_name}:\n"
+                               f"Fusion signature args: {args}\n"
+                               f"Fusion signature kwargs: {kwargs}\n"
+                               f"Layer args: {layer_inputs}\n"
+                               f"Kwargs: {layer_kwargs}")
+
+    def topological_insert(self, graph, node):
+        assert isinstance(node, pm.Node) and hasattr(node, 'inputs')
+        assert all([i.name in graph.nodes for i in node.inputs])
+        graph.nodes.pop(node.name)
+        min_idx = 0
+
+        for k, n in graph.nodes.items():
+            i = list(graph.nodes.keys()).index(k)
+            if isinstance(n, pm.Template):
+                for o in n.outputs:
+                    if o in node.inputs and i > min_idx:
+                        min_idx = i
+            elif n in node.inputs and i > min_idx:
+                min_idx = i
+
+        out = graph.nodes.pop(node.outputs[0].name)
+        graph.insert_node(out, min_idx + 1)
+        graph.insert_node(node, min_idx + 1)
 
 @register_pass
 class FuseOps(Pass):
@@ -86,7 +240,7 @@ class FuseOps(Pass):
 
 
     def is_conv_dw_conv(self, seq) -> bool:
-        return "conv_bias" == seq[0] and "depthwise_conv_bias" in seq
+        return "conv_bias" == seq[0] and ("depthwise_conv_bias" in seq or "depthwise_conv" in seq)
 
     def is_valid_conv_dw_conv(self, conv_node) -> bool:
         assert conv_node.op_name == "conv_bias"
@@ -214,8 +368,6 @@ class FuseOps(Pass):
         self.all_fused_nodes['layers'] += fused_templates
         self.all_fused_nodes['fusion_inputs'] += layer_inputs
         self.all_fused_nodes['fusion_outputs'].append(result)
-
-
 
         signature = inspect.signature(getattr(fused_dnn, fusion_name).define_graph)
 

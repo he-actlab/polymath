@@ -29,7 +29,7 @@ from polymath.srdfg.templates.dnn import conv_bias, depthwise_conv, depthwise_co
     elem_tanh, elem_sigmoid, elem_cast, conv_transpose, cross_entropy_loss, log_softmax, \
     nll_loss, conv_transpose_bias, elem_floor, elem_ceil, elem_clip, elem_exp, topk,\
     split, elem_if, elem_sqrt, elem_log, roi_align, elem_where, scatter_elements, \
-    loop, nms, concat, one_hot, gelu
+    loop, nms, concat, one_hot, gelu, bias_add
 
 from polymath.srdfg.templates.fused_dnn import conv_bias_relu,\
     conv_bias_relu_max_pool, \
@@ -57,7 +57,8 @@ from polymath.srdfg.from_pytorch.converter import from_pytorch, get_attributes, 
 DNN_TRAINING_OPS = AUTODIFF_OPS + ONNX_OP_NAMES
 
 from polymath.srdfg.passes import register_pass, Pass
-from polymath.srdfg.passes.dnn_passes import UpdateBatchSize, CollectDNNShapes, RenameMultiDimOps, UpdateLayout, FuseOps
+from polymath.srdfg.passes.dnn_passes import UpdateBatchSize, CollectDNNShapes, RenameMultiDimOps, UpdateLayout, \
+    FuseOps, SplitOps
 from polymath.srdfg.passes.compiler_passes import NormalizeGraph, Lower, CountNodes, CountOpTypes
 from polymath.srdfg.passes.autodiff import AutoDiffGraph, create_training_graph
 from polymath.codegen.tabla.tabla_translate import generate_tabla

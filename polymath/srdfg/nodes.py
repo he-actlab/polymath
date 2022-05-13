@@ -181,7 +181,7 @@ class output(placeholder):
 
             new_shape = tuple(shapes)
         if self.is_shape_finalized() and new_shape != self._shape:
-            raise RuntimeError(f"Overwriting shape which has already been set for node\n"
+            raise RuntimeError(f"Overwriting shape which has already been set for node {self.name}\n"
                                f"Initial shape: {self._shape}\n"
                                f"New shape: {new_shape}")
         self._shape = new_shape

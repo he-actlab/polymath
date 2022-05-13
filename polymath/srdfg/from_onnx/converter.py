@@ -95,10 +95,12 @@ def update_edge_names(model_proto):
         n.output[:] = [node_name_map[o] for o in n.output]
 
     for i in model_proto.graph.input:
-        i.name = node_name_map[i.name]
+        if i.name in node_name_map:
+            i.name = node_name_map[i.name]
 
     for o in model_proto.graph.output:
-        o.name = node_name_map[o.name]
+        if o.name in node_name_map:
+            o.name = node_name_map[o.name]
 
     return model_proto
 

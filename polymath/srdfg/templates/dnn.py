@@ -926,6 +926,25 @@ class conv(pm.Template):
         return self.kwargs['pad'][0] + self.kwargs['pad'][2]
 
 
+class bias_add(pm.Template):
+    def define_graph(self, data, bias, out):
+        assert data.shape[1] == bias.shape[0]
+        assert data.shape == out.shape
+        N, C, H, W = data.shape
+        n = pm.index(0, N - 1)
+        c = pm.index(0, C - 1)
+        h = pm.index(0, H - 1)
+        w = pm.index(0, W - 1)
+        out[n,c,h,w] = data[n,c,h,w] + bias[c]
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1])
+
+    @property
+    def outputs(self):
+        return (self.args[2],)
+
 class depthwise_conv(pm.Template):
     def define_graph(self, data, w, out, stride=1, pad=0,  groups=1, dilation=1):
 
@@ -947,14 +966,18 @@ class depthwise_conv(pm.Template):
         # compute the output shape
         dilated_kernel_h = (kernel_h - 1) * dilation_h + 1
         dilated_kernel_w = (kernel_w - 1) * dilation_w + 1
-        pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
-            pad, (dilated_kernel_h, dilated_kernel_w)
-        )
-        out_channel = num_filter
-        oh = (in_height - dilated_kernel_h + pad_top + pad_down) // stride_h + 1
-        ow = (in_width - dilated_kernel_w + pad_left + pad_right) // stride_w + 1
-        pad_before = [0, 0, pad_top, pad_left]
-        pad_after = [0, 0, pad_down, pad_right]
+        if len(pad) == 2:
+            pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
+                pad, (dilated_kernel_h, dilated_kernel_w)
+            )
+        else:
+            assert len(pad) == 4
+            pad_top, pad_left, pad_down, pad_right = pad
+        oh = (in_height + pad_top + pad_down - dilation_h * (kernel_h - 1) - 1) / stride_h + 1
+        ow = (in_width + pad_left + pad_right - dilation_w * (kernel_w - 1) - 1) / stride_w + 1
+        oh = int(oh)
+        ow = int(ow)
+
         c = pm.index(0, w.shape[0] - 1, name="c")
         y = pm.index(0, oh - 1, name="y_")
         x = pm.index(0, ow - 1, name="x_")
@@ -967,6 +990,7 @@ class depthwise_conv(pm.Template):
         iwp = data.shape[-1] + pad_left + pad_right
         ihp_ = pm.index(0, ihp - 1, name="ihp")
         iwp_ = pm.index(0, iwp - 1, name="iwp")
+
         if len(data.shape) > 3:
             b = pm.index(0, data.shape[0] - 1, name="b")
             o_indices = (b, c)

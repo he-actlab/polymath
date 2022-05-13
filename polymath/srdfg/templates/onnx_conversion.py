@@ -1,6 +1,7 @@
 import polymath as pm
 from numbers import Integral
 import numpy as np
+
 def get_pad_tuple2d(padding):
     """Common code to get the pad option
     Parameters
@@ -19,6 +20,9 @@ def get_pad_tuple2d(padding):
         Padding size on right.
     """
     # compute the padding size
+    if padding is None:
+        return 0,0,0,0
+
     if isinstance(padding, np.ndarray):
         padding = list(padding)
     assert isinstance(padding, (tuple, list)), f"Wrong type for padding: {type(padding)}, value: {padding}"
@@ -444,7 +448,6 @@ def get_conv(x, w, bias=None, dilations=None, group=None, kernel_shape=None, pad
             pads[3] = np.floor(pw // 2)
             pads[2] = pw - pads[3]
     else:
-
         pads = get_pad_tuple2d(pads)
     if not all([isinstance(i, int) for i in pads]):
         pads = tuple([int(p) for p in pads])

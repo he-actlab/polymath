@@ -55,9 +55,9 @@ def test_resnet18_batchsize():
       }
      ),
     ('resnet18', [['Conv', 'Relu'],
-                     ['Conv', 'Relu', 'MaxPool'],
-                     ['Conv', 'Add', 'Relu', 'GlobalAveragePool'],
-                     ['Conv', 'Add', 'Relu']],
+                  ['Conv', 'Relu', 'MaxPool'],
+                  ['Conv', 'Add', 'Relu', 'GlobalAveragePool'],
+                  ['Conv', 'Add', 'Relu']],
      {"conv_bias_relu": 8,
       "conv_bias_relu_max_pool": 1,
       "conv_bias_elem_add_relu_global_avg_pool": 1,
@@ -65,17 +65,16 @@ def test_resnet18_batchsize():
       }
      ),
     ('efficientnet-lite4-11-opt', [['Conv', 'Add'],
-                     ['Conv', 'Clip', 'AveragePool'],
-                     ['Conv', 'Clip', 'DepthwiseConv',],
-                     ['Conv', 'Clip', 'DepthwiseConv', 'Clip',],],
+                                   ['Conv', 'Clip', 'AveragePool'],
+                                   ['Conv', 'Clip', 'DepthwiseConv', ],
+                                   ['Conv', 'Clip', 'DepthwiseConv', 'Clip', ], ],
      {"conv_bias_elem_add": 23,
-     "conv_bias_elem_clip_avg_pool": 1,
+      "conv_bias_elem_clip_avg_pool": 1,
       "conv_bias_elem_clip_depthwise_conv_bias_elem_clip": 30,
       }
      )
 ])
 def test_model_layer_fusion(model, fusion_sequences, expected_instances):
-
     fpath = f"{ONNX_DNNS}/{model}.onnx"
     graph = pm.from_onnx(fpath)
     unfused_nodes = "\n".join([f"Node: {name}, {n.op_name}" for name, n in graph.nodes.items()])
@@ -86,6 +85,7 @@ def test_model_layer_fusion(model, fusion_sequences, expected_instances):
     assert all([k in fusion_pass.fusion_instances for k in expected_instances.keys()])
     for k, v in expected_instances.items():
         assert v == fusion_pass.fusion_instances[k]
+
 
 @pytest.mark.parametrize('model, fusion_sequence, testnum', [
     # ('resnet18', ['Conv', 'Relu'], 0),
@@ -111,37 +111,70 @@ def test_single_layer_fusion(model, fusion_sequence, testnum):
 
     fusion_pass = pm.FuseOps([fusion_sequence])
     fused_graph = fusion_pass(graph)
+
+
+@pytest.mark.parametrize('model_name', [
+
+    "efficientnet-lite4-opt-no-softmax",
+    # "mobilenetv2-opt",
+])
+def test_dw_conv_split(model_name):
+    fpath = f"{BENCH_DIR}/full_dnns/{model_name}.onnx"
+    graph = pm.from_onnx(fpath, infer_shapes=False)
+    # print("Unsplit")
+    # for n, node in graph.nodes.items():
+    #     if isinstance(node, pm.Template):
+    #         print(f"Op: {node.op_name}\n"
+    #               f"Out: {node.outputs[0].name}\n")
+    splits = {}
+    splits['depthwise_conv_bias'] = ('bias_add', 3, [('depthwise_conv', 3, ([0, 1],
+                                         {'stride': 'stride', 'pad':'pad',
+                                          'groups': 'groups', 'dilation': 'dilation'})), 2],
+                                     )
+    split_pass = pm.SplitOps(splits)
+    split_graph = split_pass(graph)
+    print("Split")
+    #
+    for n, node in split_graph.nodes.items():
+        if isinstance(node, pm.Template):
+            assert node.op_name not in splits
+            print(f"Op: {node.op_name}\n"
+                  f"Out: {node.outputs[0].name}\n")
+
 @pytest.mark.parametrize('model_name', [
     # "resnet18",
     # "resnet50",
-    # "efficientnet-lite4-11-opt-no-softmax",
+    "efficientnet-lite4-opt-no-softmax",
     # "mobilenetv2-opt",
     # "yolov3-opt-static",
-    "bert-base-cased-transpose-opt-trimmed-ort",
+    # "bert-base-cased-transpose-opt-trimmed-ort",
 ])
 def test_conversion(model_name):
     all_fusions = [
-        # ['Conv', 'Relu'],
-        # ['Conv', 'LeakyRelu'],
-        # ['Conv', 'Add', 'Relu'],
-        # ['Conv', 'Add'],
-        # ['Conv', 'Add', 'LeakyRelu'],
-        # ['Conv', 'LeakyRelu', 'Add'],
-        # ['Conv', 'Clip'],
-        # ['Conv', 'Clip', 'DepthwiseConv'],
-        # ['Conv', 'Clip', 'DepthwiseConv', 'Clip'],
-        # ['DepthwiseConv', 'Clip'],
+        ['Conv', 'Relu'],
+        ['Conv', 'LeakyRelu'],
+        ['Conv', 'Add', 'Relu'],
+        ['Conv', 'Add'],
+        ['Conv', 'Add', 'LeakyRelu'],
+        ['Conv', 'LeakyRelu', 'Add'],
+        ['Conv', 'Clip'],
+        # ['Conv', 'Clip', 'DepthwiseConvBias', ],
+        # ['Conv', 'Clip', 'DepthwiseConvBias', 'Clip'],
+        # ['DepthwiseConvBias', 'Clip'],
+        ['Conv', 'Clip', 'DepthwiseConv', 'BiasAdd',],
+        ['Conv', 'Clip', 'DepthwiseConv', 'BiasAdd', 'Clip'],
+        ['BiasAdd', 'Clip'],
 
         ## BERT
-        ["MatMul", "Add"],
-        ["MatMul", "Add", "Add"],
-        ["MatMul", "Add", "Gelu"],
-        ["MatMul", "Div", "Add"],
-        ["Add", "Add"],
-        ["Mul", "Add"],
-        ["Sub", "Pow"],
-        ["Add", "Sqrt", "Div"],
-        ["Sub", "Mul"],
+        # ["MatMul", "Add"],
+        # ["MatMul", "Add", "Add"],
+        # ["MatMul", "Add", "Gelu"],
+        # ["MatMul", "Div", "Add"],
+        # ["Add", "Add"],
+        # ["Mul", "Add"],
+        # ["Sub", "Pow"],
+        # ["Add", "Sqrt", "Div"],
+        # ["Sub", "Mul"],
         # SW PIPELINE FUSIONS
         # ["Div", "Add"],
         # ['Add', 'Relu'],
@@ -164,6 +197,13 @@ def test_conversion(model_name):
     from collections import defaultdict
     fpath = f"{BENCH_DIR}/full_dnns/{model_name}.onnx"
     graph = pm.from_onnx(fpath, infer_shapes=False)
+    splits = {}
+    splits['depthwise_conv_bias'] = ('bias_add', 3, [('depthwise_conv', 3, ([0, 1],
+                                         {'stride': 'stride', 'pad':'pad',
+                                          'groups': 'groups', 'dilation': 'dilation'})), 2],
+                                     )
+    split_pass = pm.SplitOps(splits)
+    graph = split_pass(graph)
 
     fusion_pass = pm.FuseOps(all_fusions, pad_conv_constraint=True)
     fused_graph = fusion_pass(graph)
@@ -173,10 +213,13 @@ def test_conversion(model_name):
     for n, node in fused_graph.nodes.items():
         if isinstance(node, pm.Template):
             sig = node.signature
-            print(f"{node.op_name}")
+            # print(f"{node.op_name}")
             counts[node.op_name] += 1
             signatures[node.signature] += 1
             counts['total'] += 1
+            # print(node.op_name)
+            # print(f"Op: {node.op_name}\n"
+            #       f"Out: {node.outputs[0].name}\n")
     import pprint
     print(f"Total ops:\n"
           f"")
@@ -186,22 +229,20 @@ def test_conversion(model_name):
           f"")
     pprint.pprint(signatures)
 
-
-
 def conv2d_transpose(
-    input, weight, stride=1, padding=0, out_pad=0
+        input, weight, stride=1, padding=0, out_pad=0
 ):
     b, c, h, w = input.shape
     dim_in, dim_out, kh, kw = weight.shape
     sh, sw = stride - 1, stride - 1
-    y = input.reshape(b*c,h*w,1,1)
+    y = input.reshape(b * c, h * w, 1, 1)
     y = F.pad(y, [0, sw, 0, sh])
-    y = y.reshape(b*c,h,w,1+sh,1+sw)
-    y = y.permute(0,1,3,2,4)
-    y = y.reshape(b, c, h*(1+sh), w*(1+sw))
+    y = y.reshape(b * c, h, w, 1 + sh, 1 + sw)
+    y = y.permute(0, 1, 3, 2, 4)
+    y = y.reshape(b, c, h * (1 + sh), w * (1 + sw))
     ph, pw = kh - padding - 1, kw - padding - 1
 
-    weight = weight.permute(1,0,2,3)
+    weight = weight.permute(1, 0, 2, 3)
     weight = weight.flip(2, 3)
     # y = F.pad(y, [pw, pw-sw, ph, ph-sh])
     pad_vals = (pw, pw - sw + out_pad, ph, ph - sh + out_pad)
@@ -210,7 +251,8 @@ def conv2d_transpose(
 
     return y
 
-@pytest.mark.parametrize('inp_shape, wgt_shape, stride, pad',[
+
+@pytest.mark.parametrize('inp_shape, wgt_shape, stride, pad', [
     ((1, 3, 18, 18), (3, 10, 3, 3), 2, 1),
 ])
 def test_conv2d_transpose_shapes(inp_shape, wgt_shape, stride, pad):
@@ -239,7 +281,8 @@ def test_conv2d_transpose_shapes(inp_shape, wgt_shape, stride, pad):
 
     np.testing.assert_allclose(tres, torch_res.numpy())
 
-@pytest.mark.parametrize('filename',[
+
+@pytest.mark.parametrize('filename', [
     # f"{ONNX_LAYERS}/resnet18_globalaveragepool.onnx",
     # f"{ONNX_LAYERS}/resnet18_gemm.onnx",
     # f"{ONNX_LAYERS}/resnet18_flatten.onnx",
@@ -255,7 +298,6 @@ def test_layer_autodiff(filename):
     train_graph = batch_pass(train_graph)
     target_layer = "batchnorm_grad"
     target_layers = ["batchnorm_grad", "sgd"]
-
 
     train_graph = pm.create_training_graph(train_graph)
     grads = []
@@ -284,7 +326,7 @@ def test_load_maskrcnn():
     graph = pm.from_onnx(mrcnn_path)
 
 
-@pytest.mark.parametrize('shape',[
+@pytest.mark.parametrize('shape', [
     (3, 100,),
 ])
 def test_log_softmax(shape):
@@ -303,7 +345,8 @@ def test_log_softmax(shape):
 
     np.testing.assert_allclose(tres, torch_res.numpy())
 
-@pytest.mark.parametrize('shape',[
+
+@pytest.mark.parametrize('shape', [
     (3, 100,),
 ])
 def test_nll_loss(shape):
@@ -328,7 +371,8 @@ def test_nll_loss(shape):
 
     np.testing.assert_allclose(tres, np_res)
 
-@pytest.mark.parametrize('shape',[
+
+@pytest.mark.parametrize('shape', [
     (3, 100,),
 ])
 def test_loss(shape):
@@ -350,12 +394,13 @@ def test_loss(shape):
     graph = pm.cross_entropy_loss(x, tgt_, loss)
     tres = graph("loss", info)
 
-
     np.testing.assert_allclose(tres, np_res)
+
 
 def test_autodiff():
     resnet18_path = f"{ONNX_DNNS}/resnet18.onnx"
     resnet18_graph = pm.from_onnx(resnet18_path)
+
 
 def test_bnorm():
     shape = (1, 16, 32, 32)
@@ -394,8 +439,7 @@ def test_bnorm():
         'var': var,
     }
     graph = pm.batchnorm_grad(pm_x, pm_scale, pm_bias, pm_mean, pm_var, pm_grad, pm_x_grad, pm_scale_grad, pm_b_grad,
-                      optimizer, optimizer_kwargs)
+                              optimizer, optimizer_kwargs)
     rtol, atol = 1.3e-3, 1e-3
     gout = graph("bias_grad", inp_map)
     np.testing.assert_allclose(gout, torch_res.numpy().reshape(gout.shape), rtol=rtol, atol=atol)
-
