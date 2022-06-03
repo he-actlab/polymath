@@ -591,22 +591,22 @@ class UpdateLayout(Pass):
 def conv_bias_batch(node, batch_size):
     act = node.inputs[0]
     out = node.outputs[0]
-    act.shape = tuple([batch_size, act.shape[1], act.shape[2], act.shape[3]])
-    out.shape = tuple([batch_size, out.shape[1], out.shape[2], out.shape[3]])
+    act.set_shape(tuple([batch_size, act.shape[1], act.shape[2], act.shape[3]]), override=True)
+    out.set_shape(tuple([batch_size, out.shape[1], out.shape[2], out.shape[3]]), override=True)
     return node, [act.shape, out.shape]
 
 def conv_batch(node, batch_size):
     act = node.inputs[0]
     out = node.outputs[0]
-    act.shape = tuple([batch_size, act.shape[1], act.shape[2], act.shape[3]])
-    out.shape = tuple([batch_size, out.shape[1], out.shape[2], out.shape[3]])
+    act.set_shape(tuple([batch_size, act.shape[1], act.shape[2], act.shape[3]]), override=True)
+    out.set_shape(tuple([batch_size, out.shape[1], out.shape[2], out.shape[3]]), override=True)
     return node, [act.shape, out.shape]
 
 def relu_batch(node, batch_size):
     act = node.inputs[0]
     out = node.outputs[0]
-    act.shape = tuple([batch_size, act.shape[1], act.shape[2], act.shape[3]])
-    out.shape = tuple([batch_size, out.shape[1], out.shape[2], out.shape[3]])
+    act.set_shape(tuple([batch_size, act.shape[1], act.shape[2], act.shape[3]]), override=True)
+    out.set_shape(tuple([batch_size, out.shape[1], out.shape[2], out.shape[3]]), override=True)
     return node, [act.shape, out.shape]
 
 def elem_tanh_batch(node, batch_size):
@@ -619,64 +619,65 @@ def elem_tanh_batch(node, batch_size):
 def batch_norm_batch(node, batch_size):
     act = node.inputs[0]
     out = node.outputs[0]
-    act.shape = tuple([batch_size, act.shape[1], act.shape[2], act.shape[3]])
-    out.shape = tuple([batch_size, out.shape[1], out.shape[2], out.shape[3]])
+    act.set_shape(tuple([batch_size, act.shape[1], act.shape[2], act.shape[3]]), override=True)
+    out.set_shape(tuple([batch_size, out.shape[1], out.shape[2], out.shape[3]]), override=True)
     return node, [act.shape, out.shape]
 
 def flatten_batch(node, batch_size):
     act = node.inputs[0]
     out = node.outputs[0]
-    act.shape = tuple([batch_size, act.shape[1], act.shape[2], act.shape[3]])
-    out.shape = tuple([batch_size, out.shape[1]])
+    act.set_shape(tuple([batch_size, act.shape[1], act.shape[2], act.shape[3]]), override=True)
+    out.set_shape(tuple([batch_size, out.shape[1]]), override=True)
     return node, [act.shape, out.shape]
 
 def elem_add_batch(node, batch_size):
     op1 = node.inputs[0]
     op2 = node.inputs[1]
     out = node.outputs[0]
-    op1.shape = tuple([batch_size, op1.shape[1], op1.shape[2], op1.shape[3]])
-    op2.shape = tuple([batch_size, op2.shape[1], op2.shape[2], op2.shape[3]])
-    out.shape = tuple([batch_size, out.shape[1], out.shape[2], out.shape[3]])
+    op1.set_shape(tuple([batch_size, op1.shape[1], op1.shape[2], op1.shape[3]]), override=True)
+    op2.set_shape(tuple([batch_size, op2.shape[1], op2.shape[2], op2.shape[3]]), override=True)
+    out.set_shape(tuple([batch_size, out.shape[1], out.shape[2], out.shape[3]]), override=True)
     return node, [op1.shape, op2.shape, out.shape]
 
 def global_avg_pool_batch(node, batch_size):
     act = node.inputs[0]
     out = node.outputs[0]
-    act.shape = tuple([batch_size, act.shape[1], act.shape[2], act.shape[3]])
-    out.shape = tuple([batch_size, out.shape[1], out.shape[2], out.shape[3]])
+    act.set_shape(tuple([batch_size, act.shape[1], act.shape[2], act.shape[3]]), override=True)
+    out.set_shape(tuple([batch_size, out.shape[1], out.shape[2], out.shape[3]]), override=True)
     return node, [act.shape, out.shape]
 
 def max_pool_batch(node, batch_size):
     act = node.inputs[0]
     out = node.outputs[0]
-    act.shape = tuple([batch_size, act.shape[1], act.shape[2], act.shape[3]])
-    out.shape = tuple([batch_size, out.shape[1], out.shape[2], out.shape[3]])
+    act.set_shape(tuple([batch_size, act.shape[1], act.shape[2], act.shape[3]]), override=True)
+    out.set_shape(tuple([batch_size, out.shape[1], out.shape[2], out.shape[3]]), override=True)
     return node, [act.shape, out.shape]
 
 def avg_pool_batch(node, batch_size):
     act = node.inputs[0]
     out = node.outputs[0]
-    act.shape = tuple([batch_size, act.shape[1], act.shape[2], act.shape[3]])
-    out.shape = tuple([batch_size, out.shape[1], out.shape[2], out.shape[3]])
+    act.set_shape(tuple([batch_size, act.shape[1], act.shape[2], act.shape[3]]), override=True)
+    out.set_shape(tuple([batch_size, out.shape[1], out.shape[2], out.shape[3]]), override=True)
     return node, [act.shape, out.shape]
 
 def gemm_batch(node, batch_size):
     # TODO: Check for transpose in kwargs
     act = node.inputs[0]
     out = node.outputs[0]
-    act.shape = tuple([batch_size, act.shape[1]])
-    out.shape = tuple([batch_size, out.shape[1]])
+    act.set_shape(tuple([batch_size, act.shape[1]]), override=True)
+    out.set_shape(tuple([batch_size, out.shape[1]]), override=True)
     return node, [act.shape, out.shape]
 
 def mean_var_batch(node, batch_size):
     act = node.inputs[0]
-    act.shape = tuple([batch_size, act.shape[1], act.shape[2], act.shape[3]])
+    act.set_shape(tuple([batch_size, act.shape[1], act.shape[2], act.shape[3]]), override=True)
     return node, [act.shape]
 
 
 BATCH_FUNCS['conv_bias'] = conv_bias_batch
 BATCH_FUNCS['conv'] = conv_batch
 BATCH_FUNCS['relu'] = relu_batch
+BATCH_FUNCS['leaky_relu'] = relu_batch
 BATCH_FUNCS['elem_tanh'] = elem_tanh_batch
 BATCH_FUNCS['coarse_flatten'] = flatten_batch
 BATCH_FUNCS['elem_add'] = elem_add_batch

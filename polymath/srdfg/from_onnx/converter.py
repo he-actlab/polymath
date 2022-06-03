@@ -106,8 +106,8 @@ def update_edge_names(model_proto):
 
 def from_onnx(filepath, infer_shapes=True, use_filename=True, lower=False, verbose=False):
     onnx_proto, graph_name = load_onnx_proto(filepath)
-    onnx_proto = update_node_names(onnx_proto)
-    onnx_proto = update_edge_names(onnx_proto)
+    # onnx_proto = update_node_names(onnx_proto)
+    # onnx_proto = update_edge_names(onnx_proto)
 
     if infer_shapes:
         # onnx_graph = shape_inference.infer_shapes(onnx_proto).graph
@@ -254,7 +254,8 @@ def convert_node(onnx_node, mgdfg, node_info, state_vars):
     #     raise RuntimeError(f"Could not find output for {onnx_node.name} in node info:\n"
     #                        f"Output: {onnx_node.output}")
     # assert outnode is not None
-    assert len(outnodes) > 0
+    assert len(outnodes) > 0, f"No outputs found for {onnx_node.name}({onnx_node.op_type}). \n" \
+                              f"Outputs: {onnx_node.output}"
     output_names = []
     for o in outnodes:
         if o in state_vars:

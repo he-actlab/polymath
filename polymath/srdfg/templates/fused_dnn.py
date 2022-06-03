@@ -2947,7 +2947,6 @@ class add_sqrt_div(pm.Template):
     def add_lhs(self):
         return self.args[1].default
 
-
 class div_add(pm.Template):
     def define_graph(self, data, div_rhs, add_rhs, out):
         pass
@@ -3119,7 +3118,6 @@ class clip_depthwise_conv(pm.Template):
     @property
     def maxval(self):
         return self.kwargs['maxval']
-
 
 class clip_depthwise_conv_bias(pm.Template):
     def define_graph(self, data, w, bias, out, stride=1, pad=0, dilation=1, groups=1,

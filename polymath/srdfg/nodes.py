@@ -160,7 +160,7 @@ class output(placeholder):
             else:
                 return var_index(self.current_value(), key, name=name, graph=self.graph)
 
-    def set_shape(self, shape=None, init=False):
+    def set_shape(self, shape=None, init=False, override=False):
         if isinstance(shape, Integral):
             new_shape = tuple([shape])
         elif isinstance(shape, Node):
@@ -180,7 +180,7 @@ class output(placeholder):
                                     f"\n\t{self.kwargs} ")
 
             new_shape = tuple(shapes)
-        if self.is_shape_finalized() and new_shape != self._shape:
+        if self.is_shape_finalized() and new_shape != self._shape and not override:
             raise RuntimeError(f"Overwriting shape which has already been set for node {self.name}\n"
                                f"Initial shape: {self._shape}\n"
                                f"New shape: {new_shape}")
