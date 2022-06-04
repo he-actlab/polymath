@@ -1,5 +1,6 @@
-from onnx import load, numpy_helper, helper, shape_inference
+from onnx import load, numpy_helper, helper, shape_inference, TensorProto
 from onnx.mapping import TENSOR_TYPE_TO_NP_TYPE
+from onnxoptimizer import optimize
 from onnxruntime.tools.symbolic_shape_infer import SymbolicShapeInference
 import onnx
 import pathlib
@@ -104,17 +105,22 @@ def update_edge_names(model_proto):
 
     return model_proto
 
-def from_onnx(filepath, infer_shapes=True, use_filename=True, lower=False, verbose=False):
-    onnx_proto, graph_name = load_onnx_proto(filepath)
-    # onnx_proto = update_node_names(onnx_proto)
-    # onnx_proto = update_edge_names(onnx_proto)
+def from_onnx(filepath, infer_shapes=True, use_filename=True, lower=False, verbose=False, rename_nodes=True):
 
+    onnx_proto, graph_name = load_onnx_proto(filepath)
+    if rename_nodes:
+        onnx_proto = update_node_names(onnx_proto)
+        onnx_proto = update_edge_names(onnx_proto)
     if infer_shapes:
-        # onnx_graph = shape_inference.infer_shapes(onnx_proto).graph
-        onnx_graph = SymbolicShapeInference.infer_shapes(onnx_proto, 2 ** 31 - 1, True,
-                                                False, False).graph
-    else:
-        onnx_graph = onnx_proto.graph
+        onnx_proto = SymbolicShapeInference.infer_shapes(onnx_proto, int_max=2 ** 31 - 1, auto_merge=True,
+                                                guess_output_rank=False, verbose=False)
+
+
+    if any([n.op_type == 'Constant' for n in onnx_proto.graph.node]):
+        onnx_proto = optimize(onnx_proto, passes=['extract_constant_to_initializer'])
+        assert not any([n.op_type == 'Constant' for n in onnx_proto.graph.node])
+
+    onnx_graph = onnx_proto.graph
     for n in onnx_graph.node:
         if n.op_type not in NODE_NAMES and n.name not in NODE_NAMES:
             raise RuntimeError(f"Support for {n.op_type} or {n.name} is not currently included in PolyMath")
@@ -147,6 +153,7 @@ def get_initializers(initializers):
         init_dict[i.name] = val
     return init_dict
 
+
 def get_states_by_gradient(onnx_graph):
     state_vars = {}
     input_names = [i.name for i in onnx_graph.input]
@@ -164,11 +171,14 @@ def generate_srdfg(onnx_graph, verbose=False):
     names = [des.name for des in onnx_graph.DESCRIPTOR.fields]
     graph_name = getattr(onnx_graph, "name")
     initializers = get_initializers(onnx_graph.initializer)
+
+
     mgdfg = pm.Node(name=graph_name)
     # TODO: This is a hotfix for identifying gradient updates, but weights should have initializers
     state_variables = get_states_by_gradient(onnx_graph)
     node_info = {}
     # TODO: If a value has an initializer, set the initializer value as the value for the node
+
     for o in onnx_graph.output:
 
         assert o.name not in node_info
@@ -178,7 +188,6 @@ def generate_srdfg(onnx_graph, verbose=False):
             node_info[state_variables[o.name]] = node_info[o.name]
         else:
             node_info[o.name] = pm.output(name=o.name, shape=get_value_info_shape(o, mgdfg), graph=mgdfg)
-
     for i in onnx_graph.input:
         if i.name in state_variables.values():
             assert i.name in node_info
@@ -189,6 +198,7 @@ def generate_srdfg(onnx_graph, verbose=False):
             node_info[i.name] = pm.state(name=state_variables[i.name], shape=get_value_info_shape(i, mgdfg), graph=mgdfg)
             node_info[state_variables[i.name]] = node_info[i.name]
         elif i.name in initializers and not itercheck(initializers[i.name]):
+
             node_info[i.name] = pm.parameter(name=i.name, default=initializers[i.name], graph=mgdfg)
         elif i.name in initializers:
             rshape = get_value_info_shape(i, mgdfg)
@@ -196,7 +206,6 @@ def generate_srdfg(onnx_graph, verbose=False):
             node_info[i.name] = pm.state(name=i.name, init_value=initializers[i.name], shape=get_value_info_shape(i, mgdfg), graph=mgdfg)
         else:
             node_info[i.name] = pm.input(name=i.name, shape=get_value_info_shape(i, mgdfg), graph=mgdfg)
-
     for v in onnx_graph.value_info:
         if v.name in node_info:
             continue
@@ -214,16 +223,39 @@ def generate_srdfg(onnx_graph, verbose=False):
             else:
                 node_info[k] = pm.state(name=k, init_value=v, shape=get_value_info_shape(v, mgdfg), graph=mgdfg)
                 state_variables[k] = node_info[k]
+    for n in onnx_graph.node:
+        if n.op_type == 'Constant':
+            k = n.output[0]
+            attrs = get_attributes(n)
+            assert len(attrs) == 1
+            v = list(attrs.values())[0]
+            if k not in node_info:
+                if not itercheck(v):
+                    node_info[k] = pm.parameter(name=k, default=v, graph=mgdfg)
+                else:
+                    node_info[k] = pm.state(name=k, init_value=v, shape=get_value_info_shape(v, mgdfg), graph=mgdfg)
+                    state_variables[k] = node_info[k]
+            elif isinstance(node_info[k], pm.parameter):
+                node_info[k].default = v
+            elif isinstance(node_info[k], pm.state):
+                node_info[k].init_value = v
+                state_variables[k] = node_info[k]
+            else:
+                assert isinstance(node_info[k], dict)
+                node_info[k] = v
+
 
     for k, v in mgdfg.nodes.items():
         if isinstance(v, pm.parameter) and k not in node_info:
             node_info[k] = v
 
+
     for n in onnx_graph.node:
         assert n.op_type in NODE_NAMES
         if verbose:
             print(f"Translating {n.op_type}")
-        _ = convert_node(n, mgdfg, node_info, state_variables)
+        if n.op_type == "Constant":
+            _ = convert_node(n, mgdfg, node_info, state_variables)
 
     return mgdfg
 
@@ -242,18 +274,11 @@ def convert_node(onnx_node, mgdfg, node_info, state_vars):
         args.append(mgdfg.nodes[i])
     num_outputs = 0
     outnodes = []
-    # outnode = None
     for o in onnx_node.output:
         if o in node_info:
             num_outputs += 1
             outnodes.append(o)
-    # if num_outputs != 1:
-    #     raise RuntimeError(f"Length of outputs for node {onnx_node.name} is not equal to 1:\n"
-    #                        f"Output: {onnx_node.output}")
-    # elif onnx_node.output[0] not in node_info:
-    #     raise RuntimeError(f"Could not find output for {onnx_node.name} in node info:\n"
-    #                        f"Output: {onnx_node.output}")
-    # assert outnode is not None
+
     assert len(outnodes) > 0, f"No outputs found for {onnx_node.name}({onnx_node.op_type}). \n" \
                               f"Outputs: {onnx_node.output}"
     output_names = []
@@ -262,8 +287,7 @@ def convert_node(onnx_node, mgdfg, node_info, state_vars):
             output_names.append(state_vars[o])
         else:
             output_names.append(o)
-    # o_name = state_vars[outnode] if outnode in state_vars else outnode
-    # o_name = state_vars[onnx_node.output[0]] if onnx_node.output[0] in state_vars else onnx_node.output[0]
+
 
     if isinstance(node_info[output_names[0]], dict):
 
@@ -319,7 +343,10 @@ def convert_node(onnx_node, mgdfg, node_info, state_vars):
     else:
         assert len(output_names) == 1
         o_name = output_names[0]
-        o_shape = node_info[o_name].shape
+        if itercheck(node_info[o_name]):
+            o_shape = node_info[o_name].shape
+        else:
+            o_shape = (1,)
         attributes = get_attributes(onnx_node)
         args = tuple(args)
         kwargs = attributes
@@ -364,13 +391,21 @@ def get_attributes(node):
     attributes = {}
     for a in node.attribute:
         val = helper.get_attribute_value(a)
-        if isinstance(val, bytes):
+        if isinstance(val, TensorProto):
+            val = numpy_helper.to_array(val)
+            if val.shape == tuple([]):
+                val = val.item()
+            elif val.shape in [(1,), (0,)]:
+                val = val[0]
+        elif isinstance(val, bytes):
             val = val.decode("utf-8")
+
         elif isinstance(val, list):
             if len(val) > 1:
                 val = np.asarray(val)
             else:
                 val = val[0]
+
         if a.name in ["from", "to"]:
             val = TENSOR_TYPE_TO_NP_TYPE[val]
         attributes[a.name] = val
