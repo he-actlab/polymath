@@ -111,6 +111,7 @@ def from_onnx(filepath, infer_shapes=True, use_filename=True, lower=False, verbo
     if rename_nodes:
         onnx_proto = update_node_names(onnx_proto)
         onnx_proto = update_edge_names(onnx_proto)
+
     if infer_shapes:
         onnx_proto = SymbolicShapeInference.infer_shapes(onnx_proto, int_max=2 ** 31 - 1, auto_merge=True,
                                                 guess_output_rank=False, verbose=False)
@@ -223,27 +224,6 @@ def generate_srdfg(onnx_graph, verbose=False):
             else:
                 node_info[k] = pm.state(name=k, init_value=v, shape=get_value_info_shape(v, mgdfg), graph=mgdfg)
                 state_variables[k] = node_info[k]
-    for n in onnx_graph.node:
-        if n.op_type == 'Constant':
-            k = n.output[0]
-            attrs = get_attributes(n)
-            assert len(attrs) == 1
-            v = list(attrs.values())[0]
-            if k not in node_info:
-                if not itercheck(v):
-                    node_info[k] = pm.parameter(name=k, default=v, graph=mgdfg)
-                else:
-                    node_info[k] = pm.state(name=k, init_value=v, shape=get_value_info_shape(v, mgdfg), graph=mgdfg)
-                    state_variables[k] = node_info[k]
-            elif isinstance(node_info[k], pm.parameter):
-                node_info[k].default = v
-            elif isinstance(node_info[k], pm.state):
-                node_info[k].init_value = v
-                state_variables[k] = node_info[k]
-            else:
-                assert isinstance(node_info[k], dict)
-                node_info[k] = v
-
 
     for k, v in mgdfg.nodes.items():
         if isinstance(v, pm.parameter) and k not in node_info:
@@ -254,8 +234,7 @@ def generate_srdfg(onnx_graph, verbose=False):
         assert n.op_type in NODE_NAMES
         if verbose:
             print(f"Translating {n.op_type}")
-        if n.op_type == "Constant":
-            _ = convert_node(n, mgdfg, node_info, state_variables)
+        _ = convert_node(n, mgdfg, node_info, state_variables)
 
     return mgdfg
 
