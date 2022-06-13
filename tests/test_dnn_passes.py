@@ -112,34 +112,53 @@ def test_single_layer_fusion(model, fusion_sequence, testnum):
     fusion_pass = pm.FuseOps([fusion_sequence])
     fused_graph = fusion_pass(graph)
 
+@pytest.mark.parametrize('model_name', [
+    # "efficientnet-lite4-opt-no-softmax",
+    # "conv_clip_depthwiseconv_oc64_v1-opt",
+    # "mobilenetv2-opt",
+    # "fcn-resnet101-trimmed-opt",
+    'gpt2-opt'
+])
+def test_load_models(model_name):
+    fpath = f"{BENCH_DIR}/full_dnns/{model_name}.onnx"
+    graph = pm.from_onnx(fpath)
+    name_pass = pm.RenameMultiDimOps()
+    graph = name_pass(graph)
+    for name, node in graph.nodes.items():
+        if isinstance(node, pm.Template) and "elem" in node.op_name and "const" in node.op_name:
+            print(f"{node.op_name}")
+            print(f"{node.args[1].shape}")
+            print(f"{type(node.args[1])}")
+            assert node.inputs[1].default is not None
 
 @pytest.mark.parametrize('model_name', [
-
-    "efficientnet-lite4-opt-no-softmax",
+    # "efficientnet-lite4-opt-no-softmax",
+    "conv_clip_depthwiseconv_oc64_v1-opt",
     # "mobilenetv2-opt",
 ])
 def test_dw_conv_split(model_name):
     fpath = f"{BENCH_DIR}/full_dnns/{model_name}.onnx"
+    # graph = pm.from_onnx(fpath, infer_shapes=False)
     graph = pm.from_onnx(fpath, infer_shapes=False)
-    # print("Unsplit")
-    # for n, node in graph.nodes.items():
+    # # print("Unsplit")
+    # # for n, node in graph.nodes.items():
+    # #     if isinstance(node, pm.Template):
+    # #         print(f"Op: {node.op_name}\n"
+    # #               f"Out: {node.outputs[0].name}\n")
+    # splits = {}
+    # splits['depthwise_conv_bias'] = ('bias_add', 3, [('depthwise_conv', 3, ([0, 1],
+    #                                      {'stride': 'stride', 'pad':'pad',
+    #                                       'groups': 'groups', 'dilation': 'dilation'})), 2],
+    #                                  )
+    # split_pass = pm.SplitOps(splits)
+    # split_graph = split_pass(graph)
+    # print("Split")
+    # #
+    # for n, node in split_graph.nodes.items():
     #     if isinstance(node, pm.Template):
+    #         assert node.op_name not in splits
     #         print(f"Op: {node.op_name}\n"
     #               f"Out: {node.outputs[0].name}\n")
-    splits = {}
-    splits['depthwise_conv_bias'] = ('bias_add', 3, [('depthwise_conv', 3, ([0, 1],
-                                         {'stride': 'stride', 'pad':'pad',
-                                          'groups': 'groups', 'dilation': 'dilation'})), 2],
-                                     )
-    split_pass = pm.SplitOps(splits)
-    split_graph = split_pass(graph)
-    print("Split")
-    #
-    for n, node in split_graph.nodes.items():
-        if isinstance(node, pm.Template):
-            assert node.op_name not in splits
-            print(f"Op: {node.op_name}\n"
-                  f"Out: {node.outputs[0].name}\n")
 
 @pytest.mark.parametrize('model_name', [
     # "resnet18",

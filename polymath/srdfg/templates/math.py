@@ -248,7 +248,10 @@ class elem_sub(pm.Template):
 
     @property
     def inputs(self):
-        return (self.args[0], self.args[1])
+        if "const" in self.op_name:
+            return (self.args[0],)
+        else:
+            return (self.args[0], self.args[1])
 
     @property
     def outputs(self):
@@ -262,7 +265,10 @@ class elem_add(pm.Template):
 
     @property
     def inputs(self):
-        return (self.args[0], self.args[1])
+        if "const" in self.op_name:
+            return (self.args[0],)
+        else:
+            return (self.args[0], self.args[1])
 
     @property
     def outputs(self):
@@ -275,7 +281,10 @@ class elem_mul(pm.Template):
 
     @property
     def inputs(self):
-        return (self.args[0], self.args[1])
+        if "const" in self.op_name:
+            return (self.args[0],)
+        else:
+            return (self.args[0], self.args[1])
 
     @property
     def outputs(self):
@@ -288,7 +297,10 @@ class elem_div(pm.Template):
 
     @property
     def inputs(self):
-        return (self.args[0], self.args[1])
+        if "const" in self.op_name:
+            return (self.args[0],)
+        else:
+            return (self.args[0], self.args[1])
 
     @property
     def outputs(self):
@@ -360,8 +372,6 @@ def rvmatmul(a, b, shape=None, name=None, **kwargs):
     i = pm.index(0, a.shape[0] - 1)
     j = pm.index(0, b.shape[0] - 1)
     return pm.sum([j], a[i, j]*b[j], name=name)
-
-
 
 class gemm(pm.Template):
     def define_graph(self, a, b, c, y, alpha=1.0, beta=0.0, transA=None, transB=None, strict_shapes=False):

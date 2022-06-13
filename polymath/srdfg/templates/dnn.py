@@ -603,7 +603,11 @@ class elem_where(pm.Template):
 
     @property
     def inputs(self):
-        return (self.args[0], self.args[1], self.args[2])
+        return (self.args[0], self.args[1])
+
+    @property
+    def false_value(self):
+        return self.args[2]
 
     @property
     def outputs(self):
@@ -707,7 +711,7 @@ class split(pm.Template):
 
     @property
     def outputs(self):
-        return (self.args[1],)
+        return self.args[1]
 
 
 class softmax(pm.Template):

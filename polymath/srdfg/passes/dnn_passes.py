@@ -490,31 +490,54 @@ class UpdateBatchSize(Pass):
 
 @register_pass
 class RenameMultiDimOps(Pass):
-    MULTI_DIM_OP_DEFAULTS = {
+    MULTI_DIM_OP1_DEFAULTS = {
         'sgd': -1, 'elem_tanh': -1, 'elem_tanh_grad': -1, 'relu': 4, 'relu_grad': 4, "elem_ceil": -1, "elem_pow": -1,
-        "reduce_mean": -1, "reduce_min": -1, "tensor_transpose": -1, "matmul": 2, 'softmax': 2, 'add_add': 3, "elem_add": 4
+        "reduce_mean": -1, "reduce_min": -1, "tensor_transpose": -1, "matmul": 2, 'softmax': 2, 'add_add': 3, "elem_add": 4,
+        'elem_mul': 4, "elem_div": 4
     }
+    MULTI_DIM_OP2_DEFAULTS = { 'elem_div': 4, 'elem_add': 4, 'elem_mul': 4, 'matmul': 4}
+    MULTI_DIM_OP3_DEFAULTS = { 'mul_add': 1}
     MULTI_OPERAND_OPS = ['tensor_reshape']
     def __init__(self):
         super(RenameMultiDimOps, self).__init__()
 
     def apply_pass(self, node, ctx):
-        if node.op_name in RenameMultiDimOps.MULTI_DIM_OP_DEFAULTS.keys():
-            node = self.rename_op(node)
-        elif node.op_name in RenameMultiDimOps.MULTI_OPERAND_OPS:
-            node = self.rename_multi_operand_op(node)
+        init_name = node.op_name
+        if init_name in RenameMultiDimOps.MULTI_DIM_OP1_DEFAULTS.keys():
+            node = self.rename_op1(node, init_name)
+        if init_name in RenameMultiDimOps.MULTI_DIM_OP2_DEFAULTS.keys():
+            node = self.rename_op2(node, init_name)
+        if init_name in RenameMultiDimOps.MULTI_DIM_OP3_DEFAULTS.keys():
+            node = self.rename_op3(node, init_name)
+        if node.op_name in RenameMultiDimOps.MULTI_OPERAND_OPS:
+            node = self.rename_multi_operand_op(node, init_name)
+
         return node
 
-    def rename_multi_operand_op(self, node):
+    def rename_multi_operand_op(self, node, init_name):
         assert len(node.inputs) == 1 and len(node.outputs) == 1
         node.op_name = f"{node.op_name}{str(len(node.inputs[0].shape))}d{str(len(node.outputs[0].shape))}d"
 
-    def rename_op(self, node):
+    def rename_op3(self, node, init_name):
+        default_op3_size = RenameMultiDimOps.MULTI_DIM_OP3_DEFAULTS[init_name]
+        if len(node.inputs[2].shape) != default_op3_size:
+            node.op_name = f"{node.op_name}{str(len(node.inputs[2].shape))}d"
+        return node
 
-        default_size = RenameMultiDimOps.MULTI_DIM_OP_DEFAULTS[node.op_name]
-        if len(node.inputs[0].shape) != default_size:
+    def rename_op2(self, node, init_name):
+        default_op2_size = RenameMultiDimOps.MULTI_DIM_OP2_DEFAULTS[init_name]
+        if len(node.inputs[1].shape) != default_op2_size:
+            if len(node.inputs[1].shape) == 1 and node.inputs[1].shape[0] == 1:
+                node.op_name = f"{node.op_name}_const"
+            else:
+                node.op_name = f"{node.op_name}{str(len(node.inputs[1].shape))}d"
+        return node
+
+    def rename_op1(self, node, init_name):
+        # first do op1
+        default_op1_size = RenameMultiDimOps.MULTI_DIM_OP1_DEFAULTS[init_name]
+        if len(node.inputs[0].shape) != default_op1_size:
             node.op_name = f"{node.op_name}{str(len(node.inputs[0].shape))}d"
-
         return node
 
 @register_pass
