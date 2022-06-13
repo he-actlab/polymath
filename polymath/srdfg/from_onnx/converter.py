@@ -66,15 +66,22 @@ def update_edge_names(model_proto):
                 if i.isdigit():
                     assert idx < len(INPUT_NAMES)
                     new_name = f"{n.name.lower()}_{i}{INPUT_NAMES[idx]}"
+                elif i[-1].isdigit():
+                    assert idx < len(INPUT_NAMES)
+                    new_name = f"{i}_{INPUT_NAMES[idx]}"
                 else:
                     new_name = i
                 node_name_map[i] = new_name
+
 
         for idx, o in enumerate(n.output):
             if o not in node_name_map:
                 if o.isdigit():
                     assert idx < len(OUTPUT_NAMES)
                     new_name = f"{n.name.lower()}_{o}{OUTPUT_NAMES[idx]}"
+                elif o[-1].isdigit():
+                    assert idx < len(OUTPUT_NAMES)
+                    new_name = f"{o}_{OUTPUT_NAMES[idx]}"
                 else:
                     new_name = o
                 node_name_map[o] = new_name
