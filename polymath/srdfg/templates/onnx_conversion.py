@@ -426,7 +426,6 @@ def get_conv(x, w, bias=None, dilations=None, group=None, kernel_shape=None, pad
              shape=None,
              name=None,
              out=None):
-
     if not out:
         out = pm.output(shape=shape, name=name)
 
@@ -455,6 +454,12 @@ def get_conv(x, w, bias=None, dilations=None, group=None, kernel_shape=None, pad
         assert isinstance(pads, list)
         pads = tuple(pads)
 
+    if dilations is None:
+        dilation = 1
+    else:
+        assert isinstance(dilations, (list, np.ndarray)) and len(dilations) == 2, f"Invalid input dilation: {dilations}, type: {type(dilations)}"
+        dilation = dilations[0]
+
     assert len(pads) == 4 and all([isinstance(i, int) for i in pads]) and isinstance(pads, tuple)
     if group == x.shape[1]:
         if bias:
@@ -463,9 +468,9 @@ def get_conv(x, w, bias=None, dilations=None, group=None, kernel_shape=None, pad
             pm.depthwise_conv(x, w, out, int(strides[0]), pads, group)
     else:
         if bias:
-            pm.conv_bias(x, w, bias, out, int(strides[0]), pads)
+            pm.conv_bias(x, w, bias, out, int(strides[0]), pads, dilation)
         else:
-            pm.conv(x, w, out, int(strides[0]), pads)
+            pm.conv(x, w, out, int(strides[0]), pads, dilation)
 
     return out
 

@@ -347,6 +347,7 @@ class conv_bias(pm.Template):
 
 
         oh = (in_height + pad_top + pad_down - dilation_h*(kernel_h - 1) - 1) / stride_h + 1
+
         ow = (in_width + pad_left + pad_right - dilation_w*(kernel_w - 1) - 1) / stride_w + 1
         oh = int(oh)
         ow = int(ow)
