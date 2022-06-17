@@ -407,6 +407,10 @@ class conv_bias(pm.Template):
         return self.kwargs['pad'][0] + self.kwargs['pad'][2]
 
     @property
+    def dilation_int(self):
+        return self.kwargs['dilation']
+
+    @property
     def groups(self):
         return self.kwargs['groups']
 
@@ -930,6 +934,9 @@ class conv(pm.Template):
     def pad_int(self):
         return self.kwargs['pad'][0] + self.kwargs['pad'][2]
 
+    @property
+    def dilation_int(self):
+        return self.kwargs['dilation']
 
 class bias_add(pm.Template):
     def define_graph(self, data, bias, out):
@@ -1038,6 +1045,10 @@ class depthwise_conv(pm.Template):
         return self.kwargs['pad'][0] + self.kwargs['pad'][2]
 
     @property
+    def dilation_int(self):
+        return self.kwargs['dilation']
+
+    @property
     def groups(self):
         return self.kwargs['groups']
 
@@ -1128,6 +1139,10 @@ class depthwise_conv_bias(pm.Template):
     @property
     def pad_int(self):
         return self.kwargs['pad'][0] + self.kwargs['pad'][2]
+
+    @property
+    def dilation_int(self):
+        return self.kwargs['dilation']
 
     @property
     def groups(self):

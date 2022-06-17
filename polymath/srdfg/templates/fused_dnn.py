@@ -113,6 +113,10 @@ class conv_bias_relu(pm.Template):
             return self.kwargs['pad']
 
     @property
+    def dilation_int(self):
+        return self.kwargs['dilation']
+
+    @property
     def groups(self):
         return self.kwargs['groups']
 
@@ -223,6 +227,10 @@ class conv_bias_add_relu(pm.Template):
             return self.kwargs['pad']
 
     @property
+    def dilation_int(self):
+        return self.kwargs['dilation']
+
+    @property
     def groups(self):
         return self.kwargs['groups']
 
@@ -319,6 +327,10 @@ class conv_bias_leaky_relu(pm.Template):
             return self.kwargs['pad'][0] + self.kwargs['pad'][2]
         else:
             return self.kwargs['pad']
+
+    @property
+    def dilation_int(self):
+        return self.kwargs['dilation']
 
     @property
     def groups(self):
@@ -437,6 +449,10 @@ class conv_bias_add_leaky_relu(pm.Template):
             return self.kwargs['pad']
 
     @property
+    def dilation_int(self):
+        return self.kwargs['dilation']
+
+    @property
     def groups(self):
         return self.kwargs['groups']
 
@@ -547,6 +563,10 @@ class conv_bias_leaky_relu_add(pm.Template):
             return self.kwargs['pad'][0] + self.kwargs['pad'][2]
         else:
             return self.kwargs['pad']
+
+    @property
+    def dilation_int(self):
+        return self.kwargs['dilation']
 
     @property
     def groups(self):
@@ -709,6 +729,10 @@ class conv_bias_relu_max_pool(pm.Template):
             return self.kwargs['pad']
 
     @property
+    def dilation_int(self):
+        return self.kwargs['dilation']
+
+    @property
     def stride0(self):
         return self.kwargs['stride0']
 
@@ -862,6 +886,10 @@ class conv_bias_add_relu_global_avg_pool(pm.Template):
             return self.kwargs['pad']
 
     @property
+    def dilation_int(self):
+        return self.kwargs['dilation']
+
+    @property
     def groups(self):
         return self.kwargs['groups']
 
@@ -971,6 +999,10 @@ class conv_bias_add(pm.Template):
     @property
     def pad(self):
         return self.kwargs['pad']
+
+    @property
+    def dilation_int(self):
+        return self.kwargs['dilation']
 
     @property
     def pad_int(self):
@@ -1084,6 +1116,10 @@ class conv_bias_clip(pm.Template):
             return self.kwargs['pad'][0] + self.kwargs['pad'][2]
         else:
             return self.kwargs['pad']
+
+    @property
+    def dilation_int(self):
+        return self.kwargs['dilation']
 
     @property
     def groups(self):
@@ -1202,6 +1238,10 @@ class depthwise_conv_bias_clip(pm.Template):
             return self.kwargs['pad'][0] + self.kwargs['pad'][2]
         else:
             return self.kwargs['pad']
+
+    @property
+    def dilation_int(self):
+        return self.kwargs['dilation']
 
     @property
     def groups(self):
@@ -1395,6 +1435,10 @@ class conv_bias_clip_avg_pool(pm.Template):
             return self.kwargs['pad0'][0] + self.kwargs['pad0'][2]
         else:
             return self.kwargs['pad0']
+
+    @property
+    def dilation_int(self):
+        return self.kwargs['dilation']
 
     @property
     def groups(self):
@@ -1652,6 +1696,10 @@ class conv_bias_clip_depthwise_conv_bias_add(pm.Template):
             return self.kwargs['pad'][0] + self.kwargs['pad'][2]
         else:
             return self.kwargs['pad']
+
+    @property
+    def dilation_int(self):
+        return self.kwargs['dilation']
 
     @property
     def groups(self):
@@ -1937,6 +1985,10 @@ class conv_bias_clip_depthwise_conv_bias(pm.Template):
             return self.kwargs['pad'][0] + self.kwargs['pad'][2]
         else:
             return self.kwargs['pad']
+
+    @property
+    def dilation_int(self):
+        return self.kwargs['dilation']
 
     @property
     def groups(self):
@@ -2233,6 +2285,10 @@ class conv_bias_clip_depthwise_conv_bias_add_clip(pm.Template):
             return self.kwargs['pad'][0] + self.kwargs['pad'][2]
         else:
             return self.kwargs['pad']
+
+    @property
+    def dilation_int(self):
+        return self.kwargs['dilation']
 
     @property
     def groups(self):
@@ -2564,6 +2620,10 @@ class conv_bias_clip_depthwise_conv_bias_clip(pm.Template):
             return self.kwargs['pad0'][0] + self.kwargs['pad0'][2]
         else:
             return self.kwargs['pad0']
+
+    @property
+    def dilation_int(self):
+        return self.kwargs['dilation']
 
     @property
     def groups0(self):
@@ -3108,6 +3168,10 @@ class clip_depthwise_conv(pm.Template):
             return self.kwargs['pad']
 
     @property
+    def dilation_int(self):
+        return self.kwargs['dilation']
+
+    @property
     def groups(self):
         return self.kwargs['groups']
 
@@ -3217,6 +3281,10 @@ class clip_depthwise_conv_bias(pm.Template):
             return self.kwargs['pad']
 
     @property
+    def dilation_int(self):
+        return self.kwargs['dilation']
+
+    @property
     def groups(self):
         return self.kwargs['groups']
 
@@ -3308,7 +3376,6 @@ class clip_depthwise_conv_bias_clip(pm.Template):
     def conv_output(self):
         return self.nodes[f"{self.name}_conv_out"]
 
-
     @property
     def outputs(self):
         return (self.args[-1],)
@@ -3327,6 +3394,10 @@ class clip_depthwise_conv_bias_clip(pm.Template):
             return self.kwargs['pad'][0] + self.kwargs['pad'][2]
         else:
             return self.kwargs['pad']
+
+    @property
+    def dilation_int(self):
+        return self.kwargs['dilation']
 
     @property
     def groups(self):
