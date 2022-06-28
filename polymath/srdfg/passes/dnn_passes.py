@@ -662,6 +662,13 @@ def elem_add_batch(node, batch_size):
     out.set_shape(tuple([batch_size, out.shape[1], out.shape[2], out.shape[3]]), override=True)
     return node, [op1.shape, op2.shape, out.shape]
 
+def elem_clip_batch(node, batch_size):
+    op1 = node.inputs[0]
+    out = node.outputs[0]
+    op1.set_shape(tuple([batch_size, op1.shape[1], op1.shape[2], op1.shape[3]]), override=True)
+    out.set_shape(tuple([batch_size, out.shape[1], out.shape[2], out.shape[3]]), override=True)
+    return node, [op1.shape, out.shape]
+
 def global_avg_pool_batch(node, batch_size):
     act = node.inputs[0]
     out = node.outputs[0]
@@ -697,6 +704,13 @@ def mean_var_batch(node, batch_size):
     return node, [act.shape]
 
 
+def tensor_squeeze_batch(node, batch_size):
+    op1 = node.inputs[0]
+    out = node.outputs[0]
+    op1.set_shape(tuple([batch_size] + list(op1.shape[1:])), override=True)
+    out.set_shape(tuple([batch_size] + list(out.shape[1:])), override=True)
+    return node, [op1.shape, out.shape]
+
 BATCH_FUNCS['conv_bias'] = conv_bias_batch
 BATCH_FUNCS['conv'] = conv_batch
 BATCH_FUNCS['relu'] = relu_batch
@@ -710,4 +724,7 @@ BATCH_FUNCS['avg_pool'] = avg_pool_batch
 BATCH_FUNCS['batch_norm'] = batch_norm_batch
 BATCH_FUNCS['gemm'] = gemm_batch
 BATCH_FUNCS['mean_var'] = mean_var_batch
+BATCH_FUNCS['elem_clip'] = elem_clip_batch
+BATCH_FUNCS['depthwise_conv_bias'] = conv_bias_batch
+BATCH_FUNCS['tensor_squeeze'] = tensor_squeeze_batch
 
