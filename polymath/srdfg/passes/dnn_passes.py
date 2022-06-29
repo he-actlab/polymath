@@ -669,6 +669,7 @@ BATCH_FUNCS['global_avg_pool'] = unary_op_batch
 BATCH_FUNCS['max_pool'] = unary_op_batch
 BATCH_FUNCS['avg_pool'] = unary_op_batch
 BATCH_FUNCS['depthwise_conv_bias'] = unary_op_batch
+BATCH_FUNCS['gelu'] = unary_op_batch
 
 BATCH_FUNCS['elem_sub'] = all_operands_batch
 BATCH_FUNCS['elem_div'] = all_operands_batch
