@@ -481,7 +481,7 @@ class UpdateBatchSize(Pass):
         super(UpdateBatchSize, self).__init__()
 
     def apply_pass(self, node, ctx):
-        if not isinstance(node, NON_DNN_NODE_OPS) and node.op_name != self.graph_name and node.name != self.graph_name:
+        if not isinstance(node, NON_DNN_NODE_OPS) and node.op_name != self.graph_name and node.name != self.graph_name and isinstance(node, pm.Template):
             assert node.op_name in BATCH_FUNCS, f"{node.op_name}, {self.graph_name}, {node.name}"
             node, shape_list = BATCH_FUNCS[node.op_name](node, self.batch_size)
             self.shape_tracker[f"{node.op_name}{self.op_counter[node.op_name]}"] = shape_list
@@ -493,7 +493,7 @@ class RenameMultiDimOps(Pass):
     MULTI_DIM_OP1_DEFAULTS = {
         'sgd': -1, 'elem_tanh': -1, 'elem_tanh_grad': -1, 'relu': 4, 'relu_grad': 4, "elem_ceil": -1, "elem_pow": -1,
         "reduce_mean": -1, "reduce_min": -1, "tensor_transpose": -1, "matmul": 2, 'softmax': 2, 'add_add': 3, "elem_add": 4,
-        'elem_mul': 4, "elem_div": 4
+        'elem_mul': 4, "elem_div": 4, "elem_sqrt": 4
     }
     MULTI_DIM_OP2_DEFAULTS = { 'elem_div': 4, 'elem_add': 4, 'elem_mul': 4, 'matmul': 4}
     MULTI_DIM_OP3_DEFAULTS = { 'mul_add': 1}
@@ -611,92 +611,13 @@ class UpdateLayout(Pass):
         return orig_shape
 
 
-def conv_bias_batch(node, batch_size):
+def unary_op_batch(node, batch_size):
     act = node.inputs[0]
     out = node.outputs[0]
-    act.set_shape(tuple([batch_size, act.shape[1], act.shape[2], act.shape[3]]), override=True)
-    out.set_shape(tuple([batch_size, out.shape[1], out.shape[2], out.shape[3]]), override=True)
+    act.set_shape([batch_size] + list(act.shape[1:]), override=True)
+    out.set_shape([batch_size] + list(out.shape[1:]), override=True)
     return node, [act.shape, out.shape]
 
-def conv_batch(node, batch_size):
-    act = node.inputs[0]
-    out = node.outputs[0]
-    act.set_shape(tuple([batch_size, act.shape[1], act.shape[2], act.shape[3]]), override=True)
-    out.set_shape(tuple([batch_size, out.shape[1], out.shape[2], out.shape[3]]), override=True)
-    return node, [act.shape, out.shape]
-
-def relu_batch(node, batch_size):
-    act = node.inputs[0]
-    out = node.outputs[0]
-    act.set_shape(tuple([batch_size, act.shape[1], act.shape[2], act.shape[3]]), override=True)
-    out.set_shape(tuple([batch_size, out.shape[1], out.shape[2], out.shape[3]]), override=True)
-    return node, [act.shape, out.shape]
-
-def elem_tanh_batch(node, batch_size):
-    act = node.inputs[0]
-    out = node.outputs[0]
-    act.shape[0] = batch_size
-    out.shape[0] = batch_size
-    return node, [act.shape, out.shape]
-
-def batch_norm_batch(node, batch_size):
-    act = node.inputs[0]
-    out = node.outputs[0]
-    act.set_shape(tuple([batch_size, act.shape[1], act.shape[2], act.shape[3]]), override=True)
-    out.set_shape(tuple([batch_size, out.shape[1], out.shape[2], out.shape[3]]), override=True)
-    return node, [act.shape, out.shape]
-
-def flatten_batch(node, batch_size):
-    act = node.inputs[0]
-    out = node.outputs[0]
-    act.set_shape(tuple([batch_size, act.shape[1], act.shape[2], act.shape[3]]), override=True)
-    out.set_shape(tuple([batch_size, out.shape[1]]), override=True)
-    return node, [act.shape, out.shape]
-
-def elem_add_batch(node, batch_size):
-    op1 = node.inputs[0]
-    op2 = node.inputs[1]
-    out = node.outputs[0]
-    op1.set_shape(tuple([batch_size, op1.shape[1], op1.shape[2], op1.shape[3]]), override=True)
-    op2.set_shape(tuple([batch_size, op2.shape[1], op2.shape[2], op2.shape[3]]), override=True)
-    out.set_shape(tuple([batch_size, out.shape[1], out.shape[2], out.shape[3]]), override=True)
-    return node, [op1.shape, op2.shape, out.shape]
-
-def elem_clip_batch(node, batch_size):
-    op1 = node.inputs[0]
-    out = node.outputs[0]
-    op1.set_shape(tuple([batch_size, op1.shape[1], op1.shape[2], op1.shape[3]]), override=True)
-    out.set_shape(tuple([batch_size, out.shape[1], out.shape[2], out.shape[3]]), override=True)
-    return node, [op1.shape, out.shape]
-
-def global_avg_pool_batch(node, batch_size):
-    act = node.inputs[0]
-    out = node.outputs[0]
-    act.set_shape(tuple([batch_size, act.shape[1], act.shape[2], act.shape[3]]), override=True)
-    out.set_shape(tuple([batch_size, out.shape[1], out.shape[2], out.shape[3]]), override=True)
-    return node, [act.shape, out.shape]
-
-def max_pool_batch(node, batch_size):
-    act = node.inputs[0]
-    out = node.outputs[0]
-    act.set_shape(tuple([batch_size, act.shape[1], act.shape[2], act.shape[3]]), override=True)
-    out.set_shape(tuple([batch_size, out.shape[1], out.shape[2], out.shape[3]]), override=True)
-    return node, [act.shape, out.shape]
-
-def avg_pool_batch(node, batch_size):
-    act = node.inputs[0]
-    out = node.outputs[0]
-    act.set_shape(tuple([batch_size, act.shape[1], act.shape[2], act.shape[3]]), override=True)
-    out.set_shape(tuple([batch_size, out.shape[1], out.shape[2], out.shape[3]]), override=True)
-    return node, [act.shape, out.shape]
-
-def gemm_batch(node, batch_size):
-    # TODO: Check for transpose in kwargs
-    act = node.inputs[0]
-    out = node.outputs[0]
-    act.set_shape(tuple([batch_size, act.shape[1]]), override=True)
-    out.set_shape(tuple([batch_size, out.shape[1]]), override=True)
-    return node, [act.shape, out.shape]
 
 def mean_var_batch(node, batch_size):
     act = node.inputs[0]
@@ -704,27 +625,61 @@ def mean_var_batch(node, batch_size):
     return node, [act.shape]
 
 
-def tensor_squeeze_batch(node, batch_size):
+def tensor_transpose_batch(node, batch_size):
+    assert hasattr(node, "inputs")
+    assert hasattr(node, "outputs")
     op1 = node.inputs[0]
     out = node.outputs[0]
-    op1.set_shape(tuple([batch_size] + list(op1.shape[1:])), override=True)
-    out.set_shape(tuple([batch_size] + list(out.shape[1:])), override=True)
+    if op1.shape[0] == 1:
+        op1.set_shape(tuple([batch_size] + list(op1.shape[1:])), override=True)
+    else:
+        assert out.shape[0] == 1
+        out.set_shape(tuple([batch_size] + list(out.shape[1:])), override=True)
     return node, [op1.shape, out.shape]
 
-BATCH_FUNCS['conv_bias'] = conv_bias_batch
-BATCH_FUNCS['conv'] = conv_batch
-BATCH_FUNCS['relu'] = relu_batch
-BATCH_FUNCS['leaky_relu'] = relu_batch
-BATCH_FUNCS['elem_tanh'] = elem_tanh_batch
-BATCH_FUNCS['coarse_flatten'] = flatten_batch
-BATCH_FUNCS['elem_add'] = elem_add_batch
-BATCH_FUNCS['global_avg_pool'] = global_avg_pool_batch
-BATCH_FUNCS['max_pool'] = max_pool_batch
-BATCH_FUNCS['avg_pool'] = avg_pool_batch
-BATCH_FUNCS['batch_norm'] = batch_norm_batch
-BATCH_FUNCS['gemm'] = gemm_batch
+
+def all_operands_batch(node, batch_size):
+    new_shapes = []
+    for i in node.inputs + node.outputs:
+        if len(i.shape) > 1:
+            i.set_shape(tuple([batch_size] + list(i.shape[1:])), override=True)
+        new_shapes.append(i.shape)
+    return node, new_shapes
+
+
+BATCH_FUNCS['conv_bias'] = unary_op_batch
+BATCH_FUNCS['conv'] = unary_op_batch
+BATCH_FUNCS['relu'] = unary_op_batch
+BATCH_FUNCS['leaky_relu'] = unary_op_batch
+BATCH_FUNCS['elem_tanh'] = unary_op_batch
+BATCH_FUNCS['elem_sqrt'] = unary_op_batch
+BATCH_FUNCS['elem_pow'] = unary_op_batch
+BATCH_FUNCS['softmax'] = unary_op_batch
+BATCH_FUNCS['coarse_flatten'] = unary_op_batch
+BATCH_FUNCS['batch_norm'] = unary_op_batch
+BATCH_FUNCS['reduce_mean'] = unary_op_batch
+BATCH_FUNCS['elem_clip'] = unary_op_batch
+BATCH_FUNCS['tensor_squeeze'] = unary_op_batch
+BATCH_FUNCS['gemm'] = unary_op_batch
+BATCH_FUNCS['matmul'] = unary_op_batch
+BATCH_FUNCS['tensor_reshape'] = unary_op_batch
+BATCH_FUNCS['reshape'] = unary_op_batch
+BATCH_FUNCS['resize'] = unary_op_batch
+BATCH_FUNCS['global_avg_pool'] = unary_op_batch
+BATCH_FUNCS['max_pool'] = unary_op_batch
+BATCH_FUNCS['avg_pool'] = unary_op_batch
+BATCH_FUNCS['depthwise_conv_bias'] = unary_op_batch
+
+BATCH_FUNCS['elem_sub'] = all_operands_batch
+BATCH_FUNCS['elem_div'] = all_operands_batch
+BATCH_FUNCS['elem_mul'] = all_operands_batch
+BATCH_FUNCS['split'] = all_operands_batch
+BATCH_FUNCS['elem_where'] = all_operands_batch
+BATCH_FUNCS['concat'] = all_operands_batch
+BATCH_FUNCS['elem_add'] = all_operands_batch
+
+
 BATCH_FUNCS['mean_var'] = mean_var_batch
-BATCH_FUNCS['elem_clip'] = elem_clip_batch
-BATCH_FUNCS['depthwise_conv_bias'] = conv_bias_batch
-BATCH_FUNCS['tensor_squeeze'] = tensor_squeeze_batch
+BATCH_FUNCS['tensor_transpose'] = tensor_transpose_batch
+BATCH_FUNCS['transpose'] = tensor_transpose_batch
 
