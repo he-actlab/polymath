@@ -26,13 +26,13 @@ class cross_entropy_loss(pm.Template):
             loss.set_shape(reshaped.shape)
             loss[idx] = reshaped[idx]
         elif reduction == "mean":
-            loss.set_shape((1,))
+            loss.set_shape((1,), override=True)
             denom = 1
             for s in reshaped.shape:
                 denom = denom*s
             loss[0] = pm.sum([idx[0]], reshaped[idx], name="test_sum_name")/denom
         elif reduction == "sum":
-            loss.set_shape((1,))
+            loss.set_shape((1,), override=True)
             loss[0] = pm.sum([idx[0]], reshaped[idx])
 
 
@@ -332,7 +332,7 @@ class conv_bias(pm.Template):
 
         batch, in_channel, in_height, in_width = data.shape
         num_filter, channel, kernel_h, kernel_w = w.shape
-        # compute the output shape
+        # compute the output shapeget
         dilated_kernel_h = (kernel_h - 1) * dilation_h + 1
         dilated_kernel_w = (kernel_w - 1) * dilation_w + 1
         if len(pad) == 2:
@@ -347,7 +347,6 @@ class conv_bias(pm.Template):
 
 
         oh = (in_height + pad_top + pad_down - dilation_h*(kernel_h - 1) - 1) / stride_h + 1
-
         ow = (in_width + pad_left + pad_right - dilation_w*(kernel_w - 1) - 1) / stride_w + 1
         oh = int(oh)
         ow = int(ow)
@@ -378,11 +377,12 @@ class conv_bias(pm.Template):
             out.set_shape((w.shape[0], oh, ow))
 
         # padded = pm.temp(shape=p_shape)
+
         padded = pm.temp(shape=p_shape)
 
         padded[p_indices + (ihp_, iwp_)] = 0
         padded[p_indices + (iy + pad_top, ix + pad_left)] = data[p_indices + (iy, ix)]
-
+        ot = dy * dilation_h + stride * y
         # out[o_indices + (y, x)] = pm.sum([dy, dx, k], (padded[p_indices + (dy + stride*y, dx + stride*x)] * w[c, k, dy, dx])) + bias[c]
         out[o_indices + (y, x)] = pm.sum([dy, dx, k], (padded[p_indices + (dy*dilation_h + stride*y, dx*dilation_w + stride*x)] * w[c, k, dy, dx])) + bias[c]
 
@@ -419,38 +419,71 @@ class conv_transpose_bias(pm.Template):
     def define_graph(self, data, wgt, bias, out, stride=1, pad=0, out_pad=0):
         n, c, h, w = data.shape
         dim_in, dim_out, kh, kw = wgt.shape
-        sh, sw = stride - 1, stride - 1
 
-        y = pm.temp(name=f"{data.name}_reshaped", shape=(n*c, h*w, 1, 1))
-        pm.tensor_reshape(data, y, y.shape)
+        if not isinstance(stride, (tuple, list)):
+            stride_h = stride_w = stride
+        else:
+            stride_h, stride_w = stride
 
+        if not isinstance(pad, (tuple, list)):
+            pad = (pad, pad)
+        #### OLD METHOD ###
+        # y = pm.temp(name=f"{data.name}_reshaped", shape=(n*c, h*w, 1, 1))
+        # pm.tensor_reshape(data, y, y.shape)
+        #
+        #
+        # y1 = pm.temp(name=f"{data.name}_reshaped1")
+        # pm.tensor_pad(y, y1, ((0, 0), (0, 0), (0, stride_h), (0, stride_w)))
+        #
+        # y2 = pm.temp(name=f"{data.name}_reshaped2", shape=(n * c, h, w, 1 + stride_h, 1 + stride_w))
+        # pm.tensor_reshape(y1, y2, y2.shape)
+        #
+        # y3 = pm.temp(name=f"{data.name}_permuted", shape=(n * c, h, 1 + stride_h, w, 1 + stride_w))
+        # pm.tensor_transpose(y2, y3, (0, 1, 3, 2, 4))
+        #
+        # y4 = pm.temp(name=f"{data.name}_reshaped3", shape=(n, c, h * (1 + stride_h), w * (1 + stride_w)))
+        # pm.tensor_reshape(y3, y4, y4.shape)
+        # ph, pw = kh - pad[0] - 1, kw - pad[1] - 1
+        #
+        # w_perm = pm.temp(name=f"{wgt.name}_perm", shape=(wgt.shape[1], wgt.shape[0], wgt.shape[2], wgt.shape[3]))
+        # w_perm_flip = pm.temp(name=f"{wgt.name}_flip", shape=(wgt.shape[1], wgt.shape[0], wgt.shape[2], wgt.shape[3]))
+        #
+        # pm.tensor_transpose(wgt, w_perm, (1, 0, 2, 3))
+        # pm.tensor_flip(w_perm, w_perm_flip, (2, 3))
+        #
+        # y5 = pm.temp(name=f"{data.name}_pad2")
+        # pm.tensor_pad(y4, y5, ((0, 0), (0, 0), (pw, pw - stride_w + out_pad), (ph, ph - stride_h + out_pad)))
 
-        y1 = pm.temp(name=f"{data.name}_reshaped1")
-        pm.tensor_pad(y, y1, ((0, 0), (0, 0), (0, sh), (0, sw)))
+        ### END OLD METHOD
 
-        y2 = pm.temp(name=f"{data.name}_reshaped2", shape=(n * c, h, w, 1 + sh, 1 + sw))
-        pm.tensor_reshape(y1, y2, y2.shape)
-
-        y3 = pm.temp(name=f"{data.name}_permuted", shape=(n * c, h, 1 + sh, w, 1 + sw))
-        pm.tensor_transpose(y2, y3, (0, 1, 3, 2, 4))
-
-        y4 = pm.temp(name=f"{data.name}_reshaped3", shape=(n, c, h * (1 + sh), w * (1 + sw)))
-        pm.tensor_reshape(y3, y4, y4.shape)
-        ph, pw = kh - pad - 1, kw - pad - 1
-
+        ## NEW METHOD
+        # First flip the weights
         w_perm = pm.temp(name=f"{wgt.name}_perm", shape=(wgt.shape[1], wgt.shape[0], wgt.shape[2], wgt.shape[3]))
         w_perm_flip = pm.temp(name=f"{wgt.name}_flip", shape=(wgt.shape[1], wgt.shape[0], wgt.shape[2], wgt.shape[3]))
-
         pm.tensor_transpose(wgt, w_perm, (1, 0, 2, 3))
         pm.tensor_flip(w_perm, w_perm_flip, (2, 3))
 
-        y5 = pm.temp(name=f"{data.name}_pad2")
-        pm.tensor_pad(y4, y5, ((0, 0), (0, 0), (pw, pw - sw + out_pad), (ph, ph - sh + out_pad)))
-        pm.conv_bias(y5, w_perm_flip, bias, out, stride=1, pad=out_pad)
+        # Next, dilate the input tensor
+        p_shape = (data.shape[0], data.shape[1], (data.shape[2] - 1)*stride + 1, (data.shape[3] - 1)*stride + 1)
+        dilated = pm.temp(name=f"{data.name}_grad_dilated", shape=p_shape)
+        b_idx = pm.index(0, data.shape[0] - 1)
+        ic_idx = pm.index(0, data.shape[1] - 1)
+        ih_idx = pm.index(0, data.shape[2] - 1)
+        iw_idx = pm.index(0, data.shape[3] - 1)
+        dilated[b_idx, ic_idx, ih_idx*stride_h, iw_idx*stride_w] = data[b_idx, ic_idx, ih_idx, iw_idx]
+
+        padded = pm.temp(name=f"{data.name}_padded_grad")
+        pm.tensor_pad(dilated, padded, ((0, 0), (0, 0), (kh-1-pad[0], kh-1-pad[0] + out_pad), (kw-1-pad[0], kw-1-pad[0] + out_pad)))
+
+        # print(f"\nOut shape: {out.shape}, Input shape: {padded.shape}, unpadded: {data.shape}, stride: {stride_h}, kh: {kh}, pad: {pad}, {out.shape}, out pad: {out_pad}")
+
+        pm.conv_bias(padded, w_perm_flip, bias, out, stride=1, pad=0)
+        # print(f"Shape after {out.name}: {out.shape}, {out_pad}")
+
 
     @property
     def inputs(self):
-        return (self.args[0], self.args[1])
+        return (self.args[0], self.args[1], self.args[2])
 
     @property
     def outputs(self):
@@ -496,7 +529,7 @@ class conv_transpose(pm.Template):
 
     @property
     def outputs(self):
-        return (self.args[3],)
+        return (self.args[2],)
 
 class avg_pool2d(pm.Template):
     def define_graph(self, inp, out, kh, kw, stride=1, pad=0):
@@ -881,18 +914,19 @@ class conv(pm.Template):
 
         pad_before = [0, 0, pad_top, pad_left]
         pad_after = [0, 0, pad_down, pad_right]
-        c = pm.index(0, w.shape[0] - 1, name="c")
-        y = pm.index(0, oh - 1, name="y_")
-        x = pm.index(0, ow - 1, name="x_")
-        dy = pm.index(0, w.shape[2] - 1, name="dy")
-        dx = pm.index(0, w.shape[3] - 1, name="dx")
-        iy = pm.index(0, data.shape[-2] - 1, name="iy")
-        ix = pm.index(0, data.shape[-1] - 1, name="ix")
-        k = pm.index(0, data.shape[-3] - 1, name="k")
+
+        c = pm.index(0, w.shape[0] - 1)
+        y = pm.index(0, oh - 1)
+        x = pm.index(0, ow - 1)
+        dy = pm.index(0, w.shape[2] - 1)
+        dx = pm.index(0, w.shape[3] - 1)
+        iy = pm.index(0, data.shape[-2] - 1)
+        ix = pm.index(0, data.shape[-1] - 1)
+        k = pm.index(0, data.shape[-3] - 1)
         ihp = data.shape[-2] + pad_top + pad_down
         iwp = data.shape[-1] + pad_left + pad_right
-        ihp_ = pm.index(0, ihp - 1, name="ihp")
-        iwp_ = pm.index(0, iwp - 1, name="iwp")
+        ihp_ = pm.index(0, ihp - 1)
+        iwp_ = pm.index(0, iwp - 1)
         if len(data.shape) > 3:
             b = pm.index(0, data.shape[0] - 1, name="b")
             o_indices = (b, c)
@@ -909,8 +943,6 @@ class conv(pm.Template):
         padded[p_indices + (ihp_, iwp_)] = 0
 
         padded[p_indices + (iy + pad_top, ix + pad_left)] = data[p_indices + (iy, ix)]
-
-        # out[o_indices + (y, x)] = pm.sum([dy, dx, k], (padded[p_indices + (dy + stride*y, dx + stride*x)] * w[c, k, dy, dx])) + bias[c]
 
         out[o_indices + (y, x)] = pm.sum([dy, dx, k], (padded[p_indices + (dy * dilation_h + stride * y, dx * dilation_w + stride * x)] * w[c, k, dy, dx]))
 

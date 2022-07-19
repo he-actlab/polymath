@@ -88,15 +88,14 @@ class AutoDiffGraph(Pass):
             pm.conv_grad(node.inputs[0], node.inputs[1], node.inputs[2], grad,
                          conv_inp_grad, conv_weight_grad, conv_bias_grad,
                          self.optimizer_name, self.optimizer_kwargs,
-                         stride=node.kwargs['stride'],
-                         pad=node.kwargs['pad'],
-                         dilation=node.kwargs['dilation'])
+                         stride=int(node.kwargs['stride']),
+                         pad=int(node.kwargs['pad'][0]),
+                         dilation=int(node.kwargs['dilation']))
 
         else:
             pm.conv_grad_no_bias(node.inputs[0], node.inputs[1], grad, conv_inp_grad, conv_weight_grad,
                                  self.optimizer_name, self.optimizer_kwargs, stride=node.kwargs['stride'],
                                  pad=node.kwargs['pad'], dilation=node.kwargs['dilation'])
-
         self.update_grad_map(node.inputs[0], conv_inp_grad, node)
 
     def mean_var_grad(self, node):

@@ -63,7 +63,7 @@ class tensor_pad(pm.Template):
 
         temp = pm.pad(data, pad_start, pad_end=pad_end)
         indices = _get_single_node_indices(temp)
-        out.set_shape(temp.shape)
+        out.set_shape(temp.shape, override=True)
         out[indices] = temp[indices]
 
     @property

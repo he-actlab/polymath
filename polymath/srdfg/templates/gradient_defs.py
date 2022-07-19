@@ -1,5 +1,5 @@
 import polymath as pm
-from .template_utils import _get_indices, _get_single_node_indices, _get_elem_indices
+from .template_utils import _get_indices, _get_single_node_indices, _get_elem_indices, get_pad_tuple
 from polymath.srdfg.util import squeeze_shape
 from numbers import Integral
 import numpy as np
@@ -135,7 +135,10 @@ class elem_add_grad(pm.Template):
 
 class relu_grad(pm.Template):
     def define_graph(self, x, grad, x_grad):
-        assert x.shape == grad.shape and grad.shape == x_grad.shape
+        assert x.shape == grad.shape and grad.shape == x_grad.shape, f"Gradient shape does not match input shape:\n" \
+                                                                     f"Input shape: {x.shape}\n" \
+                                                                     f"Gradient shape: {grad.shape}\n" \
+                                                                     f"Output shape: {x_grad.shape}"
         x_idx, grad_idx, x_grad_idx = _get_elem_indices(x, grad, x_grad)
         x_grad[x_grad_idx] = grad[grad_idx] * (x[x_idx] >= 0)
 
@@ -179,6 +182,7 @@ class conv_grad_no_bias(pm.Template):
         grad_input_padding = tuple(inp.shape[-k + d] - min_sizes[d] for d in range(k))
         assert grad_input_padding[0] == grad_input_padding[1]
         pm.conv_transpose(grad, weight, inp_grad, stride=stride, pad=pad, out_pad=grad_input_padding[0])
+
         inp_indices = tuple(pm.index(0, s - 1) for s in inp.shape)
         grad_indices = tuple(pm.index(0, s - 1) for s in grad.shape)
         weight_indices = tuple(pm.index(0, s - 1) for s in weight.shape)
@@ -208,30 +212,66 @@ class conv_grad(pm.Template):
     def define_graph(self, inp, weight, bias, grad, inp_grad, weight_grad,
                      bias_grad, optimizer, optimizer_kwargs,
                      stride=1, pad=0, dilation=1):
+
+        ## test values
+        if not isinstance(dilation, (tuple, list)):
+            dilation_h = dilation_w = dilation
+        else:
+            dilation_h, dilation_w = dilation
+        if not isinstance(stride, (tuple, list)):
+            stride_h = stride_w = stride
+        else:
+            stride_h, stride_w = stride
+
+        if not isinstance(pad, (tuple, list)):
+            pad = (pad, pad)
+        batch, in_channel, in_height, in_width = inp.shape
+        num_filter, channel, kernel_h, kernel_w = weight.shape
+        _, _, grad_h, grad_w = grad.shape
+
+        dilated_kernel_h = (kernel_h - 1) * dilation_h + 1
+        dilated_kernel_w = (kernel_w - 1) * dilation_w + 1
+        if len(pad) == 2:
+            pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
+                pad, (dilated_kernel_h, dilated_kernel_w)
+            )
+        else:
+            assert len(pad) == 4
+            pad_top, pad_left, pad_down, pad_right = pad
+
+
         min_sizes = []
         k = len(grad.shape) - 2
 
         for d in range(k):
             min_sizes.append(
-                (grad.shape[d + 2] - 1) * stride
-                - 2 * pad
-                + (weight.shape[-1] - 1) * dilation
+                (grad.shape[d + 2] - 1) * stride_w
+                - 2 * pad[0]
+                + (weight.shape[-1] - 1) * dilation_w
                 + 1
             )
-
         grad_input_padding = tuple(inp.shape[-k + d] - min_sizes[d] for d in range(k))
         assert grad_input_padding[0] == grad_input_padding[1]
         pm.conv_transpose_bias(grad, weight, bias, inp_grad, stride=stride, pad=pad, out_pad=grad_input_padding[0])
-        inp_indices = tuple(pm.index(0, s-1) for s in inp.shape)
-        grad_indices = tuple(pm.index(0, s-1) for s in grad.shape)
-        weight_indices = tuple(pm.index(0, s-1) for s in weight.shape)
+
+
         inp_transposed = pm.temp(name=f"transposed_{inp.name}", shape=(inp.shape[1], inp.shape[0], inp.shape[2], inp.shape[3]))
         grad_transposed = pm.state(name=f"transposed_{grad.name}", shape=(grad.shape[1], grad.shape[0], grad.shape[2], grad.shape[3]))
-        wgt_grad_transposed = pm.temp(name=f"transposed_{weight.name}",
-                                      shape=(weight.shape[1], weight.shape[0], weight.shape[2], weight.shape[3]))
+
         pm.tensor_transpose(inp, inp_transposed, perm=(1, 0, 2, 3))
         pm.tensor_transpose(grad, grad_transposed, perm=(1, 0, 2, 3))
+        wgt_grad_oh = int((inp_transposed.shape[2] + pad_top + pad_down - stride*(grad_transposed.shape[2]- 1) - 1) / dilation_h + 1)
+        wgt_grad_ow = int((inp_transposed.shape[3] + pad_left + pad_right - stride*(grad_transposed.shape[3]- 1) - 1) / dilation_w + 1)
+        wgt_grad_shape = (weight.shape[1], weight.shape[0], wgt_grad_oh, wgt_grad_ow)
+        wgt_grad_transposed = pm.temp(name=f"transposed_{weight.name}", shape=wgt_grad_shape)
         pm.conv(inp_transposed, grad_transposed, wgt_grad_transposed, stride=dilation, pad=pad, dilation=stride)
+        ic = pm.index(0, weight.shape[0] - 1)
+        oc = pm.index(0, weight.shape[1] - 1)
+        kh = pm.index(0, weight.shape[2] - 1)
+        kw = pm.index(0, weight.shape[3] - 1)
+        wgt_grad_transposed_unpadded = pm.temp(name=f"transposed_{weight.name}_unpadded", shape=(weight.shape[0], weight.shape[1], weight.shape[2], weight.shape[3]))
+        wgt_grad_transposed_unpadded[ic, oc, kh, kw] = wgt_grad_transposed[ic, oc, kh, kw]
+
         pm.tensor_transpose(wgt_grad_transposed, weight_grad, perm=(1, 0, 2, 3))
         # Weight update
         OPTIMIZERS[optimizer](weight, weight_grad, **optimizer_kwargs)
