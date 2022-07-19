@@ -295,7 +295,7 @@ class gemm_grad_no_bias(pm.Template):
             indices = tuple([pm.index(0, s - 1) for s in weight.shape])
             weight_transposed = pm.state(name=f"{weight.name}_transposed", shape=(weight.shape[1], weight.shape[0]))
             weight_transposed[indices[1], indices[0]] = weight[indices]
-            pm.gemm_no_bias(grad, weight_transposed, inp_grad, transA=transA, transB=transB, strict_shapes=True)
+            # pm.matmul(grad, weight_transposed, inp_grad, transA=transA, transB=transB, strict_shapes=True)
         else:
             pm.gemm_no_bias(grad, weight, inp_grad, transA=transA, transB=transB, strict_shapes=True)
 

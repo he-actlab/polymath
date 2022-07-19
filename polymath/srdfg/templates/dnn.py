@@ -1,6 +1,7 @@
 import polymath as pm
 from .template_utils import _get_indices, _get_single_node_indices, _get_elem_indices, pad_node, \
     _dim_explicit, get_pad_tuple
+from .tensor_transformations import pad_tensor_inlined, flip_tensor_inlined
 from polymath.srdfg.util import squeeze_shape
 from numbers import Integral
 import numpy as np
@@ -461,7 +462,8 @@ class conv_transpose_bias(pm.Template):
         w_perm = pm.temp(name=f"{wgt.name}_perm", shape=(wgt.shape[1], wgt.shape[0], wgt.shape[2], wgt.shape[3]))
         w_perm_flip = pm.temp(name=f"{wgt.name}_flip", shape=(wgt.shape[1], wgt.shape[0], wgt.shape[2], wgt.shape[3]))
         pm.tensor_transpose(wgt, w_perm, (1, 0, 2, 3))
-        pm.tensor_flip(w_perm, w_perm_flip, (2, 3))
+        # pm.tensor_flip(w_perm, w_perm_flip, (2, 3))
+        flip_tensor_inlined(w_perm, w_perm_flip, (2, 3))
 
         # Next, dilate the input tensor
         p_shape = (data.shape[0], data.shape[1], (data.shape[2] - 1)*stride + 1, (data.shape[3] - 1)*stride + 1)
@@ -473,8 +475,11 @@ class conv_transpose_bias(pm.Template):
         dilated[b_idx, ic_idx, ih_idx*stride_h, iw_idx*stride_w] = data[b_idx, ic_idx, ih_idx, iw_idx]
 
         padded = pm.temp(name=f"{data.name}_padded_grad")
-        pm.tensor_pad(dilated, padded, ((0, 0), (0, 0), (kh-1-pad[0], kh-1-pad[0] + out_pad), (kw-1-pad[0], kw-1-pad[0] + out_pad)))
+        ### Replacing tensor pad op with inlined version
+        # pm.tensor_pad(dilated, padded, ((0, 0), (0, 0), (kh-1-pad[0], kh-1-pad[0] + out_pad), (kw-1-pad[0], kw-1-pad[0] + out_pad)))
+        pad_tensor_inlined(dilated, padded, ((0, 0), (0, 0), (kh-1-pad[0], kh-1-pad[0] + out_pad), (kw-1-pad[0], kw-1-pad[0] + out_pad)))
 
+        ### End tensor pad
         # print(f"\nOut shape: {out.shape}, Input shape: {padded.shape}, unpadded: {data.shape}, stride: {stride_h}, kh: {kh}, pad: {pad}, {out.shape}, out pad: {out_pad}")
 
         pm.conv_bias(padded, w_perm_flip, bias, out, stride=1, pad=0)
@@ -491,37 +496,74 @@ class conv_transpose_bias(pm.Template):
 
 class conv_transpose(pm.Template):
     def define_graph(self, data, wgt, out, stride=1, pad=0, out_pad=0):
-
         n, c, h, w = data.shape
         dim_in, dim_out, kh, kw = wgt.shape
-        sh, sw = stride - 1, stride - 1
 
-        y = pm.temp(name=f"{data.name}_reshaped", shape=(n*c, h*w, 1, 1))
-        pm.tensor_reshape(data, y, y.shape)
+        if not isinstance(stride, (tuple, list)):
+            stride_h = stride_w = stride
+        else:
+            stride_h, stride_w = stride
+
+        if not isinstance(pad, (tuple, list)):
+            pad = (pad, pad)
 
 
-        y1 = pm.temp(name=f"{data.name}_reshaped1")
-        pm.tensor_pad(y, y1, ((0, 0), (0, 0), (0, sh), (0, sw)))
-
-        y2 = pm.temp(name=f"{data.name}_reshaped2", shape=(n * c, h, w, 1 + sh, 1 + sw))
-        pm.tensor_reshape(y1, y2, y2.shape)
-
-        y3 = pm.temp(name=f"{data.name}_permuted", shape=(n * c, h, 1 + sh, w, 1 + sw))
-        pm.tensor_transpose(y2, y3, (0, 1, 3, 2, 4))
-
-        y4 = pm.temp(name=f"{data.name}_reshaped3", shape=(n, c, h * (1 + sh), w * (1 + sw)))
-        pm.tensor_reshape(y3, y4, y4.shape)
-        ph, pw = kh - pad - 1, kw - pad - 1
-
+        # y = pm.temp(name=f"{data.name}_reshaped", shape=(n*c, h*w, 1, 1))
+        # pm.tensor_reshape(data, y, y.shape)
+        #
+        #
+        # y1 = pm.temp(name=f"{data.name}_reshaped1")
+        # pm.tensor_pad(y, y1, ((0, 0), (0, 0), (0, sh), (0, sw)))
+        #
+        # y2 = pm.temp(name=f"{data.name}_reshaped2", shape=(n * c, h, w, 1 + sh, 1 + sw))
+        # pm.tensor_reshape(y1, y2, y2.shape)
+        #
+        # y3 = pm.temp(name=f"{data.name}_permuted", shape=(n * c, h, 1 + sh, w, 1 + sw))
+        # pm.tensor_transpose(y2, y3, (0, 1, 3, 2, 4))
+        #
+        # y4 = pm.temp(name=f"{data.name}_reshaped3", shape=(n, c, h * (1 + sh), w * (1 + sw)))
+        # pm.tensor_reshape(y3, y4, y4.shape)
+        # ph, pw = kh - pad - 1, kw - pad - 1
+        #
+        # w_perm = pm.temp(name=f"{wgt.name}_perm", shape=(wgt.shape[1], wgt.shape[0], wgt.shape[2], wgt.shape[3]))
+        # w_perm_flip = pm.temp(name=f"{wgt.name}_flip", shape=(wgt.shape[1], wgt.shape[0], wgt.shape[2], wgt.shape[3]))
+        #
+        # pm.tensor_transpose(wgt, w_perm, (1, 0, 2, 3))
+        # pm.tensor_flip(w_perm, w_perm_flip, (2, 3))
+        #
+        # y5 = pm.temp(name=f"{data.name}_pad2")
+        # ## Replacing tensor pad with inlined version
+        # # pm.tensor_pad(y4, y5, ((0, 0), (0, 0), (pw, pw - sw + out_pad), (ph, ph - sh + out_pad)))
+        # pad_tensor_inlined(y4, y5, ((0, 0), (0, 0), (pw, pw - sw + out_pad), (ph, ph - sh + out_pad)))
+        #
+        # # end inlined
+        # pm.conv(y5, w_perm_flip, out, pad=0, stride=1)
         w_perm = pm.temp(name=f"{wgt.name}_perm", shape=(wgt.shape[1], wgt.shape[0], wgt.shape[2], wgt.shape[3]))
         w_perm_flip = pm.temp(name=f"{wgt.name}_flip", shape=(wgt.shape[1], wgt.shape[0], wgt.shape[2], wgt.shape[3]))
-
         pm.tensor_transpose(wgt, w_perm, (1, 0, 2, 3))
-        pm.tensor_flip(w_perm, w_perm_flip, (2, 3))
 
-        y5 = pm.temp(name=f"{data.name}_pad2")
-        pm.tensor_pad(y4, y5, ((0, 0), (0, 0), (pw, pw - sw + out_pad), (ph, ph - sh + out_pad)))
-        pm.conv(y5, w_perm_flip, out, pad=0, stride=1)
+        # pm.tensor_flip(w_perm, w_perm_flip, (2, 3))
+        flip_tensor_inlined(w_perm, w_perm_flip, (2, 3))
+
+        # Next, dilate the input tensor
+        p_shape = (data.shape[0], data.shape[1], (data.shape[2] - 1) * stride + 1, (data.shape[3] - 1) * stride + 1)
+        dilated = pm.temp(name=f"{data.name}_grad_dilated", shape=p_shape)
+        b_idx = pm.index(0, data.shape[0] - 1)
+        ic_idx = pm.index(0, data.shape[1] - 1)
+        ih_idx = pm.index(0, data.shape[2] - 1)
+        iw_idx = pm.index(0, data.shape[3] - 1)
+        dilated[b_idx, ic_idx, ih_idx * stride_h, iw_idx * stride_w] = data[b_idx, ic_idx, ih_idx, iw_idx]
+
+        padded = pm.temp(name=f"{data.name}_padded_grad")
+        ### Replacing tensor pad op with inlined version
+        # pm.tensor_pad(dilated, padded, ((0, 0), (0, 0), (kh-1-pad[0], kh-1-pad[0] + out_pad), (kw-1-pad[0], kw-1-pad[0] + out_pad)))
+        pad_tensor_inlined(dilated, padded, (
+        (0, 0), (0, 0), (kh - 1 - pad[0], kh - 1 - pad[0] + out_pad), (kw - 1 - pad[0], kw - 1 - pad[0] + out_pad)))
+
+        ### End tensor pad
+        # print(f"\nOut shape: {out.shape}, Input shape: {padded.shape}, unpadded: {data.shape}, stride: {stride_h}, kh: {kh}, pad: {pad}, {out.shape}, out pad: {out_pad}")
+
+        pm.conv(padded, w_perm_flip, out, stride=1, pad=0)
 
     @property
     def inputs(self):

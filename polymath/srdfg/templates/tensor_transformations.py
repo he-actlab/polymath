@@ -143,6 +143,23 @@ class resize(pm.Template):
     def outputs(self):
         return (self.args[2],)
 
+def pad_tensor_inlined(data, out, pad_start, pad_end=None):
+    assert isinstance(pad_start, (list, tuple)) and len(pad_start) >= 1
+    if isinstance(pad_start[0], (list, tuple)):
+        assert pad_end is None
+        pad_end = tuple([pad_start[i][1] for i in range(len(pad_start))])
+        pad_start = tuple([pad_start[i][0] for i in range(len(pad_start))])
+
+    temp = pm.pad(data, pad_start, pad_end=pad_end)
+    indices = _get_single_node_indices(temp)
+    out.set_shape(temp.shape, override=True)
+    out[indices] = temp[indices]
+
+def flip_tensor_inlined(data, out, axis=None):
+    temp = pm.flip(data, axis)
+    indices = _get_single_node_indices(temp)
+    out[indices] = temp[indices]
+
 # TODO: Need to fix this functionality to create a new node
 def onnx_unsqueeze(x, *args, axes=None, shape=None, name=None, **kwargs):
     out = pm.unsqueeze(x, axis=axes, name=name, shape=shape)
