@@ -38,7 +38,7 @@ class AutoDiffGraph(Pass):
         final_node = self.tape[-1]
         if final_node.op_name not in LOSS_FUNCS:
             with node:
-                out_loss = pm.output(name=f"{final_node.outputs[0].name}_loss", shape=final_node.outputs[0].shape)
+                out_loss = pm.output(name=f"{final_node.outputs[0].name}_loss", shape=final_node.outputs[0].shape[0])
                 target = pm.input(name=f"target_{final_node.outputs[0].name}", shape=final_node.outputs[0].shape[0])
                 loss_node = self.loss_func(final_node.outputs[0], target, out_loss)
                 self.update_grad_map(out_loss, out_loss, node)

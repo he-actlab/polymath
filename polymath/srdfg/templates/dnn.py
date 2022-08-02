@@ -27,13 +27,13 @@ class cross_entropy_loss(pm.Template):
             loss.set_shape(reshaped.shape)
             loss[idx] = reshaped[idx]
         elif reduction == "mean":
-            loss.set_shape((1,), override=True)
+            loss.set_shape((z.shape[0],))
             denom = 1
             for s in reshaped.shape:
                 denom = denom*s
             loss[0] = pm.sum([idx[0]], reshaped[idx], name="test_sum_name")/denom
         elif reduction == "sum":
-            loss.set_shape((1,), override=True)
+            loss.set_shape((z.shape[0],))
             loss[0] = pm.sum([idx[0]], reshaped[idx])
 
 

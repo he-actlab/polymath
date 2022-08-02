@@ -369,7 +369,7 @@ class cross_entropy_loss_grad(pm.Template):
 
     @property
     def inputs(self):
-        return (self.args[0], self.args[1], self.args[2])
+        return (self.args[0], self.args[1])
 
     @property
     def outputs(self):

@@ -116,20 +116,20 @@ def test_single_layer_fusion(model, fusion_sequence, testnum):
     # "efficientnet-lite4-opt-no-softmax",
     # "conv_clip_depthwiseconv_oc64_v1-opt",
     # "mobilenetv2-opt",
-    # "fcn-resnet101-trimmed-opt",
-    'gpt2-opt'
+    "fcn-resnet101-trimmed-opt",
+    # 'gpt2-opt'
 ])
 def test_load_models(model_name):
     fpath = f"{BENCH_DIR}/full_dnns/{model_name}.onnx"
     graph = pm.from_onnx(fpath)
-    name_pass = pm.RenameMultiDimOps()
-    graph = name_pass(graph)
-    for name, node in graph.nodes.items():
-        if isinstance(node, pm.Template) and "elem" in node.op_name and "const" in node.op_name:
-            print(f"{node.op_name}")
-            print(f"{node.args[1].shape}")
-            print(f"{type(node.args[1])}")
-            assert node.inputs[1].default is not None
+    # name_pass = pm.RenameMultiDimOps()
+    # graph = name_pass(graph)
+    # for name, node in graph.nodes.items():
+    #     if isinstance(node, pm.Template) and "elem" in node.op_name and "const" in node.op_name:
+    #         print(f"{node.op_name}")
+    #         print(f"{node.args[1].shape}")
+    #         print(f"{type(node.args[1])}")
+    #         assert node.inputs[1].default is not None
 
 @pytest.mark.parametrize('model_name', [
     # "efficientnet-lite4-opt-no-softmax",
@@ -308,35 +308,35 @@ def test_conv2d_transpose_shapes(inp_shape, wgt_shape, stride, pad):
     # f"{ONNX_LAYERS}/resnet18_conv.onnx",
     # f"{ONNX_LAYERS}/resnet18_conv_bias.onnx",
     # f"{ONNX_LAYERS}/resnet18_relu.onnx",
-    f"{ONNX_DNNS}/resnet18_train.onnx",
+    f"{ONNX_DNNS}/resnet18.onnx",
 ])
 def test_layer_autodiff(filename):
-    batch_size = 4
+    batch_size = 1
     train_graph = pm.from_onnx(filename)
-    batch_pass = pm.UpdateBatchSize(batch_size, train_graph.name)
-    train_graph = batch_pass(train_graph)
-    target_layer = "batchnorm_grad"
-    target_layers = ["batchnorm_grad", "sgd"]
+    # batch_pass = pm.UpdateBatchSize(batch_size, train_graph.name)
+    # train_graph = batch_pass(train_graph)
+    # target_layer = "batchnorm_grad"
+    # target_layers = ["batchnorm_grad", "sgd"]
 
     train_graph = pm.create_training_graph(train_graph)
-    grads = []
-    for name, node in train_graph.nodes.items():
-        if isinstance(node, pm.Template):
-            if node.op_name == target_layer:
-                print(f"Layer: {node.op_name}")
-                for i in node.inputs:
-                    print(f"Input {i.name} - {i.shape}")
-                print()
-                for i in node.outputs:
-                    print(f"Output {i.name} - {i.shape}")
-                    grads.append(i.name)
-                print()
-            elif any([i.name in grads for i in node.inputs]):
-                print(f"Node: {node.op_name}\n"
-                      f"")
-                for i in node.inputs:
-                    print(f"Input {i.name} - {i.shape}")
-                print()
+    # grads = []
+    # for name, node in train_graph.nodes.items():
+    #     if isinstance(node, pm.Template):
+    #         if node.op_name == target_layer:
+    #             print(f"Layer: {node.op_name}")
+    #             for i in node.inputs:
+    #                 print(f"Input {i.name} - {i.shape}")
+    #             print()
+    #             for i in node.outputs:
+    #                 print(f"Output {i.name} - {i.shape}")
+    #                 grads.append(i.name)
+    #             print()
+    #         elif any([i.name in grads for i in node.inputs]):
+    #             print(f"Node: {node.op_name}\n"
+    #                   f"")
+    #             for i in node.inputs:
+    #                 print(f"Input {i.name} - {i.shape}")
+    #             print()
 
 
 def test_load_maskrcnn():
