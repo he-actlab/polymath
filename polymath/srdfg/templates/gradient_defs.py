@@ -109,8 +109,7 @@ class batchnorm_grad_dx(pm.Template):
 class batchnorm_grad_dgamma_mul_xhat(pm.Template):
 
     def define_graph(self, x_hat, dgamma, dg_mul_xhat):
-        indices = _get_single_node_indices(x_hat, shape=grad.shape)
-        reduce_idx = (indices[0], indices[2], indices[3])
+        indices = _get_single_node_indices(x_hat, shape=x_hat.shape)
         dg_mul_xhat[indices] = dgamma[indices[1]] * x_hat[indices]
 
     @property
@@ -137,7 +136,7 @@ class batchnorm_grad_dgamma_xhat(pm.Template):
     def outputs(self):
         return (self.args[2], self.args[3])
 
-class batchnorm_dgamma(pm.Template):
+class batchnorm_grad_dgamma(pm.Template):
 
     def define_graph(self, grad, x_hat, dgamma):
         indices = _get_single_node_indices(grad, shape=grad.shape)
@@ -182,7 +181,14 @@ class batchnorm_grad(pm.Template):
         gam_mul_inv_std = pm.temp(name=f"{grad.name}_gam_mul_inv_std", shape=(x.shape[1],))
         scaled_gy = pm.temp(name=f"{grad.name}_scaled_gy", shape=(x.shape[0], x.shape[1], x.shape[2], x.shape[3]))
         dx_rhs = pm.temp(name=f"{grad.name}_dx_rhs", shape=(x.shape[0], x.shape[1], x.shape[2], x.shape[3]))
-        batchnorm_grad_dgamma_xhat(grad, x_hat, scale_grad, dg_mul_xhat)
+
+        # OPTION 1:
+        # batchnorm_grad_dgamma_xhat(grad, x_hat, scale_grad, dg_mul_xhat)
+        # OPTION 2:
+        batchnorm_grad_dgamma(grad, x_hat, scale_grad)
+        batchnorm_grad_dgamma_mul_xhat(x_hat, scale_grad, dg_mul_xhat)
+        ##
+
         batchnorm_grad_gamma_inv_std(scale, inv_std, gam_mul_inv_std)
         batchnorm_grad_scaled_gy(dg_mul_xhat, b_grad, scaled_gy)
         batchnorm_grad_dx_rhs(grad, scaled_gy, dx_rhs)
@@ -676,4 +682,4 @@ AUTODIFF_OPS =  ['cross_entropy_loss_grad', 'sgd', 'relu_grad', 'max_pool_grad',
                      'global_average_pool_grad', 'elem_add_grad', 'flatten_grad', 'average_pool_grad',
                  'batchnorm_grad_x_mu', 'batchnorm_grad_inv_std', 'batchnorm_grad_xhat', 'batchnorm_grad_dbeta',
                  'batchnorm_grad_dgamma_xhat', 'batchnorm_grad_gamma_inv_std', 'batchnorm_grad_scaled_gy',
-                 'batchnorm_grad_dx_rhs', 'batchnorm_grad_dx', 'batchnorm_grad_dgamma', 'batchnorm_grad_dgamma_xhat']
+                 'batchnorm_grad_dx_rhs', 'batchnorm_grad_dx', 'batchnorm_grad_dgamma', 'batchnorm_grad_dgamma_mul_xhat']
