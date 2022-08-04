@@ -2,9 +2,10 @@
 from polymath import UNSET_SHAPE, DEFAULT_SHAPES
 import builtins
 import operator
-from collections import OrderedDict, Mapping, Sequence, deque
+from collections import OrderedDict, deque
+from collections.abc import Mapping, Sequence
 import functools
-from numbers import Integral, Rational, Real
+from numbers import Integral, Real
 import contextlib
 import traceback
 import uuid

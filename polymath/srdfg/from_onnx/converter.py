@@ -277,7 +277,6 @@ def convert_node(onnx_node, mgdfg, node_info, state_vars):
 
     if isinstance(node_info[output_names[0]], dict):
 
-
         if len(output_names) > 1:
             o_shapes = []
             for on in output_names:
@@ -285,11 +284,12 @@ def convert_node(onnx_node, mgdfg, node_info, state_vars):
 
             attributes = get_attributes(onnx_node)
             args = tuple(args)
+
             kwargs = attributes
             kwargs['shapes'] = [tuple(list(os)) for os in o_shapes]
 
             with mgdfg:
-                new_nodes = NODE_NAMES[onnx_node.op_type](*args, name=output_names, **kwargs)
+                new_nodes = NODE_NAMES[onnx_node.op_type](*args, names=output_names, **kwargs)
 
             assert isinstance(new_nodes, (list, tuple)) and len(new_nodes) == len(output_names)
             for idx, nn in enumerate(new_nodes):

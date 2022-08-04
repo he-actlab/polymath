@@ -327,7 +327,6 @@ class conv_bias(pm.Template):
         else:
             dilation_h, dilation_w = dilation
 
-
         if not isinstance(pad, (tuple, list)):
             pad = (pad, pad)
 
@@ -343,6 +342,8 @@ class conv_bias(pm.Template):
         else:
             assert len(pad) == 4
             pad_top, pad_left, pad_down, pad_right = pad
+        self.kwargs['pad'] = (pad_top, pad_down, pad_left, pad_right)
+
         out_channel = num_filter
 
 
@@ -383,7 +384,6 @@ class conv_bias(pm.Template):
 
         padded[p_indices + (ihp_, iwp_)] = 0
         padded[p_indices + (iy + pad_top, ix + pad_left)] = data[p_indices + (iy, ix)]
-        ot = dy * dilation_h + stride * y
         # out[o_indices + (y, x)] = pm.sum([dy, dx, k], (padded[p_indices + (dy + stride*y, dx + stride*x)] * w[c, k, dy, dx])) + bias[c]
         out[o_indices + (y, x)] = pm.sum([dy, dx, k], (padded[p_indices + (dy*dilation_h + stride*y, dx*dilation_w + stride*x)] * w[c, k, dy, dx])) + bias[c]
 
@@ -946,6 +946,7 @@ class conv(pm.Template):
         else:
             assert len(pad) == 4
             pad_top, pad_left, pad_down, pad_right = pad
+        self.kwargs['pad'] = (pad_top, pad_down, pad_left, pad_right)
         out_channel = num_filter
 
         oh = (in_height + pad_top + pad_down - dilation_h*(kernel_h - 1) - 1) / stride_h + 1

@@ -308,7 +308,8 @@ def test_conv2d_transpose_shapes(inp_shape, wgt_shape, stride, pad):
     # f"{ONNX_LAYERS}/resnet18_conv.onnx",
     # f"{ONNX_LAYERS}/resnet18_conv_bias.onnx",
     # f"{ONNX_LAYERS}/resnet18_relu.onnx",
-    f"{ONNX_DNNS}/resnet18.onnx",
+    # f"{ONNX_DNNS}/resnet18.onnx",
+    f"{ONNX_DNNS}/resnet18_train.onnx",
 ])
 def test_layer_autodiff(filename):
     batch_size = 1
@@ -319,6 +320,11 @@ def test_layer_autodiff(filename):
     # target_layers = ["batchnorm_grad", "sgd"]
 
     train_graph = pm.create_training_graph(train_graph)
+    # for name, node in train_graph.nodes.items():
+    #     if "batchnorm_grad" in node.op_name and isinstance(node, pm.Template):
+    #         print(f"Op: {node.op_name}\n"
+    #               f"Input name: {node.inputs[0].name}\n"
+    #               f"Input shape: {node.inputs[0].shape}\n")
     # grads = []
     # for name, node in train_graph.nodes.items():
     #     if isinstance(node, pm.Template):
