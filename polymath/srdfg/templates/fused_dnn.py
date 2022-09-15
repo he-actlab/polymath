@@ -2895,6 +2895,25 @@ class mul_add(pm.Template):
     def outputs(self):
         return (self.args[-1],)
 
+
+class pow_mul_add_tanh_mul(pm.Template):
+    def define_graph(self, data, mul_lhs1, add_lhs, mul_lhs2, out, exp=None):
+        self.kwargs['mul_lhs1'] = mul_lhs1.default
+        self.kwargs['add_lhs'] = add_lhs.default
+        self.kwargs['mul_lhs2'] = mul_lhs2.default
+
+    @property
+    def inputs(self):
+        return (self.args[0],)
+
+    @property
+    def outputs(self):
+        return (self.args[-1],)
+
+    @property
+    def exp(self):
+        return self.kwargs['exp']
+
 class matmul_div_add(pm.Template):
     def define_graph(self, data, wgt, div_rhs, add_rhs, out):
         pass

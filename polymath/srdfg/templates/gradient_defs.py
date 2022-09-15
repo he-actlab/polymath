@@ -172,6 +172,7 @@ class batchnorm_grad(pm.Template):
         x_mu = pm.temp(name=f"{grad.name}_x_mu", shape=(x.shape[0], x.shape[1], x.shape[2], x.shape[3]))
         inv_std = pm.temp(name=f"{grad.name}_inv_std", shape=(x.shape[1],))
         x_hat = pm.temp(name=f"{grad.name}_x_hat", shape=(x.shape[0], x.shape[1], x.shape[2], x.shape[3]))
+
         batchnorm_grad_x_mu(x, mean, x_mu)
         batchnorm_grad_inv_std(var, inv_std)
         batchnorm_grad_xhat(x_mu, inv_std, x_hat)

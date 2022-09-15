@@ -624,6 +624,7 @@ def get_gemm(a, b , c=None, shape=None, name=None, alpha=None,
         b._shape = (b.shape[1], b.shape[0])
         transB = False
 
+
     if c:
         pm.gemm(a, b, c, out, alpha=alpha, beta=beta, transA=transA, transB=transB, strict_shapes=True)
     else:

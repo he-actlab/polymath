@@ -389,15 +389,20 @@ class FuseOps(Pass):
                                f"Kwargs: {layer_kwargs.keys()}")
         with graph:
             node = getattr(fused_dnn, fusion_name)(*layer_inputs, name=instance_name, **layer_kwargs)
-
         self.topological_insert(graph, node)
 
+
+    def print_graph(self, graph):
+        for name, node in graph.nodes.items():
+            print(f"{node.op_name}")
+
     def topological_insert(self, graph, node):
+
         assert isinstance(node, pm.Node) and hasattr(node, 'inputs')
         assert all([i.name in graph.nodes for i in node.inputs])
+
         graph.nodes.pop(node.name)
         min_idx = 0
-
         for k, n in graph.nodes.items():
             i = list(graph.nodes.keys()).index(k)
             if isinstance(n, pm.Template):
@@ -406,6 +411,7 @@ class FuseOps(Pass):
                         min_idx = i
             elif n in node.inputs and i > min_idx:
                 min_idx = i
+
 
         out = graph.nodes.pop(node.outputs[0].name)
         graph.insert_node(out, min_idx + 1)
