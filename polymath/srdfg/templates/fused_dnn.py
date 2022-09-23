@@ -488,6 +488,7 @@ class conv_bias_leaky_relu_add(pm.Template):
             assert len(pad) == 4
             pad_top, pad_left, pad_down, pad_right = pad
         out_channel = num_filter
+
         oh = (in_height + pad_top + pad_down - dilation_h * (kernel_h - 1) - 1) / stride_h + 1
         ow = (in_width + pad_left + pad_right - dilation_w * (kernel_w - 1) - 1) / stride_w + 1
         oh = int(oh)

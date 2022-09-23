@@ -448,6 +448,7 @@ def get_conv(x, w, bias=None, dilations=None, group=None, kernel_shape=None, pad
             pads[2] = pw - pads[3]
     else:
         pads = get_pad_tuple2d(pads)
+
     if not all([isinstance(i, int) for i in pads]):
         pads = tuple([int(p) for p in pads])
     if not isinstance(pads, tuple):
@@ -468,9 +469,10 @@ def get_conv(x, w, bias=None, dilations=None, group=None, kernel_shape=None, pad
             pm.depthwise_conv(x, w, out, int(strides[0]), pads, group)
     else:
         if bias:
-            pm.conv_bias(x, w, bias, out, int(strides[0]), pads, dilation)
+            o = pm.conv_bias(x, w, bias, out, int(strides[0]), pads, dilation)
         else:
-            pm.conv(x, w, out, int(strides[0]), pads, dilation)
+            o = pm.conv(x, w, out, int(strides[0]), pads, dilation)
+
 
     return out
 

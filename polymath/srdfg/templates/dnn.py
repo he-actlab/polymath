@@ -335,6 +335,7 @@ class conv_bias(pm.Template):
         # compute the output shapeget
         dilated_kernel_h = (kernel_h - 1) * dilation_h + 1
         dilated_kernel_w = (kernel_w - 1) * dilation_w + 1
+
         if len(pad) == 2:
             pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
                 pad, (dilated_kernel_h, dilated_kernel_w)
@@ -342,7 +343,7 @@ class conv_bias(pm.Template):
         else:
             assert len(pad) == 4
             pad_top, pad_left, pad_down, pad_right = pad
-        self.kwargs['pad'] = (pad_top, pad_down, pad_left, pad_right)
+        self.kwargs['pad'] = (pad_top, pad_left, pad_down, pad_right)
 
         out_channel = num_filter
 
@@ -946,7 +947,8 @@ class conv(pm.Template):
         else:
             assert len(pad) == 4
             pad_top, pad_left, pad_down, pad_right = pad
-        self.kwargs['pad'] = (pad_top, pad_down, pad_left, pad_right)
+        self.kwargs['pad'] = (pad_top, pad_left, pad_down, pad_right)
+
         out_channel = num_filter
 
         oh = (in_height + pad_top + pad_down - dilation_h*(kernel_h - 1) - 1) / stride_h + 1

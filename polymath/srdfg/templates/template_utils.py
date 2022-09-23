@@ -251,11 +251,14 @@ def get_pad_tuple(padding, kernel):
         Padding size on right.
     """
     # pad_h = pad_w = padding * 2
-    pad_h = padding[0] * 2
-    pad_w = padding[1] * 2
-    pad_top = (pad_h + 1) // 2
-    pad_left = (pad_w + 1) // 2
-    return pad_top, pad_left, pad_h - pad_top, pad_w - pad_left
+    if len(padding) == 4:
+        return padding[0], padding[1], padding[2], padding[3]
+    else:
+        pad_h = padding[0] * 2
+        pad_w = padding[1] * 2
+        pad_top = (pad_h + 1) // 2
+        pad_left = (pad_w + 1) // 2
+        return pad_top, pad_left, pad_h - pad_top, pad_w - pad_left
 
 def pad_node(data: pm.Node, padded_out: pm.Node, pad_size, kernel, pad_val=0):
     assert len(data.shape) == 4
