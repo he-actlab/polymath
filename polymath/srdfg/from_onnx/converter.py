@@ -71,6 +71,9 @@ def update_edge_names(model_proto):
                     new_name = f"{i}_{INPUT_NAMES[idx]}"
                 else:
                     new_name = i
+
+                if len(new_name.split("/")) > 1:
+                    new_name = new_name.replace("/", "_")
                 node_name_map[i] = new_name
 
 
@@ -84,6 +87,9 @@ def update_edge_names(model_proto):
                     new_name = f"{o}_{OUTPUT_NAMES[idx]}"
                 else:
                     new_name = o
+
+                if len(new_name.split("/")) > 1:
+                    new_name = new_name.replace("/", "_")
                 node_name_map[o] = new_name
 
     for v in model_proto.graph.value_info:
