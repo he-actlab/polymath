@@ -73,9 +73,13 @@ def test_resnet18_batchsize():
     #   "conv_bias_elem_clip_depthwise_conv_bias_elem_clip": 30,
     #   }
     #  ),
-    ('mel_scale', [['Pow', 'Mul', 'Add', 'Tanh', 'Mul']],
+    # ('mel_scale', [['Pow', 'Mul', 'Add', 'Tanh', 'Mul']],
+    #  {
+    #      'pow_mul_add_tanh_mul': 1
+    #  }),
+    ('yolov3-opt-static', [['Conv', 'LeakyRelu', 'Add']],
      {
-         'pow_mul_add_tanh_mul': 1
+         'conv_bias_leaky_relu_add': 1
      }),
 
 ])

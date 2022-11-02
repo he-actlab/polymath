@@ -103,17 +103,24 @@ class tensor_squeeze(pm.Template):
 
 
 class elem_gather(pm.Template):
-    def define_graph(self, data, indices, output, axis=0):
+    def define_graph(self, data, output, indices=None, axis=0):
         # TODO: Fix this to use manual implementation
-        output.write(pm.gather(data, indices, axis=axis))
+        assert indices is not None
+        output.write(pm.gather(data, np.asarray([indices]), axis=axis))
 
     @property
     def inputs(self):
-        return (self.args[0], self.args[1])
+        return (self.args[0],)
 
     @property
     def outputs(self):
-        return (self.args[2],)
+        return (self.args[1],)
+
+    @property
+    def indices(self):
+        return self.kwargs['indices']
+
+
 
 class elem_expand(pm.Template):
     def define_graph(self, data, new_shape, output, axis=0):

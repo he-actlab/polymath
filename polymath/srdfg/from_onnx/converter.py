@@ -186,7 +186,6 @@ def generate_srdfg(onnx_graph, verbose=False):
     graph_name = getattr(onnx_graph, "name")
     initializers = get_initializers(onnx_graph.initializer)
 
-
     mgdfg = pm.Node(name=graph_name)
     # TODO: This is a hotfix for identifying gradient updates, but weights should have initializers
     state_variables = get_states_by_gradient(onnx_graph)

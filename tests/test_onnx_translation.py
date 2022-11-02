@@ -560,6 +560,14 @@ def test_mean_var(shape, axis):
     np.testing.assert_allclose(np_var, var_pm)
 
 
+@pytest.mark.parametrize('model_name',[
+    "vit-opt-erf-removed"
+])
+def test_model_conversion(model_name):
+    fpath = f"{BENCH_DIR}/full_dnns/{model_name}.onnx"
+    graph = pm.from_onnx(fpath)
+
+
 
 
 

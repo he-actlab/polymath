@@ -605,7 +605,18 @@ def get_flatten(x, axis=1, name=None, shape=None, out=None):
 def get_gather(data, indices, axis=0, name=None, shape=None, out=None):
     if not out:
         out = pm.output(shape=shape, name=name)
-    pm.elem_gather(data, indices, out, axis=axis)
+    if isinstance(indices, pm.parameter):
+        assert indices.default is not None
+        indices = indices.default
+    if not isinstance(indices, (np.ndarray, Integral)):
+        raise RuntimeError(
+            "Currently dynamic indices are not supported, and must be constant parameters in gather operation:\n"
+            f"Indices type: {type(indices)}")
+    if isinstance(indices, np.ndarray):
+        assert np.prod(indices.shape) == 1, "Currently only single index gather operations are supported," \
+                                            f" but input indices have shape {indices.shape}"
+        indices = indices[0]
+    pm.elem_gather(data, out, indices=indices, axis=axis)
     return out
 
 def get_cross_entropy_loss(scores, labels, ignore_index=-100, reduction="mean", name=None, shape=None, out=None):
