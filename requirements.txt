@@ -16,3 +16,4 @@ tqdm
 jsonschema
 networkx
 torch
+onnxoptimizer

@@ -499,7 +499,7 @@ class RenameMultiDimOps(Pass):
     MULTI_DIM_OP1_DEFAULTS = {
         'sgd': -1, 'elem_tanh': -1, 'elem_tanh_grad': -1, 'relu': 4, 'relu_grad': 4, "elem_ceil": -1, "elem_pow": -1,
         "reduce_mean": -1, "reduce_min": -1, "tensor_transpose": -1, "matmul": 2, 'softmax': 2, 'add_add': 3, "elem_add": 4,
-        'elem_mul': 4, "elem_div": 4, "elem_sqrt": 4
+        'elem_mul': 4, "elem_div": 4, "elem_sqrt": 4, "concat": 4
     }
     MULTI_DIM_OP2_DEFAULTS = { 'elem_div': 4, 'elem_add': 4, 'elem_mul': 4, 'matmul': 4}
     MULTI_DIM_OP3_DEFAULTS = { 'mul_add': 1}
