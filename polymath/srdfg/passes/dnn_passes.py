@@ -669,6 +669,7 @@ BATCH_FUNCS['relu'] = unary_op_batch
 BATCH_FUNCS['leaky_relu'] = unary_op_batch
 BATCH_FUNCS['elem_tanh'] = unary_op_batch
 BATCH_FUNCS['elem_sqrt'] = unary_op_batch
+BATCH_FUNCS['elem_sigmoid'] = unary_op_batch
 BATCH_FUNCS['elem_pow'] = unary_op_batch
 BATCH_FUNCS['softmax'] = unary_op_batch
 BATCH_FUNCS['coarse_flatten'] = unary_op_batch
