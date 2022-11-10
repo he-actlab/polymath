@@ -643,6 +643,15 @@ def tensor_transpose_batch(node, batch_size):
         out.set_shape(tuple([batch_size] + list(out.shape[1:])), override=True)
     return node, [op1.shape, out.shape]
 
+def elem_gather_batch(node, batch_size):
+    assert hasattr(node, "inputs")
+    assert hasattr(node, "outputs")
+    op1 = node.inputs[0]
+    out = node.outputs[0]
+    if len(op1.shape) > 1 and op1.shape[0] == out.shape[0]:
+        op1.set_shape(tuple([batch_size] + list(op1.shape[1:])), override=True)
+        out.set_shape(tuple([batch_size] + list(out.shape[1:])), override=True)
+    return node, [op1.shape, out.shape]
 
 def all_operands_batch(node, batch_size):
     new_shapes = []
@@ -686,6 +695,7 @@ BATCH_FUNCS['concat'] = all_operands_batch
 BATCH_FUNCS['elem_add'] = all_operands_batch
 
 
+BATCH_FUNCS['elem_gather'] = elem_gather_batch
 BATCH_FUNCS['mean_var'] = mean_var_batch
 BATCH_FUNCS['tensor_transpose'] = tensor_transpose_batch
 BATCH_FUNCS['transpose'] = tensor_transpose_batch
