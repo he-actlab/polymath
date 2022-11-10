@@ -487,6 +487,7 @@ class UpdateBatchSize(Pass):
         super(UpdateBatchSize, self).__init__()
 
     def apply_pass(self, node, ctx):
+        assert node.op_name not in dir(fused_dnn), f"Batch sizes must be updated prior to fusion, but found fused operation: {node.op_name}"
         if not isinstance(node, NON_DNN_NODE_OPS) and node.op_name != self.graph_name and node.name != self.graph_name and isinstance(node, pm.Template):
             assert node.op_name in BATCH_FUNCS, f"{node.op_name}, {self.graph_name}, {node.name}"
             node, shape_list = BATCH_FUNCS[node.op_name](node, self.batch_size)

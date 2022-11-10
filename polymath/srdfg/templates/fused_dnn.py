@@ -2031,7 +2031,6 @@ class conv_bias_clip_depthwise_conv_bias(pm.Template):
     def groups0(self):
         return self.kwargs['groups0']
 
-
 class conv_bias_clip_depthwise_conv_bias_add_clip(pm.Template):
     def define_graph(self, data, w, bias, dw_conv_weight, dw_conv_bias, out,
                      stride=1, pad=0, dilation=1, groups=1,
@@ -2629,7 +2628,6 @@ class conv_bias_clip_depthwise_conv_bias_clip(pm.Template):
     @property
     def groups0(self):
         return self.kwargs['groups0']
-
 
 class gemm_add_mean_sub_mul_mean_add_sqrt_reciprocal_mul_mul_mul_sub_add(pm.Template):
     def define_graph(self, data, wgt, bias, add_lhs1, add_lhs2, mul_lhs, sub_rhs, output,
