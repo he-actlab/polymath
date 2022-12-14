@@ -132,8 +132,8 @@ def test_single_layer_fusion(model, fusion_sequence, testnum):
     # "efficientnet-lite4-opt-no-softmax",
     # "conv_clip_depthwiseconv_oc64_v1-opt",
     # "mobilenetv2-opt",
-    "fcn-resnet101-trimmed-opt",
-    # 'gpt2-opt'
+    # "fcn-resnet101-trimmed-opt",
+    'gpt2-trimmed-opt'
 ])
 def test_load_models(model_name):
     fpath = f"{BENCH_DIR}/full_dnns/{model_name}.onnx"

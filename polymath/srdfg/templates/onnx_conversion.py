@@ -487,12 +487,12 @@ def get_roi_align(x, rois, batch_indices, mode='avg',
                   sampling_ratio=sampling_ratio, spatial_scale=spatial_scale)
     return out
 
-def get_batch_norm(x, s, b, running_mean, running_var, spatial=None, momentum=None,  epsilon=None, names=None, shapes=None, outs=None):
+def get_batch_norm(x, s, b, running_mean, running_var, spatial=None, momentum=None,  epsilon=None, name=None, shapes=None, outs=None):
     if not outs:
-        assert names is not None and isinstance(names, list)
+        assert name is not None and isinstance(name, list)
         assert shapes is not None and isinstance(shapes, list)
-        assert len(shapes) == len(names)
-        outs = [pm.output(name=names[i], shape=shapes[i]) for i in range(len(names))]
+        assert len(shapes) == len(name)
+        outs = [pm.output(name=name[i], shape=shapes[i]) for i in range(len(name))]
         # out = pm.output(name=name, shape=shape)
     mean = pm.output(name=f"{x.name}_mean", shape=running_mean.shape)
     var = pm.output(name=f"{x.name}_var", shape=running_var.shape)
@@ -680,6 +680,7 @@ def get_slice(input, starts, ends, axes=-1, steps=1, name=None, shape=None, out=
 
 def get_split(input, split=None, axis=-1, name=None, shapes=None, outputs=None, **kwargs):
     if not outputs:
+        assert name is not None, f"Node with input {input.name} does not have node  output names"
         outputs = []
         for idx, n in enumerate(name):
             out = pm.output(name=n, shape=shapes[idx])

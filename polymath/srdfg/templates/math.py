@@ -249,7 +249,10 @@ class elem_sub(pm.Template):
     @property
     def inputs(self):
         if "const" in self.op_name:
-            return (self.args[0],)
+            if isinstance(self.args[0], pm.parameter):
+                return (self.args[1],)
+            else:
+                return (self.args[0],)
         else:
             return (self.args[0], self.args[1])
 
@@ -266,7 +269,10 @@ class elem_add(pm.Template):
     @property
     def inputs(self):
         if "const" in self.op_name:
-            return (self.args[0],)
+            if isinstance(self.args[0], pm.parameter):
+                return (self.args[1],)
+            else:
+                return (self.args[0],)
         else:
             return (self.args[0], self.args[1])
 
@@ -282,7 +288,10 @@ class elem_mul(pm.Template):
     @property
     def inputs(self):
         if "const" in self.op_name:
-            return (self.args[0],)
+            if isinstance(self.args[0], pm.parameter):
+                return (self.args[1],)
+            else:
+                return (self.args[0],)
         else:
             return (self.args[0], self.args[1])
 
@@ -298,7 +307,10 @@ class elem_div(pm.Template):
     @property
     def inputs(self):
         if "const" in self.op_name:
-            return (self.args[0],)
+            if isinstance(self.args[0], pm.parameter):
+                return (self.args[1],)
+            else:
+                return (self.args[0],)
         else:
             return (self.args[0], self.args[1])
 

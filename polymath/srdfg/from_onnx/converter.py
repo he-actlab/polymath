@@ -294,7 +294,7 @@ def convert_node(onnx_node, mgdfg, node_info, state_vars):
             kwargs['shapes'] = [tuple(list(os)) for os in o_shapes]
 
             with mgdfg:
-                new_nodes = NODE_NAMES[onnx_node.op_type](*args, names=output_names, **kwargs)
+                new_nodes = NODE_NAMES[onnx_node.op_type](*args, name=output_names, **kwargs)
 
             assert isinstance(new_nodes, (list, tuple)) and len(new_nodes) == len(output_names)
             for idx, nn in enumerate(new_nodes):
