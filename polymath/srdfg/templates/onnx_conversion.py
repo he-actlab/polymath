@@ -93,6 +93,14 @@ def get_elem_sigmoid(x, shape=None, name=None, out=None):
 def get_softmax(x, axis=1, shape=None, name=None, out=None):
     if not out:
         out = pm.output(name=name, shape=shape)
+
+    if isinstance(axis, Integral):
+        axis = (axis,)
+    elif isinstance(axis, list):
+        axis = tuple(axis)
+    else:
+        assert isinstance(axis, tuple)
+
     pm.softmax(x, out, axis=axis)
     return out
 

@@ -798,21 +798,32 @@ class split(pm.Template):
 class softmax(pm.Template):
     def define_graph(self, data, out, axis=0):
         out.set_shape(data.shape)
-        i = pm.index(0, data.shape[axis]-1, name="i")
-        j = pm.index(0, data.shape[axis]-1, name="j")
-        indices = [pm.index(0, s - 1, name=f"{data.name}[{i}]") for i, s in enumerate(data.shape)]
-        indices_denom = indices
-        indices_denom[axis] = j
-        indices[axis] = i
-        indices = tuple(indices)
-        indices_denom = tuple(indices_denom)
-        mval = pm.max([i], data[indices], name="max_test")
-        e_x = pm.exp((data[indices] - mval), name="e_x")
-        out[indices] = e_x[indices] / pm.sum([indices_denom[axis]], e_x[indices_denom], name="denom")
+        indices = tuple([pm.index(0, s - 1) for s in data.shape])
+        sum_idx = tuple([indices[i] for i in axis])
+        out_idx = tuple([indices[i] for i in range(len(indices)) if i not in axis])
 
+        # i = pm.index(0, data.shape[axis]-1, name="i")
+        # j = pm.index(0, data.shape[axis]-1, name="j")
+        # indices = [pm.index(0, s - 1, name=f"{data.name}[{i}]") for i, s in enumerate(data.shape)]
+        # indices_denom = indices
+        # indices_denom[axis] = j
+        # indices[axis] = i
+        # indices = tuple(indices)
+        # indices_denom = tuple(indices_denom)
+        # mval = pm.max([i], data[indices], name="max_test")
+        # e_x = pm.exp((data[indices] - mval), name="e_x")
+        # out[indices] = e_x[indices] / pm.sum([indices_denom[axis]], e_x[indices_denom], name="denom")
+        e_x = pm.exp((data[indices] ), name="e_x")
+        out[indices] = e_x[indices] / pm.sum([sum_idx], e_x[indices])
+
+        # out[indices] =
     @property
     def inputs(self):
         return (self.args[0],)
+
+    @property
+    def axis(self):
+        return self.kwargs['axis']
 
     @property
     def outputs(self):
