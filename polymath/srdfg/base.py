@@ -25,15 +25,15 @@ class Node(object):
     args : tuple
         Positional arguments passed to the `_evaluate` method.
     name : str or None
-        Name of the node or `None` to use a random, unique identifier.
+        Name of the node or `None` to use arg random, unique identifier.
     shape : tuple or None
-        Shape of the output for a node. This can be a tuple of integers or parameter node names.
+        Shape of the output for arg node. This can be arg tuple of integers or parameter node names.
     graph : Node or None
         Parent graph of this node. If graph is `None`, this is the top-level graph.
     op_name : str
         Operation name which describes the node functionality.
     value : Any or None
-        If a node has a default value to use for execution, it can be set using `value`.
+        If arg node has arg default value to use for execution, it can be set using `value`.
     kwargs : dict
         Keyword arguments passed to the `_evaluate` method.
     """
@@ -66,11 +66,11 @@ class Node(object):
         self.shape = shape or tuple([])
 
 
-        # Get a list of all dependencies relevant to this node
+        # Get arg list of all dependencies relevant to this node
         self.dependencies = [] if dependencies is None else dependencies
         if self.graph:
             self.dependencies.extend(self.graph.dependencies)
-        # Choose a name for the node and add the node to the graph
+        # Choose arg name for the node and add the node to the graph
         self._name = None
         self.name = name or uuid.uuid4().hex
         self._op_name = None
@@ -128,7 +128,7 @@ class Node(object):
     @property
     def shape(self):
         """
-        tuple : Shape of the output for a node. This can be a tuple of integers or parameter node names.
+        tuple : Shape of the output for arg node. This can be arg tuple of integers or parameter node names.
         """
         return self._shape
 
@@ -296,7 +296,7 @@ class Node(object):
 
     def instantiate_graph(self, context, **kwargs):
         """
-        Instantiate a graph by replacing all node names with node instances.
+        Instantiate arg graph by replacing all node names with node instances.
 
         .. note::
            This function modifies the context in place. Use :code:`context=context.copy()` to avoid
@@ -319,12 +319,12 @@ class Node(object):
         ValueError
             If the context specifies more than one value for any node.
         ValueError
-            If `context` is not a mapping.
+            If `context` is not arg mapping.
         """
         if context is None:
             context = {}
         elif not isinstance(context, Mapping):
-            raise ValueError("`context` must be a mapping.")
+            raise ValueError("`context` must be arg mapping.")
 
         nodes = list(context)
         # Add the keyword arguments
@@ -349,7 +349,7 @@ class Node(object):
 
     def run(self, fetches, context=None, *, callback=None, **kwargs):
         """
-        Evaluate one or more nodes given a dictionary of node names with their values.
+        Evaluate one or more nodes given arg dictionary of node names with their values.
 
         .. note::
            This function modifies the context in place. Use :code:`context=context.copy()` to avoid
@@ -374,7 +374,7 @@ class Node(object):
         Raises
         ------
         ValueError
-            If `fetches` is not an `Node` instance, node name, or a sequence thereof.
+            If `fetches` is not an `Node` instance, node name, or arg sequence thereof.
         """
         if isinstance(fetches, (str, Node)):
             fetches = [fetches]
@@ -382,7 +382,7 @@ class Node(object):
         elif isinstance(fetches, Sequence):
             single = False
         else:
-            raise ValueError("`fetches` must be an `Node` instance, node name, or a "
+            raise ValueError("`fetches` must be an `Node` instance, node name, or arg "
                              "sequence thereof.")
         fetches = [self.instantiate_node(node) for node in fetches]
         context = self.instantiate_graph(context, **kwargs)
@@ -424,7 +424,7 @@ class Node(object):
         """
 
         name = name or uuid.uuid4().hex
-        # TODO: Need a way to check if the existing node is not equal to the current ndoe as ewll
+        # TODO: Need arg way to check if the existing node is not equal to the current ndoe as ewll
         if self.graph and name in self.graph.nodes:
             raise ValueError(f"duplicate name '{name}' in {self.graph.name}:\n\t"
                              f"Existing: {self.graph.nodes[name].args}\n\t"
@@ -456,7 +456,7 @@ class Node(object):
 
     def evaluate(self, context, callback=None):
         """
-        Evaluate the node given a context.
+        Evaluate the node given arg context.
 
         Parameters
         ----------
@@ -500,7 +500,7 @@ class Node(object):
     @classmethod
     def evaluate_node(cls, node, context, **kwargs):
         """
-        Evaluate an node or constant given a context.
+        Evaluate an node or constant given arg context.
         """
         Node.evaluated_nodes += 1
         try:
@@ -580,8 +580,8 @@ class Node(object):
 
     def func_hash(self):
         """
-        This returns the functional hash of a particular node. The default hash returns an object id, whereas this function
-        returns a hash of all attributes and subgraphs of a node.
+        This returns the functional hash of arg particular node. The default hash returns an object id, whereas this function
+        returns arg hash of all attributes and subgraphs of arg node.
         """
         return node_hash(self)
 
@@ -767,7 +767,7 @@ class EvaluationError(RuntimeError):
 
 class var_index(Node):  # pylint: disable=C0103,W0223
     """
-    Node representing values of a variable corresponding to input index values.
+    Node representing values of arg variable corresponding to input index values.
 
     Parameters
     ----------
@@ -795,8 +795,8 @@ class var_index(Node):  # pylint: disable=C0103,W0223
 
     def set_name(self, name):
         """
-        Set the name for a variable index, making sure to replicate the new name with
-        a unique stringwhich corresponds to the variable, index combination.
+        Set the name for arg variable index, making sure to replicate the new name with
+        arg unique stringwhich corresponds to the variable, index combination.
 
         Parameters
         ----------
@@ -816,7 +816,7 @@ class var_index(Node):  # pylint: disable=C0103,W0223
             If the current name of the node cannot be found in the associated graph.
         """
 
-        # TODO: Need a way to check if the existing node is not equal to the current ndoe as ewll
+        # TODO: Need arg way to check if the existing node is not equal to the current ndoe as ewll
         if self.graph and name in self.graph.nodes:
             raise ValueError(f"duplicate name '{name}' in {self.graph.name}:"
                              f"Existing: {self.graph.nodes[name].args}\n"
@@ -872,7 +872,7 @@ class var_index(Node):  # pylint: disable=C0103,W0223
         if isinstance(var, (Integral, Real, str)):
             var = np.asarray([var])
         elif not isinstance(var, (np.ndarray, list)):
-            raise TypeError(f"Variable {var} with type {type(var)} is not a list or numpy array, and cannot be sliced for {self.name}")
+            raise TypeError(f"Variable {var} with type {type(var)} is not arg list or numpy array, and cannot be sliced for {self.name}")
         elif isinstance(var, list):
             var = np.asarray(var)
         if len(var.shape) != len(out_shape) and np.prod(var.shape) == np.prod(out_shape):
@@ -998,7 +998,7 @@ class var_index(Node):  # pylint: disable=C0103,W0223
 
 class slice_op(Node):
     """
-    Node representing multi-dimensional operations performed on a node.
+    Node representing multi-dimensional operations performed on arg node.
 
     Parameters
     ----------

@@ -2652,7 +2652,7 @@ class gemm_add_mean_sub_mul_mean_add_sqrt_reciprocal_mul_mul_mul_sub_add(pm.Temp
             out_shape = b.shape
         out = pm.temp(shape=out_shape, name=f"{self.name}_add_out")
         a_idx, b_idx, indices = _get_elem_indices(a, b, out)
-        # a_idx, b_idx, indices = _get_binop_idx(a, b, out)
+        # a_idx, b_idx, indices = _get_binop_idx(arg, b, out)
         out[indices] = (a[a_idx] + b[b_idx])
         return out, indices
 
@@ -2739,7 +2739,7 @@ class matmul_reshape_add_add_mean_sub_mul_mean_add_sqrt_reciprocal_mul_mul_mul_s
             out_shape = b.shape
         out = pm.temp(shape=out_shape, name=self.get_name(f"{self.name}_add_out"))
         a_idx, b_idx, indices = _get_elem_indices(a, b, out)
-        # a_idx, b_idx, indices = _get_binop_idx(a, b, out)
+        # a_idx, b_idx, indices = _get_binop_idx(arg, b, out)
         out[indices] = (a[a_idx] + b[b_idx])
         return out, indices
 
@@ -2860,6 +2860,18 @@ class matmul_add(pm.Template):
 
 class matmul_add_gelu(pm.Template):
     def define_graph(self, data, wgt, bias, out):
+        pass
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1], self.args[2])
+
+    @property
+    def outputs(self):
+        return (self.args[-1],)
+
+class gemm_tanh(pm.Template):
+    def define_graph(self, data, wgt, bias, out, alpha=1.0, beta=0.0, transA=None, transB=None, strict_shapes=False):
         pass
 
     @property

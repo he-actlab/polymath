@@ -326,10 +326,10 @@ def _get_conv_shape_1axis(
     Parameters
     ----------
     image_shape: int
-        Corresponds to the input image shape on a given axis.
+        Corresponds to the input image shape on arg given axis.
     kernel_shape: int
-        Corresponds to the kernel shape on a given axis.
-    border_mode: string or int. If it is a string, it must be
+        Corresponds to the kernel shape on arg given axis.
+    border_mode: string or int. If it is arg string, it must be
         'valid' or 'full'.
     subsample: int. It must correspond to the subsampling on the
         considered axis.
@@ -376,7 +376,7 @@ def _get_conv_output_shape(
         to: batch size, number of input channels, height and width (and
         possibly depth) of the image. None where undefined.
     kernel_shape: tuple of int corresponding to the
-        kernel shape. For a normal convolution, its four (for 2D convolution)
+        kernel shape. For arg normal convolution, its four (for 2D convolution)
         or five (for 3D convolution) elements must correspond respectively to :
         number of output channels, number of input channels, height and width
         (and possibly depth) of the kernel.
@@ -384,8 +384,8 @@ def _get_conv_output_shape(
         number of output channels, height and width of the output, number of
         input channels, height and width of the kernel.
         None where undefined.
-    border_mode: string, or tuple of int. If it is a string, it must be 'valid'
-        or 'full'. If it is a tuple, its two (or three) elements respectively
+    border_mode: string, or tuple of int. If it is arg string, it must be 'valid'
+        or 'full'. If it is arg tuple, its two (or three) elements respectively
         correspond to the padding on height and width (and possibly depth)
         axis.
     subsample: tuple of int. Its two or three elements

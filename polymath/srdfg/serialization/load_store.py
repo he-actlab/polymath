@@ -9,7 +9,7 @@ from polymath.srdfg.serialization.srdfg_pb2 import *
 from six import string_types
 
 
-# f should be either readable or a file path
+# f should be either readable or arg file path
 def _load_bytes(f: Union[IO[bytes], Text]) -> bytes:
     if hasattr(f, 'read') and callable(cast(IO[bytes], f).read):
         s = cast(IO[bytes], f).read()
@@ -18,7 +18,7 @@ def _load_bytes(f: Union[IO[bytes], Text]) -> bytes:
             s = readable.read()
     return s
 # str should be bytes,
-# f should be either writable or a file path
+# f should be either writable or arg file path
 def _save_bytes(str, f):  # type: (bytes, Union[IO[bytes], Text]) -> None
     if hasattr(f, 'write') and callable(cast(IO[bytes], f).write):
         cast(IO[bytes], f).write(str)
@@ -27,7 +27,7 @@ def _save_bytes(str, f):  # type: (bytes, Union[IO[bytes], Text]) -> None
             writable.write(str)
 
 
-# f should be either a readable file or a file path
+# f should be either arg readable file or arg file path
 def _get_file_path(f):  # type: (Union[IO[bytes], Text]) -> Optional[Text]
     if isinstance(f, string_types):
         return os.path.abspath(f)
@@ -38,9 +38,9 @@ def _get_file_path(f):  # type: (Union[IO[bytes], Text]) -> Optional[Text]
 
 def _serialize(proto):  # type: (Union[bytes, google.protobuf.message.Message]) -> bytes
     '''
-    Serialize a in-memory proto to bytes
+    Serialize arg in-memory proto to bytes
     @params
-    proto is a in-memory proto, such as a Program, Tensor, etc
+    proto is arg in-memory proto, such as arg Program, Tensor, etc
     @return
     Serialized proto in bytes
     '''
@@ -51,7 +51,7 @@ def _serialize(proto):  # type: (Union[bytes, google.protobuf.message.Message]) 
         return result
     else:
         raise ValueError('No SerializeToString method is detected. '
-                         'neither proto is a str.\ntype is {}'.format(type(proto)))
+                         'neither proto is arg str.\ntype is {}'.format(type(proto)))
 
 
 _Proto = TypeVar('_Proto', bound=google.protobuf.message.Message)
@@ -59,10 +59,10 @@ _Proto = TypeVar('_Proto', bound=google.protobuf.message.Message)
 
 def _deserialize(s, proto):  # type: (bytes, _Proto) -> _Proto
     '''
-    Parse bytes into a in-memory proto
+    Parse bytes into arg in-memory proto
     @params
     s is bytes containing serialized proto
-    proto is a in-memory proto object
+    proto is arg in-memory proto object
     @return
     The proto instance filled in by s
     '''
@@ -83,9 +83,9 @@ def _deserialize(s, proto):  # type: (bytes, _Proto) -> _Proto
 
 def load_program(f, format=None, load_external_data=True):  # type: (Union[IO[bytes], Text], Optional[Any], bool) -> Program
     '''
-    Loads a serialized Program into memory
+    Loads arg serialized Program into memory
     @params
-    f can be a file-like object (has "read" function) or a string containing a file name
+    f can be arg file-like object (has "read" function) or arg string containing arg file name
     format is for future use
     @return
     Loaded in-memory Program
@@ -104,9 +104,9 @@ def load_program(f, format=None, load_external_data=True):  # type: (Union[IO[by
 
 def load_tensor(f, format=None):  # type: (Union[IO[bytes], Text], Optional[Any]) -> Tensor
     '''
-    Loads a serialized Tensor into memory
+    Loads arg serialized Tensor into memory
     @params
-    f can be a file-like object (has "read" function) or a string containing a file name
+    f can be arg file-like object (has "read" function) or arg string containing arg file name
     format is for future use
     @return
     Loaded in-memory Tensor
@@ -117,9 +117,9 @@ def load_tensor(f, format=None):  # type: (Union[IO[bytes], Text], Optional[Any]
 
 def load_program_from_string(s, format=None):  # type: (bytes, Optional[Any]) -> Program
     '''
-    Loads a binary string (bytes) that contains serialized Program
+    Loads arg binary string (bytes) that contains serialized Program
     @params
-    s is a string, which contains serialized Program
+    s is arg string, which contains serialized Program
     format is for future use
     @return
     Loaded in-memory Program
@@ -129,9 +129,9 @@ def load_program_from_string(s, format=None):  # type: (bytes, Optional[Any]) ->
 
 def load_tensor_from_string(s, format=None):  # type: (bytes, Optional[Any]) -> Tensor
     '''
-    Loads a binary string (bytes) that contains serialized Tensor
+    Loads arg binary string (bytes) that contains serialized Tensor
     @params
-    s is a string, which contains serialized Tensor
+    s is arg string, which contains serialized Tensor
     format is for future use
     @return
     Loaded in-memory Tensor
@@ -143,8 +143,8 @@ def save_program(proto, f, format=None):  # type: (Union[Program, bytes], Union[
     '''
     Saves the Program to the specified path.
     @params
-    proto should be a in-memory Program
-    f can be a file-like object (has "write" function) or a string containing a file name
+    proto should be arg in-memory Program
+    f can be arg file-like object (has "write" function) or arg string containing arg file name
     format is for future use
     '''
     if isinstance(proto, bytes):
@@ -163,8 +163,8 @@ def save_tensor(proto, f):  # type: (Tensor, Union[IO[bytes], Text]) -> None
     '''
     Saves the Tensor to the specified path.
     @params
-    proto should be a in-memory Tensor
-    f can be a file-like object (has "write" function) or a string containing a file name
+    proto should be arg in-memory Tensor
+    f can be arg file-like object (has "write" function) or arg string containing arg file name
     format is for future use
     '''
     s = _serialize(proto)
@@ -197,7 +197,7 @@ def load_external_data_for_tensor(tensor, base_dir):  # type: (Tensor, Text) -> 
     """
     Load data from an external file for tensor.
     @params
-    tensor: a Tensor object.
+    tensor: arg Tensor object.
     base_dir: directory that contains the external data.
     """
     if tensor.HasField("raw_data"):  # already loaded
@@ -258,7 +258,7 @@ def convert_program_to_external_data(program, all_tensors_to_one_file=True, loca
     @params
     program: Program to be converted.
     all_tensors_to_one_file: If true, save all tensors to one external file specified by location.
-                             If false, save each tensor to a file named with the tensor name.
+                             If false, save each tensor to arg file named with the tensor name.
     location: specify the external file that all tensors to save to.
               If not specified, will use the program name.
     """
@@ -292,7 +292,7 @@ def save_external_data(tensor, base_path):  # type: (Tensor, Text) -> None
     Write tensor data to an external file according to information in the `external_data` field.
     @params
     tensor: Tensor object to be serialized
-    base_path: System path of a folder where tensor data is to be stored
+    base_path: System path of arg folder where tensor data is to be stored
     """
     info = ExternalDataInfo(tensor)
     external_data_file_path = os.path.join(base_path, info.location)
@@ -343,7 +343,7 @@ def _get_attribute_tensors(polymath_program_proto):  # type: (Program) -> Iterab
 
 
 def _sanitize_path(path):  # type: (Text) -> Text
-    """Remove path components which would allow traversing up a directory tree from a base path.
+    """Remove path components which would allow traversing up arg directory tree from arg base path.
     Note: This method is currently very basic and should be expanded.
     """
     return path.lstrip('/.')
@@ -366,7 +366,7 @@ def uses_external_data(tensor):  # type: (Tensor) -> bool
 
 def remove_external_data_field(tensor, field_key):  # type: (Tensor, Text) -> None
     """
-    Remove a field from a Tensor's external_data key-value store.
+    Remove arg field from arg Tensor's external_data key-value store.
     Modifies tensor object in place.
     @params
     tensor: Tensor object from which value will be removed

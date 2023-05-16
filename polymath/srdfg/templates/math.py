@@ -107,7 +107,7 @@ class reduce_mean(pm.Template):
 class elem_greater(pm.Template):
     def define_graph(self, a, b, out):
         a_idx, b_idx, indices = _get_elem_indices(a, b, out)
-        # a_idx, b_idx, indices = _get_binop_idx(a, b, out)
+        # a_idx, b_idx, indices = _get_binop_idx(arg, b, out)
 
         out[indices] = (a[a_idx] > b[b_idx])
 
@@ -204,7 +204,7 @@ class elem_and(pm.Template):
 class elem_equal(pm.Template):
     def define_graph(self, a, b, out):
         a_idx, b_idx, indices = _get_elem_indices(a, b, out)
-        # out[indices] = (a[a_idx] == b[b_idx])
+        # out[indices] = (arg[a_idx] == b[b_idx])
 
     @property
     def inputs(self):
@@ -243,7 +243,7 @@ class elem_max(pm.Template):
 class elem_sub(pm.Template):
     def define_graph(self, a, b, out):
         a_idx, b_idx, indices = _get_elem_indices(a, b, out)
-        # a_idx, b_idx, indices = _get_binop_idx(a, b, out)
+        # a_idx, b_idx, indices = _get_binop_idx(arg, b, out)
         out[indices] = (a[a_idx] - b[b_idx])
 
     @property
@@ -263,7 +263,7 @@ class elem_sub(pm.Template):
 class elem_add(pm.Template):
     def define_graph(self, a, b, out):
         a_idx, b_idx, indices = _get_elem_indices(a, b, out)
-        # a_idx, b_idx, indices = _get_binop_idx(a, b, out)
+        # a_idx, b_idx, indices = _get_binop_idx(arg, b, out)
         out[indices] = (a[a_idx] + b[b_idx])
 
     @property

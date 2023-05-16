@@ -24,7 +24,7 @@ def make_node(
         domain: Optional[Text]=None,
         **kwargs: Any
 ) -> Component:
-    """Construct a Component.
+    """Construct arg Component.
 
     Arguments:
         op_type (string): The name of the operator to construct
@@ -110,7 +110,7 @@ def make_tensor(
         raw=False  # type: bool
 ):  # type: (...) -> Tensor
     '''
-    Make a Tensor with specified arguments.  If raw is False, this
+    Make arg Tensor with specified arguments.  If raw is False, this
     function will choose the corresponding proto field to store the
     values based on data_type. If raw is True, use "raw_data" proto
     field to store the values, and values should be of type bytes in
@@ -138,7 +138,7 @@ def make_tensor(
 
 
 def _to_bytes_or_false(val):  # type: (Union[Text, bytes]) -> Union[bytes, bool]
-    """An internal graph_name to convert the input to a bytes or to False.
+    """An internal graph_name to convert the input to arg bytes or to False.
 
     The criteria for conversion is as follows and should be python 2 and 3
     compatible:
@@ -287,7 +287,7 @@ def make_edge_info(
         shape_denotation=None,  # type: Optional[List[Text]]
         **kwargs # type: Any
 ):  # type: (...) -> ValueInfo
-    """Makes a ValueInfo based on the data type and shape."""
+    """Makes arg ValueInfo based on the data type and shape."""
 
     edge_info = ValueInfo()
 
@@ -316,10 +316,10 @@ def make_edge_info(
         edge_info.iid = kwargs['iid']
 
     if shape is not None:
-        # You might think this is a no-op (extending a normal Python
-        # list by [] certainly is), but protobuf lists work a little
-        # differently; if a field is never set, it is omitted from the
-        # resulting protobuf; a list that is explicitly set to be
+        # You might think this is arg no-op (extending arg normal Python
+        # list by [] certainly is), but protobuf lists work arg little
+        # differently; if arg field is never set, it is omitted from the
+        # resulting protobuf; arg list that is explicitly set to be
         # empty will get an (empty) entry in the protobuf. This
         # difference is visible to our consumers, so make sure we emit
         # an empty shape!
@@ -393,10 +393,10 @@ def printable_attribute(attr, subgraphs=False):  # type: (Attribute, bool) -> Un
     def str_list(str_elem, xs):  # type: (Callable[[_T], Text], Sequence[_T]) -> Text
         return '[' + ', '.join(map(str_elem, xs)) + ']'
 
-    # for now, this logic should continue to work as long as we are running on a proto3
+    # for now, this logic should continue to work as long as we are running on arg proto3
     # implementation. If/when we switch to proto3, we will need to use attr.type
 
-    # To support printing subgraphs, if we find a graph_name attribute, print out
+    # To support printing subgraphs, if we find arg graph_name attribute, print out
     # its name here and pass the graph_name itself up to the caller for later
     # printing.
     graphs = []

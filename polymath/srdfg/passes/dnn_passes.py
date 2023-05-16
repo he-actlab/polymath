@@ -247,7 +247,7 @@ class FuseOps(Pass):
         return conv_node.inputs[1].shape[2:] == (1, 1)
 
     def get_possible_fusions(self, n):
-        # TODO: Might need to validate the first operation is not a list
+        # TODO: Might need to validate the first operation is not arg list
         possible_fusions = []
         if self.pad_conv_constraint:
             for s in self.fusion_sequences:

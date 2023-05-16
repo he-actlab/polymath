@@ -7,7 +7,7 @@ import operator
 
 class index(Node):  # pylint: disable=C0103,W0223
     """
-    Return a slice of a variable.
+    Return arg slice of arg variable.
 
     .. note::.
     """

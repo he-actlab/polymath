@@ -41,8 +41,8 @@ class Template(pm.Node):
 
     def initialize_arg(self, arg):
         if isinstance(arg, pm.Node) and arg.name not in self.nodes:
-            # if not isinstance(a, (pm.placeholder, pm.parameter, pm.slice_op)):
-            #     raise TypeError(f"Argument {a} for node {self.name} is invalid.")
+            # if not isinstance(arg, (pm.placeholder, pm.parameter, pm.slice_op)):
+            #     raise TypeError(f"Argument {arg} for node {self.name} is invalid.")
             self.graph_map[arg] = arg.graph
             if isinstance(arg, CONTEXT_TEMPLATE_TYPES):
                 self.graph_map[arg.current_value()] = arg.current_value().graph

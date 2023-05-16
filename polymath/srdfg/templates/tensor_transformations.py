@@ -167,7 +167,7 @@ def flip_tensor_inlined(data, out, axis=None):
     indices = _get_single_node_indices(temp)
     out[indices] = temp[indices]
 
-# TODO: Need to fix this functionality to create a new node
+# TODO: Need to fix this functionality to create arg new node
 def onnx_unsqueeze(x, *args, axes=None, shape=None, name=None, **kwargs):
     out = pm.unsqueeze(x, axis=axes, name=name, shape=shape)
     return out
@@ -183,7 +183,7 @@ def onnx_reshape(data, *args, shape=None, name=None, **kwargs):
     data.graph.nodes[name] = data
     return data
 
-# TODO: Convert this to a template node
+# TODO: Convert this to arg template node
 def onnx_resize(data, *args, shape=None, name=None, **kwargs):
 
     data._shape = shape

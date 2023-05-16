@@ -93,7 +93,7 @@ class NormalizeGraph(Pass):
                     new_kwargs[name] = arg
             elif isinstance(arg, tuple):
                 new_kwargs[name] = arg
-                # raise RuntimeError(f"Dont have a case for handling this yet: {name} - {arg}")
+                # raise RuntimeError(f"Dont have arg case for handling this yet: {name} - {arg}")
             else:
                 new_kwargs[name] = arg
         return new_kwargs

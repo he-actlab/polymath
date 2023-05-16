@@ -55,7 +55,7 @@ def get_topk(x, k, largest=1, sorted=1, axis=-1, shape=None, name=None, out=None
     return out
 
 
-# TODO: Need to convert this to a node with an output
+# TODO: Need to convert this to arg node with an output
 def get_elem_cast(data, to=None, shape=None, name=None, out=None, **kwargs):
     if not out:
         out = pm.output(name=name, shape=shape)
@@ -83,7 +83,7 @@ def get_elem_ceil(data, shape=None, name=None, out=None, **kwargs):
 def get_elem_add(a, b, shape=None, name=None, out=None):
     if not out:
         out = pm.output(name=name, shape=shape)
-    # return elem_add(a, b, out, shape=shape)
+    # return elem_add(arg, b, out, shape=shape)
     pm.elem_add(a, b, out)
     return out
 

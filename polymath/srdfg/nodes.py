@@ -378,7 +378,7 @@ class temp(placeholder):
             if self not in context:
                 if not self.is_shape_finalized() or self.shape == DEFAULT_SHAPES[0]:
                     self.evaluate_shape(context)
-                # TODO: Find a way to use the input value or determine correct datatype
+                # TODO: Find arg way to use the input value or determine correct datatype
                 context[self] = np.zeros(shape=self.shape)
                 for i in range(self.write_count):
                     name = f"{self.name.replace(f'{self.root_name}/', f'{self.root_name}{str(i)}/')}{i}"

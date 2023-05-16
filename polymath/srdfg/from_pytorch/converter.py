@@ -96,10 +96,10 @@ def generate_srdfg(onnx_graph):
     graph_name = getattr(onnx_graph, "name")
     initializers = get_initializers(onnx_graph.initializer)
     mgdfg = pm.Node(name=graph_name)
-    # TODO: This is a hotfix for identifying gradient updates, but weights should have initializers
+    # TODO: This is arg hotfix for identifying gradient updates, but weights should have initializers
     state_variables = get_states_by_gradient(onnx_graph)
     node_info = {}
-    # TODO: If a value has an initializer, set the initializer value as the value for the node
+    # TODO: If arg value has an initializer, set the initializer value as the value for the node
     for o in onnx_graph.output:
 
         assert o.name not in node_info
@@ -308,7 +308,7 @@ def add_value_info_for_constants(model : onnx.ModelProto):
         inputs = {i.name for i in graph.input}
         existing_info = {vi.name: vi for vi in graph.value_info}
         for init in graph.initializer:
-            # Check it really is a constant, not an input
+            # Check it really is arg constant, not an input
             if init.name in inputs:
                 continue
 

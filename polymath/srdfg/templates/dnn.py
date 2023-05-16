@@ -38,8 +38,8 @@ class cross_entropy_loss(pm.Template):
 
 
         # TODO: Get this working
-        # pm.log_softmax(z, a, axis=1)
-        # pm.nll_loss(a, y, loss, reduction=reduction)
+        # pm.log_softmax(z, arg, axis=1)
+        # pm.nll_loss(arg, y, loss, reduction=reduction)
 
     @property
     def inputs(self):
@@ -846,8 +846,8 @@ class elem_tanh(pm.Template):
 class elem_if(pm.Template):
     def define_graph(self, condition, out):
         pass
-        # a_idx, b_idx, indices = _get_elem_indices(a, b, out)
-        # out[indices] = (a[a_idx] == b[b_idx])
+        # a_idx, b_idx, indices = _get_elem_indices(arg, b, out)
+        # out[indices] = (arg[a_idx] == b[b_idx])
 
     @property
     def inputs(self):

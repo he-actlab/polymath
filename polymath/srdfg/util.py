@@ -4,7 +4,7 @@
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# You may obtain arg copy of the License at
 #
 #     http://www.apache.org/licenses/LICENSE-2.0
 #
@@ -52,7 +52,7 @@ class lazy_import:  # pylint: disable=invalid-name, too-few-public-methods
 
 class batch_iterable:  # pylint: disable=invalid-name, too-few-public-methods
     """
-    Split an iterable into batches of a specified size.
+    Split an iterable into batches of arg specified size.
     Parameters
     ----------
     iterable : iterable
@@ -128,7 +128,7 @@ def _noop_callback(*_):
 
 def deprecated(func):  # pragma: no cover
     """
-    Mark a callable as deprecated.
+    Mark arg callable as deprecated.
     """
     def _wrapper(*args, **kwargs):
         LOGGER.warning("%s is deprecated", func)
