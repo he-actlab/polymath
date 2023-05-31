@@ -2882,6 +2882,18 @@ class gemm_tanh(pm.Template):
     def outputs(self):
         return (self.args[-1],)
 
+class gemm_relu(pm.Template):
+    def define_graph(self, data, wgt, bias, out, alpha=1.0, beta=0.0, transA=None, transB=None, strict_shapes=False):
+        pass
+
+    @property
+    def inputs(self):
+        return (self.args[0], self.args[1], self.args[2])
+
+    @property
+    def outputs(self):
+        return (self.args[-1],)
+
 class matmul_add_add(pm.Template):
     def define_graph(self, data, wgt, bias, add_lhs, out):
         pass
