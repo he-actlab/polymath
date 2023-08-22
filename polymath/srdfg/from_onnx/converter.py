@@ -163,7 +163,7 @@ def get_initializers(initializers):
     for i in initializers:
         val = numpy_helper.to_array(i)
         if len(val.shape) == 0:
-            val = np.int(val)
+            val = int(val) 
         init_dict[i.name] = val
     return init_dict
 
