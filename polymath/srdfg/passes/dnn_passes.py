@@ -1,7 +1,9 @@
 from polymath.srdfg.passes import register_pass, Pass
 from polymath.srdfg.templates import fused_dnn
+from polymath.srdfg.templates.template_utils import get_pad_tuple
 import polymath as pm
 import inspect
+import numpy as np
 from collections import defaultdict, namedtuple
 ALL_TEMPLATES = dir(pm.srdfg.templates.math) + dir(pm.srdfg.templates.dnn) + dir(pm.srdfg.templates.tensor_transformations)
 NON_DNN_NODE_OPS = (pm.write, pm.placeholder, pm.index, pm.var_index,
@@ -494,6 +496,746 @@ class UpdateBatchSize(Pass):
             node, shape_list = BATCH_FUNCS[node.op_name](node, self.batch_size)
             self.shape_tracker[f"{node.op_name}{self.op_counter[node.op_name]}"] = shape_list
             self.op_counter[node.op_name] += 1
+        return node
+
+@register_pass
+class ScaleLayers(Pass):
+    ELEMWISE = ["relu", "leaky_relu", "elem_add", "elem_sub", "elem_pow", "elem_sqrt", "elem_div", "elem_mul",
+                "elem_where", "elem_tanh", "elem_clip", "gelu", "softmax"]
+    UNIQUE=  ["global_avg_pool", "conv_bias", "conv", "max_pool", "gemm", "reduce_mean", "tensor_reshape", "split", "matmul", "tensor_transpose",
+              "depthwise_conv_bias", "avg_pool", "tensor_squeeze", "coarse_flatten", "resize", "concat", "depthwise_conv_bias", "bias_add"]
+    def __init__(self, scale_factors, graph_name, divisor=32, fallback_split=2, debug=False):
+        self.fallback_split = fallback_split
+        self.divisor = divisor
+        assert divisor % fallback_split == 0
+        self.vision_model = False
+        self.graph_name = graph_name
+        self.oc_split = scale_factors['OC']
+        self.oh_split = scale_factors['OH']
+        self.ow_split = scale_factors['OW']
+        self.scale_factors = scale_factors
+        self.op_counter = defaultdict(int)
+        self.debug = debug
+
+        self.shape_tracker = {}
+        super(ScaleLayers, self).__init__()
+
+    def print_shapes(self, node):
+        for i in node.inputs + node.outputs:
+            print(f"{i.name}: {i.shape}")
+
+    def update_elemwise_transformer(self, node):
+        shapes_list = []
+        orig_base = None
+        new_base = None
+        for i in node.inputs:
+            if 'base_shape' in i.kwargs:
+                orig_base = i.kwargs['base_shape']
+                new_base = i.shape
+                break
+        assert orig_base is not None, f"Could not find existing shape for elemwise operation {node.op_name} in node {node.name}"
+        for i in (node.inputs + node.outputs):
+            if 'base_shape' in i.kwargs:
+                if orig_base != i.kwargs['base_shape']:
+                    for idx in range(len(i.kwargs['base_shape'])):
+                        rev_idx_new = len(i.kwargs['base_shape']) - idx - 1
+                        rev_idx_exp = len(orig_base) - idx - 1
+                        d = i.kwargs['base_shape'][rev_idx_new]
+                        if d != orig_base[rev_idx_exp]:
+                            assert d == 1, f"Expected non-equal dimensiosn to be 1 in elementwise {node.op_name}, but got {i.shape}, dimension {d} for {i.name}, expected {orig_base[rev_idx_exp]}"
+                else:
+                    assert orig_base == i.kwargs['base_shape'], f"Expected original base to be equal in operation {node.name}:{node.op_name}\n" \
+                                                                f"Expected: {orig_base}\n" \
+                                                                f"{i.name}: {i.kwargs['base_shape']} "
+                    assert i.shape == new_base, f"Expected new base to be equal in operation {node.name}:{node.op_name}\n" \
+                                                                f"Expected: {new_base}\n" \
+                                                                f"{i.name}: {i.shape}\n" \
+                                                f"Input shapes: {[inp.shape for inp in node.inputs]}"
+                shapes_list.append(i.shape)
+                continue
+            new_shape = []
+            for idx in range(len(i.shape)):
+                rev_idx_new = len(i.shape) - idx - 1
+                rev_idx_exp = len(orig_base) - idx - 1
+                if i.shape[rev_idx_new] != orig_base[rev_idx_exp]:
+                    assert i.shape[rev_idx_new] == 1, f"Expected non-equal dimensiosn to be 1 in elementwise {node.op_name}, but got {i.shape} ({i.shape[rev_idx_new]}, idx={rev_idx_new}) for {i.name}, expected {orig_base[rev_idx_exp]}"
+                    new_shape.insert(0, 1)
+                else:
+                    new_shape.insert(0, new_base[rev_idx_exp])
+            i.add_attribute('base_shape', i.shape)
+            i.set_shape(new_shape, override=True)
+            shapes_list.append(i.shape)
+        return node, shapes_list
+
+    def update_reduce_mean(self, node):
+        x = node.args[0]
+        o = node.args[1]
+        axis = node.kwargs['axes']
+        assert 'base_shape' in x.kwargs
+        new_shape = []
+        for i, d in enumerate(x.shape):
+            if i in axis:
+                new_shape.append(1)
+            else:
+                new_shape.append(d)
+        o.add_attribute('base_shape', o.shape)
+        o.set_shape(new_shape, override=True)
+        return node, [x.shape, o.shape]
+
+    def update_bias_add(self, node):
+        x = node.args[0]
+        b = node.args[1]
+        o = node.args[2]
+        assert 'base_shape' in x.kwargs
+        assert len(b.shape) == 1
+        b.add_attribute('base_shape', b.shape)
+        b.set_shape([x.shape[1]], override=True)
+
+        o.add_attribute('base_shape', o.shape)
+        o.set_shape(x.shape, override=True)
+        return node, [x.shape, b.shape, o.shape]
+
+
+    def update_elemwise(self, node):
+        shapes_list = []
+        orig_base = None
+        new_base = None
+        for i in node.inputs:
+            if 'base_shape' in i.kwargs:
+                orig_base = i.kwargs['base_shape']
+                new_base = i.shape
+                break
+        assert orig_base is not None, f"Could not find existing shape for elemwise operation in node {node.name}"
+        for i in (node.inputs + node.outputs):
+            if 'base_shape' in i.kwargs:
+                assert orig_base == i.kwargs['base_shape'], f"Expected original base to be equal in operation {node.name}:{node.op_name}\n" \
+                                                            f"Expected: {orig_base}\n" \
+                                                            f"{i.name}: {i.kwargs['base_shape']} "
+                assert i.shape == new_base, f"Expected new base to be equal in operation {node.name}:{node.op_name}\n" \
+                                                            f"Expected: {new_base}\n" \
+                                                            f"{i.name}: {i.shape} "
+                shapes_list.append(i.shape)
+                continue
+            assert i.shape == orig_base, f"Expected all elementwise shapes to be equal, but got {i.shape} and {orig_base}"
+            i.add_attribute('base_shape', i.shape)
+            i.set_shape(new_base, override=True)
+
+            shapes_list.append(i.shape)
+        return node, shapes_list
+
+    @property
+    def batch_split(self):
+        return self.oh_split*self.ow_split
+
+    def update_transformer_shapes(self, node):
+        if node.op_name in self.ELEMWISE: return self.update_elemwise_transformer(node)
+        elif node.op_name == "bias_add": return self.update_bias_add(node)
+        elif node.op_name in ["conv", "depthwise_conv"]: return self.update_conv(node, dw_conv=node.op_name=="depthwise_conv")
+        elif node.op_name in ["conv_bias", "depthwise_conv_bias"]: return self.update_conv_bias(node, dw_conv=node.op_name=="depthwise_conv_bias")
+        elif node.op_name == "matmul": return self.update_matmul(node)
+        elif node.op_name == "gemm": return self.update_gemm(node)
+        elif node.op_name == "global_avg_pool": return self.update_global_avg_pool(node)
+        elif node.op_name == "avg_pool": return self.update_pool(node)
+        elif node.op_name == "max_pool": return self.update_pool(node)
+        elif node.op_name == "elem_where": return self.update_elem_where(node)
+        elif node.op_name == "concat": return self.update_concat(node)
+        elif node.op_name == "resize": return self.update_resize(node)
+        elif node.op_name == "split": return self.update_split(node)
+        elif node.op_name == "coarse_flatten": return self.update_coarse_flatten(node)
+        elif node.op_name == "tensor_reshape": return self.update_tensor_reshape(node)
+        elif node.op_name == "tensor_squeeze": return self.update_tensor_squeeze(node)
+        elif node.op_name == "tensor_transpose": return self.update_tensor_transpose(node)
+        elif node.op_name == "reduce_mean": return self.update_reduce_mean(node)
+        else:
+            raise RuntimeError(f"Unsupported transformer operation {node.op_name}")
+
+    def get_conv_attrs(self, node):
+        num_filter, channel, kernel_h, kernel_w = node.args[1].shape
+        dilation = node.kwargs['dilation']
+        stride = node.kwargs['stride']
+        pad = node.kwargs['pad']
+        if not isinstance(stride, (tuple, list)):
+            stride_h = stride_w = stride
+        else:
+            stride_h, stride_w = stride
+
+        if not isinstance(dilation, (tuple, list)):
+            dilation_h = dilation_w = dilation
+        else:
+            dilation_h, dilation_w = dilation
+
+        if not isinstance(pad, (tuple, list)):
+            pad = (pad, pad)
+        dilated_kernel_h = (kernel_h - 1) * dilation_h + 1
+        dilated_kernel_w = (kernel_w - 1) * dilation_w + 1
+        if len(pad) == 2:
+            pad_top, pad_left, pad_down, pad_right = get_pad_tuple(
+                pad, (dilated_kernel_h, dilated_kernel_w)
+            )
+        else:
+            assert len(pad) == 4
+            pad_top, pad_left, pad_down, pad_right = pad
+
+        info = {}
+        info['stride'] = (stride_h, stride_h)
+        info['dilation'] = (dilation_h, dilation_w)
+        info['padding'] = (pad_top, pad_left, pad_down, pad_right)
+        return info
+
+    def update_conv_bias(self, node, dw_conv=False):
+        x = node.args[0]
+        w = node.args[1]
+        b = node.args[2]
+        o = node.args[3]
+        _, _, kernel_h, kernel_w = w.shape
+        _, oc_orig, oh_orig, ow_orig = o.shape
+        info = self.get_conv_attrs(node)
+
+        n = x.shape[0]
+        oc_new = np.ceil(oc_orig / self.oc_split).astype('int32')
+
+        assert 'base_shape' not in o.kwargs and 'base_shape' not in w.kwargs and 'base_shape' not in b.kwargs
+        assert 'base_shape' in x.kwargs, f"Could not find shape in arg {x.name} for node {node.name}"
+        ic_orig = x.kwargs['base_shape'][1]
+        if x.kwargs.get('onnx_input', False):
+            oh_new = np.ceil(oh_orig/self.oh_split).astype('int32')
+            ow_new = np.ceil(ow_orig/self.ow_split).astype('int32')
+            ic_new = x.shape[1]
+            ih_new = ((oh_new - 1)*info['stride'][0]) + 1 + info['dilation'][0] * (kernel_h - 1) -  info['padding'][0] - info['padding'][2]
+            iw_new = ((ow_new - 1)*info['stride'][1]) + 1 + info['dilation'][1] * (kernel_w - 1) -  info['padding'][1] - info['padding'][3]
+            assert ih_new > 0 and iw_new > 0
+            x.set_shape([n, x.shape[1], ih_new, iw_new], override=True)
+        else:
+            _, ic_new, ih_new, iw_new = x.shape
+            oh_new = (ih_new + info['padding'][0] + info['padding'][2] - info['dilation'][0] * (kernel_h - 1) - 1) / info['stride'][0] + 1
+            ow_new = (iw_new + info['padding'][1] + info['padding'][3] - info['dilation'][1] * (kernel_w - 1) - 1) / info['stride'][1] + 1
+
+        if int(oh_new) == 0:
+            new_padding = list(info['padding'])
+            if info['padding'][0] > info['padding'][2]:
+                new_padding[2] += 1
+            else:
+                new_padding[0] += 1
+            info['padding'] = new_padding
+            oh_new = (ih_new + info['padding'][0] + info['padding'][2] - info['dilation'][0] * (kernel_h - 1) - 1) / info['stride'][0] + 1
+
+        if int(ow_new) == 0:
+            new_padding = list(info['padding'])
+            if info['padding'][1] > info['padding'][3]:
+                new_padding[3] += 1
+            else:
+                new_padding[1] += 1
+            info['padding'] = new_padding
+            ow_new = (iw_new + info['padding'][1] + info['padding'][3] - info['dilation'][1] * (kernel_w - 1) - 1) / info['stride'][1] + 1
+        node.kwargs['pad'] = info['padding']
+        oh_new = int(oh_new)
+        ow_new = int(ow_new)
+        assert oh_new > 0, f"Expected non-zero output height for {node.op_name}:\n" \
+                           f"Input name: {x.name}\n" \
+                           f"OH: {oh_new}\n" \
+                           f"Previous OH: {oh_orig}\n" \
+                           f"IH: {ih_new}\n" \
+                           f"Previous IH: {x.kwargs['base_shape'][2]}\n" \
+                           f"Pad: {info['padding'][0]}, {info['padding'][2]}\n" \
+                           f"dilation: {info['dilation'][0]}\n" \
+                           f"kh: {kernel_h}, stride: {info['stride'][0]}"
+        assert ow_new > 0, f"Expected non-zero output width for {node.op_name}:\n" \
+                           f"Input name: {x.name}\n" \
+                           f"OH: {ow_new}\n" \
+                           f"Previous OW: {ow_orig}\n" \
+                           f"IW: {iw_new}\n" \
+                           f"Previous IW: {x.kwargs['base_shape'][3]}\n" \
+                           f"Pad: {info['padding'][1]}, {info['padding'][3]}\n" \
+                           f"dilation: {info['dilation'][0]}\n" \
+                           f"kw: {kernel_w}, stride: {info['stride'][0]}"
+        o.set_shape([n, oc_new, oh_new, ow_new], override=True)
+        o.add_attribute('base_shape', (n, oc_orig, oh_orig, ow_orig))
+        w.add_attribute('base_shape', w.shape)
+        w.set_shape([oc_new, ic_new, kernel_h, kernel_w], override=True)
+        b.set_shape([oc_new], override=True)
+        b.add_attribute('base_shape', oc_orig)
+
+        if dw_conv:
+            w.set_shape([w.shape[0], 1, w.shape[2], w.shape[3]], override=True)
+        shapes_list = []
+        shapes_list.append(x.shape)
+        shapes_list.append(w.shape)
+        shapes_list.append(b.shape)
+        shapes_list.append(o.shape)
+        return node, shapes_list
+
+
+    def update_conv(self, node, dw_conv=False):
+        x = node.args[0]
+        w = node.args[1]
+        o = node.args[2]
+        _, _, kernel_h, kernel_w = w.shape
+        _, oc_orig, oh_orig, ow_orig = o.shape
+        info = self.get_conv_attrs(node)
+
+        n = x.shape[0]
+        oc_new = np.ceil(oc_orig / self.oc_split).astype('int32')
+
+        assert 'base_shape' not in o.kwargs and 'base_shape' not in w.kwargs
+        assert 'base_shape' in x.kwargs, f"Could not find shape in arg {x.name} for node {node.name}"
+        ic_orig = x.kwargs['base_shape'][1]
+        if x.kwargs.get('onnx_input', False):
+            oh_new = np.ceil(oh_orig/self.oh_split).astype('int32')
+            ow_new = np.ceil(ow_orig/self.ow_split).astype('int32')
+            ic_new = x.shape[1]
+            ih_new = ((oh_new - 1)*info['stride'][0]) + 1 + info['dilation'][0] * (kernel_h - 1) -  info['padding'][0] - info['padding'][2]
+            iw_new = ((ow_new - 1)*info['stride'][1]) + 1 + info['dilation'][1] * (kernel_w - 1) -  info['padding'][1] - info['padding'][3]
+            assert ih_new > 0 and iw_new > 0
+            x.set_shape([n, x.shape[1], ih_new, iw_new], override=True)
+        else:
+            _, ic_new, ih_new, iw_new = x.shape
+            oh_new = (ih_new + info['padding'][0] + info['padding'][2] - info['dilation'][0] * (kernel_h - 1) - 1) / info['stride'][0] + 1
+            ow_new = (iw_new + info['padding'][1] + info['padding'][3] - info['dilation'][1] * (kernel_w - 1) - 1) / info['stride'][1] + 1
+        if int(oh_new) == 0:
+            new_padding = list(info['padding'])
+            if info['padding'][0] > info['padding'][2]:
+                new_padding[2] += 1
+            else:
+                new_padding[0] += 1
+            info['padding'] = new_padding
+            oh_new = (ih_new + info['padding'][0] + info['padding'][2] - info['dilation'][0] * (kernel_h - 1) - 1) / info['stride'][0] + 1
+
+        if int(ow_new) == 0:
+            new_padding = list(info['padding'])
+            if info['padding'][1] > info['padding'][3]:
+                new_padding[3] += 1
+            else:
+                new_padding[1] += 1
+            info['padding'] = new_padding
+            ow_new = (iw_new + info['padding'][1] + info['padding'][3] - info['dilation'][1] * (kernel_w - 1) - 1) / info['stride'][1] + 1
+        node.kwargs['pad'] = info['padding']
+        oh_new = int(oh_new)
+        ow_new = int(ow_new)
+        assert oh_new > 0, f"Expected non-zero output height for {node.op_name}:\n" \
+                           f"Input name: {x.name}\n" \
+                           f"OH: {oh_new}\n" \
+                           f"Previous OH: {oh_orig}\n" \
+                           f"IH: {ih_new}\n" \
+                           f"Previous IH: {x.kwargs['base_shape'][2]}\n" \
+                           f"Pad: {info['padding'][0]}, {info['padding'][2]}\n" \
+                           f"dilation: {info['dilation'][0]}\n" \
+                           f"kh: {kernel_h}, stride: {info['stride'][0]}"
+        assert ow_new > 0, f"Expected non-zero output width for {node.op_name}:\n" \
+                           f"Input name: {x.name}\n" \
+                           f"OH: {ow_new}\n" \
+                           f"Previous OW: {ow_orig}\n" \
+                           f"IW: {iw_new}\n" \
+                           f"Previous IW: {x.kwargs['base_shape'][3]}\n" \
+                           f"Pad: {info['padding'][1]}, {info['padding'][3]}\n" \
+                           f"dilation: {info['dilation'][0]}\n" \
+                           f"kw: {kernel_w}, stride: {info['stride'][0]}"
+        o.set_shape([n, oc_new, oh_new, ow_new], override=True)
+        o.add_attribute('base_shape', (n, oc_orig, oh_orig, ow_orig))
+
+        w.add_attribute('base_shape', w.shape)
+        w.set_shape([oc_new, ic_new, kernel_h, kernel_w], override=True)
+        # w.add_attribute('base_shape', (oc_orig, ic_orig, kernel_h, kernel_w))
+        if dw_conv:
+            w.set_shape([w.shape[0], 1, w.shape[2], w.shape[3]], override=True)
+        shapes_list = []
+        shapes_list.append(x.shape)
+        shapes_list.append(w.shape)
+        shapes_list.append(o.shape)
+        return node, shapes_list
+
+    def update_matmul(self, node):
+        x = node.args[0]
+        w = node.args[1]
+        o = node.args[2]
+        if len(x.shape) == 3:
+            assert 'base_shape' in x.kwargs
+            orig_p = w.shape[-1]
+            new_p = max(np.ceil(orig_p / self.oc_split), self.divisor)
+            new_m = x.shape[-2]
+            new_n = x.shape[-1]
+
+            w.add_attribute("base_shape", w.shape)
+            assert len(w.shape) == 2
+            w.set_shape([new_n, new_p], override=True)
+
+            o.add_attribute("base_shape", o.shape)
+            o.set_shape([x.shape[0], new_m, new_p], override=True)
+        elif len(w.shape) == 4:
+            assert len(x.shape) == 4
+            assert len(w.shape) == 4
+            assert 'base_shape' in x.kwargs
+            assert 'base_shape' in w.kwargs
+            new_m = x.shape[-2]
+            new_p = w.shape[-1]
+            o.add_attribute("base_shape", o.shape)
+            o.set_shape([x.shape[0], x.shape[1], new_m, new_p], override=True)
+        else:
+            assert len(x.shape) == 4
+            assert len(w.shape) == 2
+            assert 'base_shape' in x.kwargs
+            assert 'base_shape' not in w.kwargs
+            new_m = x.shape[-2]
+            new_p = max(np.ceil(w.shape[-1]/self.oc_split), self.divisor)
+            w.add_attribute("base_shape", w.shape)
+            w.set_shape([x.shape[-1], new_p], override=True)
+            o.add_attribute("base_shape", o.shape)
+            o.set_shape([x.shape[0], x.shape[1], new_m, new_p], override=True)
+        return node, [x.shape, w.shape, o.shape]
+
+
+
+
+        assert len(x.shape) == 2
+        assert len(w.shape) == 2
+        assert len(o.shape) == 2
+
+        return node, [x.shape, w.shape, o.shape]
+
+    def update_gemm(self, node):
+
+        transA = node.kwargs['transA']
+        transB = node.kwargs['transB']
+        x = node.args[0]
+
+        w = node.args[1]
+        b = node.args[2]
+        o = node.args[3]
+        assert len(x.shape) == 2
+        assert len(w.shape) == 2
+        assert len(o.shape) == 2
+        if transA:
+            new_m = x.shape[1]
+            new_n = x.shape[0]
+        else:
+            new_m = x.shape[0]
+            new_n = x.shape[1]
+
+        if transB:
+            orig_p = w.shape[0]
+            if self.vision_model:
+                new_p = np.ceil(orig_p / self.oc_split)
+            else:
+                new_p = max(np.ceil(orig_p / self.oc_split), self.divisor)
+            w.set_shape([new_p, new_n], override=True)
+        else:
+            orig_p = w.shape[1]
+            if self.vision_model:
+                new_p = np.ceil(orig_p / self.oc_split)
+            else:
+                new_p = max(np.ceil(orig_p / self.oc_split), self.divisor)
+            w.add_attribute('base_shape', w.shape)
+            w.set_shape([new_n, new_p], override=True)
+        b.add_attribute('base_shape', b.shape)
+        if len(b.shape) == 2:
+            b.set_shape([new_m, new_p], override=True)
+        else:
+            b.set_shape([new_p], override=True)
+        o.add_attribute('base_shape', o.shape)
+        o.set_shape([new_m, new_p], override=True)
+        return node, [x.shape, w.shape, b.shape, o.shape]
+
+    def update_global_avg_pool(self, node):
+        shapes_list = []
+        x = node.args[0]
+        assert 'base_shape' in x.kwargs
+        o = node.args[1]
+        new_out_shape = [o.shape[0], x.shape[1], o.shape[2], o.shape[3]]
+        o.add_attribute('base_shape', o.shape)
+        o.set_shape(new_out_shape, override=True)
+        shapes_list.append(x.shape)
+        shapes_list.append(o.shape)
+        return node, shapes_list
+
+
+    def update_pool(self, node):
+        x = node.args[0]
+        o = node.args[1]
+        assert 'base_shape' in x.kwargs
+        kernel_size = node.kwargs['kernel_size']
+        stride = node.kwargs['stride']
+        pad = node.kwargs['pad']
+
+        if kernel_size is None:
+            raise RuntimeError(f"Kernel size is a required parameter with no default value.\n"
+                               f"Need to provide value.")
+        elif isinstance(kernel_size, tuple):
+            assert len(kernel_size) == 2
+            kh, kw = kernel_size
+        elif isinstance(kernel_size, int):
+            kh, kw = kernel_size, kernel_size
+        elif isinstance(kernel_size, list):
+            assert len(kernel_size) == 2
+            kh, kw = kernel_size[0], kernel_size[1]
+        else:
+            raise RuntimeError(f"Invalid type for kernel size: {type(kernel_size)}, value: {kernel_size}")
+        computed_oh = (x.shape[-2] + 2 * pad[0] - kh) // stride[0] + 1
+        computed_ow = (x.shape[-1] + 2 * pad[1] - kw) // stride[1] + 1
+        new_oh = max(computed_oh, 1)
+        new_ow = max(computed_ow, 1)
+        if computed_oh != new_oh:
+            new_kh = (new_oh - 2*pad[0])
+            new_kw = (new_ow - 2*pad[1])
+            node.kwargs['kernel_size'] = (new_kh, new_kw)
+        o.add_attribute('base_shape', o.shape)
+        o.set_shape([o.shape[0], x.shape[1], new_oh, new_ow], override=True)
+        return node, [x.shape, o.shape]
+
+    def update_coarse_flatten(self, node):
+        x = node.args[0]
+        o = node.args[1]
+        assert 'base_shape' in x.kwargs
+        o.add_attribute('base_shape', o.shape)
+        new_in_shape = x.shape
+        new_out_shape = list(new_in_shape[:node.kwargs['axis']]) + [np.prod(new_in_shape[node.kwargs['axis']:])]
+        o.set_shape(new_out_shape, override=True)
+        return node, [x.shape, o.shape]
+
+    def update_concat(self, node):
+        axis = node.kwargs['axis']
+        new_shape = list(node.inputs[0].shape)
+        shapes = [node.inputs[0].shape]
+        for i in node.inputs[1:]:
+            assert 'base_shape' in i.kwargs
+            shapes.append(i.shape)
+            for idx, d in enumerate(i.shape):
+                if idx == axis:
+                    new_shape[idx] += d
+                else:
+                    assert d == new_shape[idx], f"All concatenation shapes must ahve the same value on the non-concat axis\n" \
+                                                f"operation: {node.name}\n" \
+                                                f"Operand: {i.name}\n" \
+                                                f"Input shape: {i.shape}, Expected: {new_shape}, Axis: {axis}\n" \
+                                                f"Invalid axis value ({idx}): {d}, Expected: {new_shape[idx]}"
+        o = node.outputs[0]
+        o.add_attribute('base_shape', o.shape)
+        o.set_shape(new_shape, override=True)
+        return node, shapes + [o.shape]
+
+
+    def update_resize(self, node):
+        x = node.args[0]
+        assert 'base_shape' in x.kwargs
+        scales = node.args[1]
+        scales.add_attribute('base_shape', scales.shape)
+        assert len(scales.init_value) == len(x.shape)
+        o = node.args[2]
+        new_shape = []
+        o.add_attribute('base_shape', o.shape)
+        splits = [1, self.oc_split, self.oh_split, self.ow_split]
+        for i, d in enumerate(x.shape):
+            if o.shape[i] % splits[i] == 0:
+                new_shape.append(int(o.shape[i]/splits[i]))
+            else:
+                new_shape.append(d*scales.init_value[i])
+        o.set_shape(new_shape, override=True)
+        return node, [x.shape, scales.shape, o.shape]
+
+    def update_split(self, node):
+        x = node.args[0]
+        assert 'base_shape' in x.kwargs
+        split = node.kwargs['split'][0]
+        assert all([s == split for s in node.kwargs['split']])
+        total_size = x.kwargs['base_shape'][node.kwargs['axis']]
+
+        split_factor = total_size / split
+        scaled_split = max(x.shape[node.kwargs['axis']] / split_factor, self.divisor)
+        shapes = [x.shape]
+        for i, o in enumerate(node.outputs):
+            o.add_attribute('base_shape', o.shape)
+            new_shape = list(x.shape)
+            new_shape[node.kwargs['axis']] = scaled_split
+            o.set_shape(new_shape, override=True)
+            shapes.append(o.shape)
+        return node, shapes
+
+    def update_tensor_reshape(self, node):
+        x = node.args[0]
+        o = node.args[1]
+        assert 'base_shape' in x.kwargs
+        o.add_attribute('base_shape', o.shape)
+        prev_inp_shape = x.kwargs['base_shape']
+        if isinstance(node.args[2], pm.state):
+            prev_new_shape = node.args[2].init_value
+        else:
+            assert isinstance(node.args[2], tuple)
+            prev_new_shape = node.args[2]
+        new_shape = []
+        # Hacky, special case for unsqueezing the first dimension
+        if tuple([i for i in o.shape if i != 1]) == tuple([i for i in x.kwargs['base_shape'] if i != 1]):
+            for i in range(len(prev_new_shape)):
+                rev_idx = len(prev_new_shape) - i - 1
+                if prev_new_shape[rev_idx] == 1:
+                    new_shape.insert(0, 1)
+                else:
+                    rev_idx = len(x.shape) - i - 1
+                    new_shape.insert(0, x.shape[rev_idx])
+        elif tuple([i for i in x.kwargs['base_shape'] if i != 1]) == o.shape:
+            new_shape = [d for d in x.shape if d != 1]
+        elif len(prev_new_shape) > len(x.shape):
+            for i, d in enumerate(prev_new_shape):
+                if d == prev_inp_shape[i]:
+                    new_shape.append(x.shape[i])
+                elif d <= prev_inp_shape[i]:
+                    assert prev_inp_shape[i] % d == 0
+                    split_factor = prev_inp_shape[i]/d
+                    if x.shape[i] % split_factor != 0:
+                        if split_factor % (prev_inp_shape[i] / x.shape[i]) == 0:
+                            assert split_factor % (prev_inp_shape[i] / x.shape[i]) == 0, f"Split factor {split_factor} not divisible by {prev_inp_shape[i]}"
+                            split_factor /= (prev_inp_shape[i] / x.shape[i])
+                        else:
+                            split_factor = self.fallback_split
+                    assert x.shape[i] % split_factor == 0
+                    new_shape.append(split_factor)
+                    new_shape.append(x.shape[i]/split_factor)
+                    break
+                else:
+                    raise RuntimeError
+        else:
+            for i, d in enumerate(prev_new_shape):
+                if d == prev_inp_shape[i]:
+                    new_shape.append(x.shape[i])
+                elif d >= prev_inp_shape[i]:
+                    new_shape.append(np.prod(x.shape[i:]))
+                    break
+                else:
+                    raise RuntimeError
+        assert len(new_shape) == len(prev_new_shape), f"Expected new shape and prev shape to be the same length for {o.name}:\n" \
+                                                      f"New shape: {new_shape}\n" \
+                                                      f"Previous: {prev_new_shape}\n" \
+                                                      f"{x.kwargs['base_shape']} --> {o.kwargs['base_shape']}"
+        # if isinstance(node.args[2], pm.state):
+        #     node.args[2].kwargs['init_value'] = new_shape
+        # else:
+        #     node._args[2] = new_shape
+        assert np.prod(new_shape) == np.prod(x.shape)
+        o.set_shape(new_shape, override=True)
+        return node, [x.shape, o.shape]
+    def update_tensor_squeeze(self, node):
+        x = node.args[0]
+        o = node.args[1]
+        assert 'base_shape' in x.kwargs
+        o.add_attribute('base_shape', o.shape)
+        new_in_shape = x.shape
+        new_out_shape = []
+        for d in range(len(o.shape)):
+            new_out_shape.append(new_in_shape[d])
+        o.set_shape(new_out_shape, override=True)
+        return node, [x.shape, o.shape]
+
+    def update_tensor_transpose(self, node):
+        x = node.args[0]
+        o = node.args[1]
+        axis = node.kwargs['perm']
+        assert 'base_shape' in x.kwargs
+        new_shape = [x.shape[axis[i]] for i in range(len(x.shape))]
+        o.add_attribute('base_shape', o.shape)
+        o.set_shape(new_shape, override=True)
+        return node, [x.shape, o.shape]
+
+
+    def update_vision_shapes(self, node):
+        if node.op_name in self.ELEMWISE: return self.update_elemwise(node)
+        elif node.op_name == "bias_add": return self.update_bias_add(node)
+        elif node.op_name in ["depthwise_conv"]: return self.update_conv(node,dw_conv=True)
+        elif node.op_name in ["depthwise_conv_bias"]: return self.update_conv_bias(node, dw_conv=True)
+        elif node.op_name in ["conv"]: return self.update_conv(node)
+        elif node.op_name in ["conv_bias"]: return self.update_conv_bias(node)
+        elif node.op_name == "matmul": return self.update_matmul(node)
+        elif node.op_name == "gemm": return self.update_gemm(node)
+        elif node.op_name == "global_avg_pool": return self.update_global_avg_pool(node)
+        elif node.op_name == "avg_pool": return self.update_pool(node)
+        elif node.op_name == "max_pool": return self.update_pool(node)
+        elif node.op_name == "elem_where": return self.update_elem_where(node)
+        elif node.op_name == "concat": return self.update_concat(node)
+        elif node.op_name == "resize": return self.update_resize(node)
+        elif node.op_name == "split": return self.update_split(node)
+        elif node.op_name == "coarse_flatten": return self.update_coarse_flatten(node)
+        elif node.op_name == "tensor_reshape": return self.update_tensor_reshape(node)
+        elif node.op_name == "tensor_squeeze": return self.update_tensor_squeeze(node)
+        elif node.op_name == "tensor_transpose": return self.update_tensor_transpose(node)
+        else:
+            raise RuntimeError(f"Unsupported vision operation {node.op_name}")
+
+    def update_nchw_shape(self, node):
+        prev_shape = node.shape
+        assert len(prev_shape) == 4
+        new_shape = [prev_shape[0],
+                     np.ceil(prev_shape[1]/self.oc_split).astype('int32'),
+                     np.ceil(prev_shape[2]/self.oh_split).astype('int32'),
+                     np.ceil(prev_shape[3]/self.ow_split).astype('int32'),
+                     ]
+        node.set_shape(new_shape, override=True)
+        node.add_attribute('base_shape', prev_shape)
+        return node
+
+    def update_mnp_shape(self, node):
+        prev_shape = node.shape
+        if len(prev_shape) == 3 and node.kwargs.get("onnx_input", False):
+            new_shape = [prev_shape[0],
+                         max(np.ceil(prev_shape[1] / self.batch_split).astype('int32'), self.divisor),
+                         max(np.ceil(prev_shape[2] / self.oc_split).astype('int32'), self.divisor)
+                         ]
+            node.set_shape(new_shape, override=True)
+            node.add_attribute('base_shape', prev_shape)
+        elif len(prev_shape) == 4 and node.kwargs.get("onnx_input", False):
+            new_shape = [prev_shape[0],
+                         prev_shape[1],
+                         prev_shape[2],
+                         max(np.ceil(prev_shape[3] / self.oc_split).astype('int32'), self.divisor),
+                         ]
+            node.set_shape(new_shape, override=True)
+            node.add_attribute('base_shape', prev_shape)
+        return node
+
+
+    def initialize_pass(self, node, ctx):
+        inputs = []
+        for k in node.nodes.keys():
+            v = node.nodes[k]
+            if isinstance(v, pm.input) and v.kwargs.get('onnx_input', False):
+                inputs.append(v)
+
+        if len(inputs) == 1 and len(inputs[0].shape) == 4:
+            self.vision_model = True
+        else:
+            self.vision_model = False
+
+        return node
+
+    def apply_pass(self, node, ctx):
+        assert node.op_name not in dir(fused_dnn), f"Batch sizes must be updated prior to fusion, but found fused operation: {node.op_name}"
+        if node.kwargs.get('onnx_input', False):
+            if self.vision_model:
+                return self.update_nchw_shape(node)
+            else:
+                return self.update_mnp_shape(node)
+        elif node.op_name in ALL_TEMPLATES:
+            if self.debug:
+                self.print_shapes(node)
+
+            if self.vision_model:
+                node, shape_list = self.update_vision_shapes(node)
+            else:
+                node, shape_list = self.update_transformer_shapes(node)
+            if any([np.prod(s) == 0 for s in shape_list]):
+                raise RuntimeError(f"Incorrectly updated shape to 0 for {node.op_name}\n"
+                                   f"Shapes: {shape_list}")
+
+            if self.debug:
+                print(f"Updated shapes for {node.op_name}({self.debug}):")
+                for i in (node.inputs + node.outputs):
+                    print(f"{i.name}: {i.kwargs['base_shape']} --> {i.shape}")
+                print()
+
+            if node.op_name not in self.op_counter and node.op_name not in self.ELEMWISE and node.op_name not in self.UNIQUE:
+                print(f"{node.op_name}")
+            self.shape_tracker[f"{node.op_name}{self.op_counter[node.op_name]}"] = shape_list
+
+            self.op_counter[node.op_name] += 1
+
+            if self.debug:
+                print(f"Shapes after:")
+                self.print_shapes(node)
         return node
 
 @register_pass

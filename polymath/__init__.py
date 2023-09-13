@@ -58,7 +58,7 @@ DNN_TRAINING_OPS = AUTODIFF_OPS + ONNX_OP_NAMES
 
 from polymath.srdfg.passes import register_pass, Pass
 from polymath.srdfg.passes.dnn_passes import UpdateBatchSize, CollectDNNShapes, RenameMultiDimOps, UpdateLayout, \
-    FuseOps, SplitOps
+    FuseOps, SplitOps, ScaleLayers
 from polymath.srdfg.passes.compiler_passes import NormalizeGraph, Lower, CountNodes, CountOpTypes
 from polymath.srdfg.passes.autodiff import AutoDiffGraph, create_training_graph
 from polymath.codegen.tabla.tabla_translate import generate_tabla

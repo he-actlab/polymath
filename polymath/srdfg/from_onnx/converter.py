@@ -200,7 +200,7 @@ def generate_srdfg(onnx_graph, verbose=False):
             node_info[o.name] = pm.state(name=state_variables[o.name], shape=get_value_info_shape(o, mgdfg), graph=mgdfg)
             node_info[state_variables[o.name]] = node_info[o.name]
         else:
-            node_info[o.name] = pm.output(name=o.name, shape=get_value_info_shape(o, mgdfg), graph=mgdfg)
+            node_info[o.name] = pm.output(name=o.name, shape=get_value_info_shape(o, mgdfg), graph=mgdfg, onnx_output=True)
     for i in onnx_graph.input:
         if i.name in state_variables.values():
             assert i.name in node_info
@@ -218,7 +218,7 @@ def generate_srdfg(onnx_graph, verbose=False):
             assert rshape == initializers[i.name].shape
             node_info[i.name] = pm.state(name=i.name, init_value=initializers[i.name], shape=get_value_info_shape(i, mgdfg), graph=mgdfg)
         else:
-            node_info[i.name] = pm.input(name=i.name, shape=get_value_info_shape(i, mgdfg), graph=mgdfg)
+            node_info[i.name] = pm.input(name=i.name, shape=get_value_info_shape(i, mgdfg), graph=mgdfg, onnx_input=True)
     for v in onnx_graph.value_info:
         if v.name in node_info:
             continue
@@ -240,7 +240,6 @@ def generate_srdfg(onnx_graph, verbose=False):
     for k, v in mgdfg.nodes.items():
         if isinstance(v, pm.parameter) and k not in node_info:
             node_info[k] = v
-
 
     for n in onnx_graph.node:
         assert n.op_type in NODE_NAMES
