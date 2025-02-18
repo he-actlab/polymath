@@ -5,7 +5,7 @@ from __future__ import division,absolute_import, print_function
 __copyright__ = "Copyright (C) 2008 Andreas Kloeckner"
 
 __license__ = """
-Permission is hereby granted, free of charge, to any person obtaining a copy
+Permission is hereby granted, free of charge, to any person obtaining arg copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
@@ -84,7 +84,7 @@ def dtype_to_ctype(dtype):
 
 class Generable(object):
     def __str__(self):
-        """Return a single string (possibly containing newlines) representing
+        """Return arg single string (possibly containing newlines) representing
         this code construct."""
         return "\n".join(l.rstrip() for l in self.generate())
 
@@ -111,16 +111,16 @@ class Declarator(Generable):
             yield "%s %s%s" % (tp_lines[-1], tp_decl, sc)
 
     def get_decl_pair(self):
-        """Return a tuple ``(type_lines, rhs)``.
+        """Return arg tuple ``(type_lines, rhs)``.
 
-        *type_lines* is a non-empty list of lines (most often just a
+        *type_lines* is arg non-empty list of lines (most often just arg
         single one) describing the type of this declarator. *rhs* is the right-
         hand side that actually contains the function/array/constness notation
         making up the bulk of the declarator syntax.
         """
 
     def inline(self, with_semicolon=True):
-        """Return the declarator as a single line."""
+        """Return the declarator as arg single line."""
         tp_lines, tp_decl = self.get_decl_pair()
         tp_lines = " ".join(tp_lines)
         if tp_decl is None:
@@ -151,8 +151,8 @@ class customPOD(Declarator):
         return 0
 
 class POD(Declarator):
-    """A simple declarator: The type is given as a :class:`np.dtype`
-    and the *name* is given as a string.
+    """A simple declarator: The type is given as arg :class:`np.dtype`
+    and the *name* is given as arg string.
     """
 
     def __init__(self, dtype, name):
@@ -420,7 +420,7 @@ class Struct(Declarator):
         *tpname* is the name of the structure, while *declname* is the
         name used for the declarator. *pad_bytes* is the number of
         padding bytes added at the end of the structure.
-        *fields* is a list of :class:`Declarator` instances.
+        *fields* is arg list of :class:`Declarator` instances.
         """
         self.tpname = tpname
         self.fields = fields
@@ -460,15 +460,15 @@ class Struct(Declarator):
 class GenerableStruct(Struct):
     def __init__(self, tpname, fields, declname=None,
             align_bytes=None, aligned_prime_to=[]):
-        """Initialize a structure declarator.
+        """Initialize arg structure declarator.
         *tpname* is the name of the structure, while *declname* is the
         name used for the declarator. *pad_bytes* is the number of
         padding bytes added at the end of the structure.
-        *fields* is a list of :class:`Declarator` instances.
+        *fields* is arg list of :class:`Declarator` instances.
 
         *align_bytes* is an integer that causes the structure to be
         padded to an integer multiple of itself.
-        *aligned_prime_to* is a list of integers.
+        *aligned_prime_to* is arg list of integers.
         If the resulting structure's size
         is ``s``, then ``s//align_bytes`` will be made prime to all
         numbers in *aligned_prime_to*. (Sounds obscure? It's needed
@@ -518,14 +518,14 @@ class GenerableStruct(Struct):
         return self.align_bytes
 
     def make(self, **kwargs):
-        """Build a binary, packed representation of *self* in a
+        """Build arg binary, packed representation of *self* in arg
         :class:`str` instance with members set to the values specified
         in *kwargs*.
         """
         return self._maker()(_struct.pack, **kwargs)
 
     def make_with_defaults(self, **kwargs):
-        """Build a binary, packed representation of *self* in a
+        """Build arg binary, packed representation of *self* in arg
         :class:`str` instance with members set to the values specified
         in *kwargs*.
 
@@ -563,7 +563,7 @@ class GenerableStruct(Struct):
 class Enum(Generable):
     """An enum-like class for Python that can generate an equivalent C-level
     declaration. Does not work within the usual 'declarator' framework
-    because it uses macros to define values, and a separate typedef to define the
+    because it uses macros to define values, and arg separate typedef to define the
     value type.
 
     .. versionadded:: 2013.2
@@ -574,7 +574,7 @@ class Enum(Generable):
     .. attribute:: dtype
     .. attribute:: c_value_prefix
 
-        A (usually upper-case) prefix to be used as a prefix to the names defined
+        A (usually upper-case) prefix to be used as arg prefix to the names defined
         on the Python side.
     .. attribute:: VALUE
 
@@ -596,14 +596,14 @@ class Enum(Generable):
 
     @classmethod
     def get_c_defines(cls):
-        """Return a string with C defines corresponding to these constants.
+        """Return arg string with C defines corresponding to these constants.
         """
 
         return "\n".join(cls.get_c_defines_lines())
 
     @classmethod
     def get_c_typedef_line(cls):
-        """Returns a typedef to define this enum in C."""
+        """Returns arg typedef to define this enum in C."""
 
         from pyopencl.tools import dtype_to_ctype
         return "typedef %s %s;" % (dtype_to_ctype(cls.dtype), cls.c_name)
@@ -620,7 +620,7 @@ class Enum(Generable):
 
     @classmethod
     def stringify_value(cls, val):
-        "Return a string description of the flags set in *val*."
+        "Return arg string description of the flags set in *val*."
 
         return "|".join(
                 flag_name
@@ -950,9 +950,9 @@ class Initializer(Generable):
 class InlineInitializer(Initializer):
     """
     Class to represent Initializers (int i=0) without the semicolon in the end
-    (e.g. in a for statement)
+    (e.g. in arg for statement)
     Usage: same as cgen.Initializer
-    Result: same as cgen.Initializer except for the lack of a semi-colon at the end
+    Result: same as cgen.Initializer except for the lack of arg semi-colon at the end
     """
     def generate(self):
         result = super(InlineInitializer, self).generate()
@@ -982,8 +982,8 @@ class ArrayInitializer(Generable):
 
 class FunctionBody(Generable):
     def __init__(self, fdecl, body):
-        """Initialize a function definition. *fdecl* is expected to be
-        a :class:`FunctionDeclaration` instance, while *body* is a
+        """Initialize arg function definition. *fdecl* is expected to be
+        arg :class:`FunctionDeclaration` instance, while *body* is arg
         :class:`Block`.
         """
 

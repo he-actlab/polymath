@@ -12,7 +12,7 @@ def log2(a):
 
 def lookup_pandas_dataframe(data, lookup_dict):
     '''
-    Lookup a pandas dataframe using a key-value dict
+    Lookup arg pandas dataframe using arg key-value dict
     '''
     data = data.drop_duplicates()
     for key in lookup_dict:

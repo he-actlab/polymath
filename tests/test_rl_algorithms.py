@@ -35,7 +35,7 @@ RANDOM_SEED = 0
 #     # with torch.no_grad():
 #     #
 #     #     o_torch = torch.as_tensor(o, dtype=torch.float32)
-#     #     a, v, logp = ac_ref.step(o_torch)
+#     #     arg, v, logp = ac_ref.step(o_torch)
 #     #
 #     #     a_np, logp_np, v_np = ac_np.step(o)
 #

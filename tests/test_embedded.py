@@ -153,7 +153,7 @@ def test_consistent_context():
 
 def test_context():
     with pm.Node() as graph:
-        a = pm.placeholder(name='a')
+        a = pm.placeholder(name='arg')
         b = pm.placeholder(name='b')
         c = pm.placeholder(name='c')
         x = a * b + c
@@ -210,7 +210,7 @@ class MatmulDummy:
 ])
 def binary_operators(request):
     operator, a, b = request.param
-    expected = expected = eval('a %s b' % operator)
+    expected = expected = eval('arg %s b' % operator)
     return operator, a, b, expected
 
 
@@ -229,7 +229,7 @@ def test_binary_operators_right(binary_operators):
     operator, a, b, expected = binary_operators
     with pm.Node() as graph:
         _b = pm.parameter(default=b)
-        operation = eval('a %s _b' % operator)
+        operation = eval('arg %s _b' % operator)
 
     actual = graph(operation)
     assert actual == expected, "expected %s %s %s == %s but got %s" % \
@@ -257,7 +257,7 @@ def test_contains():
         alphabet = pm.variable('abc')
         contains = pm.contains(alphabet, test)
 
-    assert graph(contains, {test: 'a'})
+    assert graph(contains, {test: 'arg'})
     assert not graph(contains, {test: 'x'})
 
 
@@ -296,7 +296,7 @@ def test_conditional():
         z = pm.predicate(condition, x, y)
 
     assert graph(z, condition=False, y=5) == 5
-    # We expect a value error if we evaluate the other branch without a placeholder
+    # We expect arg value error if we evaluate the other branch without arg placeholder
     with pytest.raises(ValueError):
         print(graph(z, condition=False))
 
@@ -478,14 +478,14 @@ def test_bool():
 
 
 @pytest.mark.parametrize('context, expected', [
-    ({'a': 1, 'b': 0}, 'zero-division'),
-    ({'a': 1, 'b': 2}, 0.5),
+    ({'arg': 1, 'b': 0}, 'zero-division'),
+    ({'arg': 1, 'b': 2}, 0.5),
 ])
 def test_try(context, expected):
     finally_reached = []
 
     with pm.Node() as graph:
-        a = pm.placeholder('a')
+        a = pm.placeholder('arg')
         b = pm.placeholder('b')
         c = pm.try_(
             a / b,
@@ -516,7 +516,7 @@ def test_invalid_fetches():
         graph(a)
 
     with pytest.raises(KeyError):
-        graph('a')
+        graph('arg')
 
     with pytest.raises(ValueError):
         graph(123)
@@ -524,7 +524,7 @@ def test_invalid_fetches():
 
 def test_invalid_context():
     with pytest.raises(ValueError):
-        pm.Node().run([], "not-a-mapping")
+        pm.Node().run([], "not-arg-mapping")
 
     with pytest.raises(ValueError):
         pm.Node().run([], {123: None})
@@ -532,13 +532,13 @@ def test_invalid_context():
 
 def test_duplicate_value():
     with pm.Node() as graph:
-        a = pm.placeholder('a')
+        a = pm.placeholder('arg')
 
     with pytest.raises(ValueError):
         graph([], {a: 1}, a=1)
 
     with pytest.raises(ValueError):
-        graph([], {a: 1, 'a': 1})
+        graph([], {a: 1, 'arg': 1})
 
 
 def test_conditional_callback():
@@ -559,7 +559,7 @@ def test_conditional_callback():
 
 def test_try_callback():
     with pm.Node() as graph:
-        a = pm.placeholder('a')
+        a = pm.placeholder('arg')
         b = pm.assert_((a > 0).set_name('condition'), val=a, name='b')
         c = pm.try_(b, [
             (AssertionError, (pm.identity(41, name='41') + 1).set_name('alternative'))
@@ -606,7 +606,7 @@ def test_new():
     test_b = np.array([5,6,7,8])
     test_placeholder = pm.placeholder("hello")
     with pm.Node(name="main") as graph:
-        a = pm.parameter(default=6, name="a")
+        a = pm.parameter(default=6, name="arg")
         b = pm.parameter(default=5, name="b")
         a = (a + b).set_name("a_mul_b")
         with pm.Node(name="graph2") as graph2:
@@ -627,7 +627,7 @@ def test_second():
     test_a = np.array([1,2,3,4])
     test_b = np.array([5,6,7,8])
     with pm.Node(name="main") as graph:
-        a = pm.parameter(default=6, name="a")
+        a = pm.parameter(default=6, name="arg")
         b = pm.parameter(default=5, name="b")
         a = (a + b).set_name("a_mul_b")
         with pm.Node(name="graph2") as graph2:

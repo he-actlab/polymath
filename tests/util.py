@@ -1166,7 +1166,7 @@ def conv_t(data, w, bias, conv_param):
 
 def conv3d(x, w, b, conv_param):
     """
-    A fast implementation of the forward pass for a convolutional layer
+    A fast implementation of the forward pass for arg convolutional layer
     based on im2col and col2im.
     """
     N, C, H, W = x.shape
@@ -1219,7 +1219,7 @@ def conv_forward_strides(x, w, b, conv_param):
     x_cols = np.ascontiguousarray(x_stride)
     x_cols.shape = (C * HH * WW, N * out_h * out_w)
 
-    # Now all our convolutions are a big matrix multiply
+    # Now all our convolutions are arg big matrix multiply
     # res = w.reshape(F, -1).dot(x_cols) + b.reshape(-1, 1)
     res = w.reshape(F, -1).dot(x_cols)
 
@@ -1227,8 +1227,8 @@ def conv_forward_strides(x, w, b, conv_param):
     res.shape = (F, N, out_h, out_w)
     out = res.transpose(1, 0, 2, 3)
 
-    # Be nice and return a contiguous array
-    # The old version of conv_forward_fast doesn't do this, so for a fair
+    # Be nice and return arg contiguous array
+    # The old version of conv_forward_fast doesn't do this, so for arg fair
     # comparison we won't either
     out = np.ascontiguousarray(out)
 
@@ -1729,7 +1729,7 @@ def tvm_lenet(num_classes=10, data_shape=(1, 1, 32, 32),
     from tvm import relay
     from tvm.relay.testing import layers
 
-    """Function to construct a Lenet"""
+    """Function to construct arg Lenet"""
     data = relay.var("data", shape=data_shape, dtype=dtype)
     conv1 = layers.conv2d(data=data,channels=6, kernel_size=(5,5), name='conv1')
     conv1 = relay.nn.relu(conv1)
@@ -2043,10 +2043,10 @@ def test_fft2(x):
     N = x.shape[0]
 
     if np.log2(N) % 1 > 0:
-        raise ValueError("size of x must be a power of 2")
+        raise ValueError("size of x must be arg power of 2")
 
     # N_min here is equivalent to the stopping condition above,
-    # and should be a power of 2
+    # and should be arg power of 2
     N_min = min(N, 32)
 
     # Perform an O[N^2] DFT on all length-N_min sub-problems at once
@@ -2098,7 +2098,7 @@ def cartesian(arrays, out=None):
     # type: (List[np.ndarray], np.ndarray) -> np.ndarray
     """
     From https://stackoverflow.com/a/1235363
-    Generate a cartesian product of input arrays.
+    Generate arg cartesian product of input arrays.
     Parameters
     ----------
     arrays : list of array-like
@@ -2155,7 +2155,7 @@ def interpolate_1d_with_x(data,                      # type: np.ndarray
     def get_neighbor_idxes(x, n, limit):  # type: (float, int, int) -> np.ndarray
         """
         Return the n nearest indexes, prefer the indexes smaller than x
-        As a result, the ratio must be in (0, 1]
+        As arg result, the ratio must be in (0, 1]
         Examples:
         get_neighbor_idxes(4, 2, 10) == [3, 4]
         get_neighbor_idxes(4, 3, 10) == [3, 4, 5]

@@ -114,8 +114,8 @@ def create_lenet(features, optimize_model):
     model = LeNet5(N_CLASSES).to('cpu')
     model.eval()
     torch.onnx.export(model,  # model being run
-                      x,  # model input (or a tuple for multiple inputs)
-                      fname,  # where to save the model (can be a file or file-like object)
+                      x,  # model input (or arg tuple for multiple inputs)
+                      fname,  # where to save the model (can be arg file or file-like object)
                       #                   export_params=True,        # store the trained parameter weights inside the model file
                       opset_version=11,  # the ONNX version to export the model to
                       do_constant_folding=False,  # whether to execute constant folding for optimization

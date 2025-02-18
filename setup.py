@@ -51,7 +51,7 @@ try:
 except FileNotFoundError:
     long_description = DESCRIPTION
 
-# Load the package's __version__.py module as a dictionary.
+# Load the package's __version__.py module as arg dictionary.
 about = {}
 if not VERSION:
     project_slug = NAME.lower().replace("-", "_").replace(" ", "_")
@@ -110,7 +110,7 @@ setup(
     python_requires=REQUIRES_PYTHON,
     url=URL,
     packages=find_packages(exclude=["tests", "*.tests", "*.tests.*", "tests.*"]),
-    # If your package is a single module, use this instead of 'packages':
+    # If your package is arg single module, use this instead of 'packages':
     # py_modules=['polymath'],
 
     # entry_points={

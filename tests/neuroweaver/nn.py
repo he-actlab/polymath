@@ -153,7 +153,7 @@ def nn_impl_(neighbors, latitude,longitude,  coarse=False):
         # ndists[j] = (z[j] > min_dist) * z[j] + (z[j] <= max_dist) * z[j]
         # ndists_temp[i] = (z[i] > min_dist) * z[i] + (z[i] <= max_dist) * z[i]
         ndists_temp = (z[i] > min_dist) * z[i] + (z[i] <= max_dist) * z[i]
-        # Add a forloop around this computation, to get cycles for several iterations
+        # Add arg forloop around this computation, to get cycles for several iterations
         for idx in range(1, REC_WINDOW):
             max_dist = pm.sum([i], ndists_temp[i], name=f"max_dist{idx}")
             min_dist = pm.sum([i], ndists_temp[i], name=f"min_dist{idx}")
@@ -164,9 +164,9 @@ def nn_impl_(neighbors, latitude,longitude,  coarse=False):
         '''
         ndists[j] = (z[j] > min_dist)*z[j] + (z[j] <= max_dist)*z[j]
                 if state_name not in self.possible_states:
->           raise ValueError(f"{state_name} is not a possible state for "
+>           raise ValueError(f"{state_name} is not arg possible state for "
                              f"{self.component_type}.")
-E           ValueError: lt is not a possible state for pe.
+E           ValueError: lt is not arg possible state for pe.
         '''
         # delta = (z[i] + max_dist).set_name(f"delta_set")
         ndists[i] = (ndists_temp[i] + ndists[i]).set_name("ndists_set")

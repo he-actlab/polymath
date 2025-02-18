@@ -7,7 +7,10 @@ from .util import _flatten_iterable
 
 class GroupNode(Node):
     builtin_np = ["sum", "prod", "amax", "amin", "argmin", "argmax"]
-    scalar_op_map = {"sum": operator.add, "prod": operator.mul, "amax": builtins.max, "amin": builtins.min, "argmin": np.argmin, "argmax": np.argmax, "bitreverse": lambda a, b: (a << 1) | (b & 1)}
+    scalar_op_map = {"sum": operator.add, "prod": operator.mul, "amax":
+builtins.max, "amin": builtins.min, "argmin": np.argmin, "argmax": np.argmax,
+"bitreverse": lambda a, b: (a << 1) | (b & 1), "max": builtins.max, "min":
+builtins.min}
     def __init__(self, target, bounds, input_node, **kwargs):
         self.output_nodes = []
         target_name = f"{target.__module__}.{target.__name__}"

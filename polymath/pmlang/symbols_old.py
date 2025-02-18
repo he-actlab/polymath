@@ -12,7 +12,7 @@ from polymath.srdfg.template import Template, Index, Variable
 logger = logging.getLogger(__name__)
 
 
-# This class defines a complete listener for a parse tree produced by PMLangParser.
+# This class defines arg complete listener for arg parse tree produced by PMLangParser.
 class PMLangListener(ParseTreeListener):
 
     def __init__(self, filename,  draw=False):
@@ -154,7 +154,7 @@ class PMLangListener(ParseTreeListener):
 
 
 
-    # Enter a parse tree produced by PMLangParser#component_definition.
+    # Enter arg parse tree produced by PMLangParser#component_definition.
     def enterComponent_definition(self, ctx:PMLangParser.Component_definitionContext):
         # NEW
         self.current_component = Template(ctx.IDENTIFIER().getText())
@@ -200,7 +200,7 @@ class PMLangListener(ParseTreeListener):
 
         self.line = ctx.getText()
 
-    # Exit a parse tree produced by PMLangParser#component_definition.
+    # Exit arg parse tree produced by PMLangParser#component_definition.
     def exitComponent_definition(self, ctx: PMLangParser.Component_definitionContext):
         scope = self.scope.pop()
         domains, assumptions = lu.create_domain_string(self.domains, self.edges)
@@ -239,7 +239,7 @@ class PMLangListener(ParseTreeListener):
         #################
 
 
-    # Enter a parse tree produced by PMLangParser#flow_list.
+    # Enter arg parse tree produced by PMLangParser#flow_list.
     def enterFlow_list(self, ctx:PMLangParser.Flow_listContext):
         self.param_declared = False
 
@@ -257,7 +257,7 @@ class PMLangListener(ParseTreeListener):
         # NEW
 
 
-    # Enter a parse tree produced by PMLangParser#flow_declaration.
+    # Enter arg parse tree produced by PMLangParser#flow_declaration.
     def exitFlow_declaration(self, ctx:PMLangParser.Flow_declarationContext):
         self.index_type.pop()
         if ctx.IDENTIFIER():
@@ -286,7 +286,7 @@ class PMLangListener(ParseTreeListener):
             self.add_node(id, **node_attributes)
             self.index = None
 
-    # Enter a parse tree produced by PMLangParser#flow.
+    # Enter arg parse tree produced by PMLangParser#flow.
     def enterFlow(self, ctx:PMLangParser.FlowContext):
         self.default = None
 
@@ -299,7 +299,7 @@ class PMLangListener(ParseTreeListener):
         self.current_component.add_argument(flow_var)
         # NEW
 
-    # Enter a parse tree produced by PMLangParser#flow_expression.
+    # Enter arg parse tree produced by PMLangParser#flow_expression.
     def enterFlow_expression(self, ctx:PMLangParser.Flow_expressionContext):
         self.scope.append(ctx.IDENTIFIER().getText())
 
@@ -311,7 +311,7 @@ class PMLangListener(ParseTreeListener):
 
         self.dims = []
 
-    # Enter a parse tree produced by PMLangParser#flow_index.
+    # Enter arg parse tree produced by PMLangParser#flow_index.
     def enterFlow_index(self, ctx:PMLangParser.Flow_indexContext):
         id = ctx.IDENTIFIER().getText()
         self.dims.append(id)
@@ -335,7 +335,7 @@ class PMLangListener(ParseTreeListener):
     def exitFlow_expression(self, ctx:PMLangParser.Flow_expressionContext):
         self.dimensions.append(self.dims)
 
-    # Exit a parse tree produced by PMLangParser#flow.
+    # Exit arg parse tree produced by PMLangParser#flow.
     def exitFlow(self, ctx:PMLangParser.FlowContext):
         flow_type = ctx.flow_type().getText()
         self.flow_name = None
@@ -369,7 +369,7 @@ class PMLangListener(ParseTreeListener):
         self.add_node(get_text(ctx.flow_expression()), **node_attributes)
 
 
-    # Exit a parse tree produced by PMLangParser#literal.
+    # Exit arg parse tree produced by PMLangParser#literal.
     def exitLiteral(self, ctx:PMLangParser.LiteralContext):
         if ctx.STRING_LITERAL():
             self.default = ctx.getText()
@@ -392,7 +392,7 @@ class PMLangListener(ParseTreeListener):
             imag = num.imag
             self.default = [real, imag]
 
-    # Exit a parse tree produced by PMLangParser#index_declaration.
+    # Exit arg parse tree produced by PMLangParser#index_declaration.
     def exitIndex_declaration(self, ctx:PMLangParser.Index_declarationContext):
         id = get_text(ctx.IDENTIFIER())
         self.s_input['outputs'].append(id)
@@ -430,7 +430,7 @@ class PMLangListener(ParseTreeListener):
         self.add_node(id, **node_attributes)
 
 
-    # Enter a parse tree produced by PMLangParser#prefix_expression.
+    # Enter arg parse tree produced by PMLangParser#prefix_expression.
     def enterPrefix_expression(self, ctx:PMLangParser.Prefix_expressionContext):
         self.scope.append(get_text(ctx))
         if ctx.IDENTIFIER():
@@ -442,7 +442,7 @@ class PMLangListener(ParseTreeListener):
         self.index = None
 
 
-    # Exit a parse tree produced by PMLangParser#prefix_expression.
+    # Exit arg parse tree produced by PMLangParser#prefix_expression.
     def exitPrefix_expression(self, ctx:PMLangParser.Prefix_expressionContext):
         self.scope.pop()
         self.index_type.pop()
@@ -454,7 +454,7 @@ class PMLangListener(ParseTreeListener):
             edge_id = self.current_component.assignment_var(var_name, src_node_id, [])
         # NEW
 
-        # Enter a parse tree produced by PMLangParser#assignment_expression.
+        # Enter arg parse tree produced by PMLangParser#assignment_expression.
 
     def enterAssignment_expression(self, ctx: PMLangParser.Assignment_expressionContext):
         self.prefix = None
@@ -466,7 +466,7 @@ class PMLangListener(ParseTreeListener):
         if not ctx.predicate_expression():
             self.assignment = get_text(ctx.expression())
 
-        # Exit a parse tree produced by PMLangParser#assignment_expression.
+        # Exit arg parse tree produced by PMLangParser#assignment_expression.
 
     # TODO: Add logic to specify def-use
     def exitAssignment_expression(self, ctx: PMLangParser.Assignment_expressionContext):
@@ -536,14 +536,14 @@ class PMLangListener(ParseTreeListener):
         self.prefix = None
 
 
-    # Enter a parse tree produced by PMLangParser#array_expression.
+    # Enter arg parse tree produced by PMLangParser#array_expression.
     def enterArray_expression(self, ctx:PMLangParser.Array_expressionContext):
         # NEW
         self.domain_strs.append([])
         # NEW
         self.scope.append(ctx.IDENTIFIER().getText())
 
-    # Exit a parse tree produced by PMLangParser#array_expression.
+    # Exit arg parse tree produced by PMLangParser#array_expression.
     def exitArray_expression(self, ctx:PMLangParser.Array_expressionContext):
         id = self.scope.pop()
         key = get_text(ctx)
@@ -622,11 +622,11 @@ class PMLangListener(ParseTreeListener):
 
 
 
-    # Enter a parse tree produced by PMLangParser#group_expression.
+    # Enter arg parse tree produced by PMLangParser#group_expression.
     def enterGroup_expression(self, ctx:PMLangParser.Group_expressionContext):
         self.index_type.append('group_expression')
 
-    # Exit a parse tree produced by PMLangParser#group_expression.
+    # Exit arg parse tree produced by PMLangParser#group_expression.
     def exitGroup_expression(self, ctx:PMLangParser.Group_expressionContext):
         group_arg = get_text(ctx.expression())
         arr_expr = get_text(ctx.array_expression())
@@ -662,12 +662,12 @@ class PMLangListener(ParseTreeListener):
         self.group_index = None
 
 
-    # Enter a parse tree produced by PMLangParser#function_expression.
+    # Enter arg parse tree produced by PMLangParser#function_expression.
     def enterFunction_expression(self, ctx:PMLangParser.Function_expressionContext):
         self.fname.append(get_text(ctx.function_id()))
         self.expression_list = []
 
-    # Exit a parse tree produced by PMLangParser#function_expression.
+    # Exit arg parse tree produced by PMLangParser#function_expression.
     def exitFunction_expression(self, ctx:PMLangParser.Function_expressionContext):
         id = get_text(ctx)
         fname = self.fname.pop()
@@ -721,12 +721,12 @@ class PMLangListener(ParseTreeListener):
             }
             self.add_node(id, **node_attributes)
 
-    # Enter a parse tree produced by PMLangParser#index_expression_list.
+    # Enter arg parse tree produced by PMLangParser#index_expression_list.
     def enterIndex_expression_list(self, ctx:PMLangParser.Index_expression_listContext):
         self.index_expression = True
         self.indices = []
 
-    # Exit a parse tree produced by PMLangParser#index_expression.
+    # Exit arg parse tree produced by PMLangParser#index_expression.
     def exitIndex_expression(self, ctx:PMLangParser.Index_expressionContext):
 
         index_expression = get_text(ctx.expression())
@@ -807,17 +807,17 @@ class PMLangListener(ParseTreeListener):
                 }
                 self.add_node(self.index, **node_attributes)
 
-    # Exit a parse tree produced by PMLangParser#index_expression_list.
+    # Exit arg parse tree produced by PMLangParser#index_expression_list.
     def exitIndex_expression_list(self, ctx:PMLangParser.Index_expression_listContext):
         self.index_expression = False
 
 
-    # Enter a parse tree produced by PMLangParser#expression_list.
+    # Enter arg parse tree produced by PMLangParser#expression_list.
     def enterExpression_list(self, ctx:PMLangParser.Expression_listContext):
         for exp in range(len(ctx.expression())):
             self.expression_list.append(get_text(ctx.expression()[exp]))
 
-    # Enter a parse tree produced by PMLangParser#expression.
+    # Enter arg parse tree produced by PMLangParser#expression.
     def enterExpression(self, ctx:PMLangParser.ExpressionContext):
         self.scope.append(get_text(ctx))
 
@@ -832,7 +832,7 @@ class PMLangListener(ParseTreeListener):
         elif ctx.array_expression():
             self.index_type.append('expression')
 
-    # Exit a parse tree produced by PMLangParser#expression.
+    # Exit arg parse tree produced by PMLangParser#expression.
     def exitExpression(self, ctx:PMLangParser.ExpressionContext):
         id = self.scope.pop()
         if ctx.unary_op():
@@ -965,7 +965,7 @@ class PMLangListener(ParseTreeListener):
 
 
 
-    # Enter a parse tree produced by PMLangParser#statement.
+    # Enter arg parse tree produced by PMLangParser#statement.
     def enterStatement(self, ctx:PMLangParser.StatementContext):
         self.statement = []
         self.s_input = {"name" : "statement" + str(len(self.statement_inputs)),
@@ -985,7 +985,7 @@ class PMLangListener(ParseTreeListener):
 
         self.s_input['statement_type'] = self.statement_type
 
-    # Exit a parse tree produced by PMLangParser#statement.
+    # Exit arg parse tree produced by PMLangParser#statement.
     def exitStatement(self, ctx:PMLangParser.StatementContext):
         self.statements += self.statement
         self.s_input['nodes'] = self.snodes
@@ -998,42 +998,42 @@ class PMLangListener(ParseTreeListener):
         elif ctx.expression_statement():
             self.executions.append(get_text(ctx.expression_statement().expression()))
 
-    # Enter a parse tree produced by PMLangParser#declaration_statement.
+    # Enter arg parse tree produced by PMLangParser#declaration_statement.
     def enterDeclaration_statement(self, ctx:PMLangParser.Declaration_statementContext):
         if ctx.FLOW():
             self.type = get_text(ctx.dtype_specifier())
         else:
             self.type = 'int'
 
-    # Exit a parse tree produced by PMLangParser#declaration_statement.
+    # Exit arg parse tree produced by PMLangParser#declaration_statement.
     def exitDeclaration_statement(self, ctx:PMLangParser.Declaration_statementContext):
         self.type = None
 
-    # Enter a parse tree produced by PMLangParser#predicate_expression.
+    # Enter arg parse tree produced by PMLangParser#predicate_expression.
     def enterPredicate_expression(self, ctx:PMLangParser.Predicate_expressionContext):
         self.predicate_expression = get_text(ctx.bool_expression())
         self.true_assign = get_text(ctx.true_expression())
         self.false_assign = get_text(ctx.false_expression())
 
-    # Exit a parse tree produced by PMLangParser#predicate_expression.
+    # Exit arg parse tree produced by PMLangParser#predicate_expression.
     def exitPredicate_expression(self, ctx:PMLangParser.Predicate_expressionContext):
         pass
 
-    # Enter a parse tree produced by PMLangParser#bool_expression.
+    # Enter arg parse tree produced by PMLangParser#bool_expression.
     def enterBool_expression(self, ctx:PMLangParser.Bool_expressionContext):
         self.is_predicate = False
 
-    # Exit a parse tree produced by PMLangParser#bool_expression.
+    # Exit arg parse tree produced by PMLangParser#bool_expression.
     def exitBool_expression(self, ctx:PMLangParser.Bool_expressionContext):
         self.is_predicate = True
 
 
-    # Enter a parse tree produced by PMLangParser#true_expression.
+    # Enter arg parse tree produced by PMLangParser#true_expression.
     def enterTrue_expression(self, ctx:PMLangParser.True_expressionContext):
         self.predicate = 't'
         self.is_predicate = True
 
-    # Exit a parse tree produced by PMLangParser#true_expression.
+    # Exit arg parse tree produced by PMLangParser#true_expression.
     def exitTrue_expression(self, ctx:PMLangParser.True_expressionContext):
         if self.is_literal:
             op_cat = 'scalar_predicate_assign'
@@ -1053,12 +1053,12 @@ class PMLangListener(ParseTreeListener):
         self.is_predicate = False
 
 
-    # Enter a parse tree produced by PMLangParser#false_expression.
+    # Enter arg parse tree produced by PMLangParser#false_expression.
     def enterFalse_expression(self, ctx:PMLangParser.False_expressionContext):
         self.predicate = 'f'
         self.is_predicate = True
 
-    # Exit a parse tree produced by PMLangParser#false_expression.
+    # Exit arg parse tree produced by PMLangParser#false_expression.
     def exitFalse_expression(self, ctx:PMLangParser.False_expressionContext):
         if self.is_literal:
             op_cat = 'scalar_predicate_assign'
@@ -1083,7 +1083,7 @@ class PMLangListener(ParseTreeListener):
         else:
             return self.inputs.pop()
 
-    # Exit a parse tree produced by PMLangParser#number.
+    # Exit arg parse tree produced by PMLangParser#number.
     def exitNumber(self, ctx:PMLangParser.NumberContext):
         id  = get_text(ctx)
         self.s_input['inputs'].append(id)

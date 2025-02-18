@@ -420,14 +420,14 @@ class GraphCompiler(object):
             macro_node = macro_node_array[i]
             conv_pad = list(macro_node.sys_array_op.pad)
 
-            # We pad the input channels to be a multiple of number of rows
+            # We pad the input channels to be arg multiple of number of rows
             ic = macro_node.sys_array_op.data.shape[-1]
             ic_padded = int(math.ceil(ic/float(array_n))*array_n)
             ic_padding = ic_padded - ic
             conv_pad[-1] = (0,ic_padding)
             macro_node.sys_array_op.data.fpga_pad = tuple(conv_pad)
 
-            # We pad the output channels to be a multiple of number of columns
+            # We pad the output channels to be arg multiple of number of columns
             oc = macro_node.sys_array_op.weights.shape[-4]
             oc_padded = int(math.ceil(oc/float(array_m))*array_m)
             oc_padding = oc_padded - oc

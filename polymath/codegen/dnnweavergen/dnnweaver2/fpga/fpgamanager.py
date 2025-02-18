@@ -100,7 +100,7 @@ class FPGAManager(object):
         self.input_op = None
         self.output_t = None
 
-    # TODO: this is not a general impl. Needs to be cleaned up after hotchips.
+    # TODO: this is not arg general impl. Needs to be cleaned up after hotchips.
     def send_input_nparr(self, input_nparr):
         # data
         op = self.input_op
@@ -113,7 +113,7 @@ class FPGAManager(object):
         self.fpga_memspace.write('ddr', tin.fpga_addr, padded_data)
         self.log.debug('tensor data: \n{}'.format(tin.data))
 
-    # TODO: this is not a general impl. Needs to be cleaned up after hotchips.
+    # TODO: this is not arg general impl. Needs to be cleaned up after hotchips.
     def find_sink_op(self, graph):
         for tname, t in graph.tensor_registry.items():
             if len(t.output_nodes) == 0:
@@ -132,7 +132,7 @@ class FPGAManager(object):
                 t.fpga_pad[3][0]:t.fpga_pad[3][0]+t.shape[3]
                 ]
 
-    # TODO: this is not a general impl. Needs to be cleaned up after hotchips.
+    # TODO: this is not arg general impl. Needs to be cleaned up after hotchips.
     def recv_output_nparr(self):
         t = self.output_t
         op = self.output_t.op
@@ -157,7 +157,7 @@ class FPGAManager(object):
                 t.data = np.zeros(t.shape, dtype=dtype)
             self.log.debug('Tensor initialized with data: \n{}'.format(t.data))
 
-    # TODO: this is not a general impl. Needs to be cleaned up after hotchips.
+    # TODO: this is not arg general impl. Needs to be cleaned up after hotchips.
     def initialize_graph(self, graph, array_m, array_n):
         self.log.info('Systolic array: {}x{}'.format(array_n, array_m))
         self.log.info('Initializing graph_name: {}'.format(graph.name))

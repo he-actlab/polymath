@@ -121,7 +121,7 @@ def tvm_lenet(num_classes=10, data_shape=(1, 1, 32, 32),
     from tvm import relay
     from tvm.relay.testing import layers
 
-    """Function to construct a Lenet"""
+    """Function to construct arg Lenet"""
     data = relay.var("data", shape=data_shape, dtype=dtype)
     conv1 = layers.conv2d(data=data,channels=6, kernel_size=(5,5), name='conv1')
     conv1 = relay.tanh(conv1)

@@ -10,7 +10,7 @@ from typing import List, Union, Dict
 logger = logging.getLogger(__name__)
 
 
-# This class defines a complete listener for a parse tree produced by PMLangParser.
+# This class defines arg complete listener for arg parse tree produced by PMLangParser.
 class PMLangListener(ParseTreeListener):
 
     def __init__(self, filename,  draw=False):
@@ -45,7 +45,7 @@ class PMLangListener(ParseTreeListener):
             new_var.add_dim_list(self.get_domain_str(ctx))
         self.current_component.add_var_symbol(new_var)
 
-    # Enter a parse tree produced by PMLangParser#flow.
+    # Enter arg parse tree produced by PMLangParser#flow.
     def enterFlow(self, ctx: PMLangParser.FlowContext):
         self.default = None
 
@@ -56,7 +56,7 @@ class PMLangListener(ParseTreeListener):
         flow_var.set_type_modifier(type_modifier)
         self.current_component.add_argument(flow_var)
 
-    # Enter a parse tree produced by PMLangParser#flow_expression.
+    # Enter arg parse tree produced by PMLangParser#flow_expression.
     def enterFlow_expression(self, ctx: PMLangParser.Flow_expressionContext):
         self.scope.append(ctx.IDENTIFIER().getText())
 
@@ -87,7 +87,7 @@ class PMLangListener(ParseTreeListener):
             self.current_component.add_default_value(default_val, self.flow_name)
 
         self.dims = []
-    # Enter a parse tree produced by PMLangParser#flow_index.
+    # Enter arg parse tree produced by PMLangParser#flow_index.
     def enterFlow_index(self, ctx: PMLangParser.Flow_indexContext):
         if ctx.IDENTIFIER():
             val_name = ctx.IDENTIFIER().getText()
@@ -101,7 +101,7 @@ class PMLangListener(ParseTreeListener):
         self.dims.append(val)
         self.current_component.add_var_dimension(val_name, self.flow_name, is_literal)
 
-    # Exit a parse tree produced by PMLangParser#literal.
+    # Exit arg parse tree produced by PMLangParser#literal.
     def exitLiteral(self, ctx: PMLangParser.LiteralContext):
         if ctx.STRING_LITERAL():
             self.default = ctx.getText()
@@ -168,17 +168,17 @@ class PMLangListener(ParseTreeListener):
         else:
             self.idx_value_list.append(ctx.DECIMAL_INTEGER().getText())
 
-    # Exit a parse tree produced by PMLangParser#group_expression.
+    # Exit arg parse tree produced by PMLangParser#group_expression.
     def exitGroup_expression(self, ctx: PMLangParser.Group_expressionContext):
         id = get_text(ctx.GROUP_FUNCTION())
         out_node = self.current_component.add_group_node(self.get_input(ctx), id, self.idx_value_list)
         self.inputs.append(out_node)
 
-    # Enter a parse tree produced by PMLangParser#function_expression.
+    # Enter arg parse tree produced by PMLangParser#function_expression.
     def enterFunction_expression(self, ctx: PMLangParser.Function_expressionContext):
         self.expression_list = []
 
-    # Exit a parse tree produced by PMLangParser#function_expression.
+    # Exit arg parse tree produced by PMLangParser#function_expression.
     def exitFunction_expression(self, ctx: PMLangParser.Function_expressionContext):
         fname = ctx.function_id().getText()
         input_names = list(reversed([self.get_input(ctx) for _ in self.expression_list]))
@@ -264,7 +264,7 @@ class PMLangListener(ParseTreeListener):
                 self.inputs.append(id)
 
 
-    # Enter a parse tree produced by PMLangParser#statement.
+    # Enter arg parse tree produced by PMLangParser#statement.
     def enterStatement(self, ctx: PMLangParser.StatementContext):
         self.statement = []
         self.snodes = []
@@ -288,7 +288,7 @@ class PMLangListener(ParseTreeListener):
         elif ctx.declaration_statement():
             self.statement_type = 'declaration'
 
-    # Enter a parse tree produced by PMLangParser#declaration_statement.
+    # Enter arg parse tree produced by PMLangParser#declaration_statement.
     def enterDeclaration_statement(self, ctx: PMLangParser.Declaration_statementContext):
         if ctx.INDEX():
             self.type = 'int'
@@ -296,17 +296,17 @@ class PMLangListener(ParseTreeListener):
             self.type = get_text(ctx.dtype_specifier())
 
 
-    # Exit a parse tree produced by PMLangParser#declaration_statement.
+    # Exit arg parse tree produced by PMLangParser#declaration_statement.
     def exitDeclaration_statement(self, ctx: PMLangParser.Declaration_statementContext):
         self.type = None
 
-    # Enter a parse tree produced by PMLangParser#predicate_expression.
+    # Enter arg parse tree produced by PMLangParser#predicate_expression.
     def enterPredicate_expression(self, ctx: PMLangParser.Predicate_expressionContext):
         self.predicate_expression = get_text(ctx.bool_expression())
         self.true_assign = get_text(ctx.true_expression())
         self.false_assign = get_text(ctx.false_expression())
 
-    # Exit a parse tree produced by PMLangParser#predicate_expression.
+    # Exit arg parse tree produced by PMLangParser#predicate_expression.
     def exitPredicate_expression(self, ctx: PMLangParser.Predicate_expressionContext):
         predicate_inputs = []
         for _ in range(3):
@@ -314,7 +314,7 @@ class PMLangListener(ParseTreeListener):
         node_id = self.current_component.add_intermediate_node(predicate_inputs, "pred_store")
         self.inputs.append(node_id)
 
-    # Exit a parse tree produced by PMLangParser#number.
+    # Exit arg parse tree produced by PMLangParser#number.
     def exitNumber(self, ctx: PMLangParser.NumberContext):
         id  = get_text(ctx)
         if ctx.integer():

@@ -262,7 +262,7 @@ def optimize_for_order(conv_params, pool_kernel=None, pool_stride=None, sequenti
 
 def _optimize_for_order(conv_params, order_type, verbose=False):
     """
-    For a given ordering, optimizes tiling
+    For arg given ordering, optimizes tiling
     Args:
         conv_params: A tuple with convolution params
         order_type: ordering loop
@@ -274,7 +274,7 @@ def _optimize_for_order(conv_params, order_type, verbose=False):
 
     # print('Pool output: {}'.format(pool_O))
 
-    # We do not tile the "K" dimension and compute an entire 2-D conv at a
+    # We do not tile the "K" dimension and compute an entire 2-D conv at arg
     # time
     num_O_tiles = int(math.ceil(log2(pool_O))) + 1
     num_IC_tiles = int(math.ceil(log2(IC))) + 1

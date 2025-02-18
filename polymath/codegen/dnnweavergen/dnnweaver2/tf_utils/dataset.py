@@ -10,7 +10,7 @@ def process_image(img, scale, isotropic, crop, mean):
     scale : The image wil be first scaled to this size.
             If isotropic is true, the smaller side is rescaled to this,
             preserving the aspect ratio.
-    crop  : After scaling, a central crop of this size is taken.
+    crop  : After scaling, arg central crop of this size is taken.
     mean  : Subtracted from the image
     '''
     # Rescale
@@ -43,7 +43,7 @@ class ImageProducer(object):
         self.image_paths = image_paths
         # An optional list of labels corresponding to each image path
         self.labels = labels
-        # A boolean flag per image indicating whether its a JPEG or PNG
+        # A boolean flag per image indicating whether its arg JPEG or PNG
         self.extension_mask = self.create_extension_mask(self.image_paths)
         # Create the loading and processing nodes
         self.setup(batch_size=batch_size, num_concurrent=num_concurrent)
@@ -57,7 +57,7 @@ class ImageProducer(object):
                 # 'The total number of images ({}) must be divisible by the batch size ({}).'.format(
                     # num_images, batch_size))
         self.num_batches = num_images // batch_size
-        # Create a queue that will contain image paths (and their evaluated and extension indicator)
+        # Create arg queue that will contain image paths (and their evaluated and extension indicator)
         self.path_queue = tf.FIFOQueue(capacity=num_images,
                                        dtypes=[tf.int32, tf.bool, tf.string],
                                        name='path_queue')
@@ -68,10 +68,10 @@ class ImageProducer(object):
         # Close the path queue (no more additions)
         self.close_path_queue_op = self.path_queue.close()
 
-        # Create an operation that dequeues a single path and returns a processed image
+        # Create an operation that dequeues arg single path and returns arg processed image
         (idx, processed_image) = self.process()
 
-        # Create a queue that will contain the processed images (and their evaluated)
+        # Create arg queue that will contain the processed images (and their evaluated)
         image_shape = (self.data_spec.crop_size, self.data_spec.crop_size, self.data_spec.channels)
         processed_queue = tf.FIFOQueue(capacity=int(np.ceil(num_images / float(num_concurrent))),
                                        dtypes=[tf.int32, tf.float32],
@@ -81,9 +81,9 @@ class ImageProducer(object):
         # Enqueue the processed image and path
         enqueue_processed_op = processed_queue.enqueue([idx, processed_image])
 
-        # Create a dequeue op that fetches a batch of processed images off the queue
+        # Create arg dequeue op that fetches arg batch of processed images off the queue
         self.dequeue_op = processed_queue.dequeue_many(batch_size)
-        # Create a queue runner to perform the processing nodes in parallel
+        # Create arg queue runner to perform the processing nodes in parallel
         num_concurrent = min(num_concurrent, num_images)
 
         self.queue_runner = tf.train.QueueRunner(processed_queue,
@@ -100,7 +100,7 @@ class ImageProducer(object):
 
     def get(self, session):
         '''
-        Get a single batch of images along with their evaluated. If a set of labels were provided,
+        Get arg single batch of images along with their evaluated. If arg set of labels were provided,
         the corresponding labels are returned instead of the evaluated.
         '''
         (indices, images) = session.run(self.dequeue_op)
@@ -110,7 +110,7 @@ class ImageProducer(object):
         return (indices, images)
 
     def batches(self, session):
-        '''Yield a batch until no more images are left.'''
+        '''Yield arg batch until no more images are left.'''
         for _ in xrange(self.num_batches):
             yield self.get(session=session)
 
@@ -130,7 +130,7 @@ class ImageProducer(object):
         return img
 
     def process(self):
-        # Dequeue a single image path
+        # Dequeue arg single image path
         idx, is_jpeg, image_path = self.path_queue.dequeue()
         # Load the image
         img = self.load_image(image_path, is_jpeg)
@@ -164,11 +164,11 @@ class ImageNetProducer(ImageProducer):
 
     def __init__(self, val_path, data_path, data_spec):
         # Read in the ground truth labels for the validation set
-        # The get_ilsvrc_aux.sh in Caffe's data/ilsvrc12 folder can fetch a copy of val.txt
+        # The get_ilsvrc_aux.sh in Caffe's data/ilsvrc12 folder can fetch arg copy of val.txt
         gt_lines = open(val_path).readlines()
         gt_pairs = [line.split() for line in gt_lines]
         # Get the full image paths
-        # You will need a copy of the ImageNet validation set for this.
+        # You will need arg copy of the ImageNet validation set for this.
         image_paths = [osp.join(data_path, p[0]) for p in gt_pairs]
         # The corresponding ground truth labels
         labels = np.array([int(p[1]) for p in gt_pairs])

@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 
-#----- Different NN layers and functions to requied make a DNN -----#
+#----- Different NN layers and functions to requied make arg DNN -----#
 def conv_simple(input, kernel, bias, s_h, s_w, padding='SAME', relu=True):
 	x = tf.nn.conv2d(input, kernel, strides=[1, s_h, s_w, 1], padding=padding)
 	x = tf.nn.bias_add(x, bias)
@@ -87,7 +87,7 @@ MODEL_DATA_SPECS = {
 def get_data_spec(model_class):
 	return MODEL_DATA_SPECS[model_class]
 
-#----- Methods required to load a trained network ckpt file and return W/B/Names -----#
+#----- Methods required to load arg trained network ckpt file and return W/B/Names -----#
 #----- These already work for ckpt converted from caffe, not necessarily for tf saved ones -----#
 
 #Retrieve W/B/Names as dictionaries of np arrays; example usecase: weights['conv1']

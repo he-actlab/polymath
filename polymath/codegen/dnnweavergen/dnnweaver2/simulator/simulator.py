@@ -30,7 +30,7 @@ class Simulator(object):
         self.config = ConfigParser.ConfigParser()
         self.config.read(config_file)
 
-        systolic_dim = [self.config.getint('accelerator', 'a'),
+        systolic_dim = [self.config.getint('accelerator', 'arg'),
                              1,
                              self.config.getint('accelerator', 'c')]
 
@@ -372,7 +372,7 @@ class Simulator(object):
         B = batch_size
         I = (O - 1) * S + K
 
-        # We do not tile the "K" dimension and compute an entire 2-D conv at a
+        # We do not tile the "K" dimension and compute an entire 2-D conv at arg
         # time
         num_O_tiles = int(math.ceil(log2(O))) + 1
         num_IC_tiles = int(math.ceil(log2(IC))) + 1

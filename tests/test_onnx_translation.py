@@ -341,14 +341,14 @@ def test_translate_reduce_sum(x_shape):
     data = np.random.randint(-3, 3, x_shape)
     np_res = np.sum(data)
     graph = pm.Node("reduce")
-    pm_data = pm.input(name="a", shape=x_shape, graph=graph)
+    pm_data = pm.input(name="arg", shape=x_shape, graph=graph)
     out = pm.output(name="out", graph=graph)
     axis = (0,)
     keepdims = 0
 
     with graph:
         pm.reduce_sum(pm_data, out, axes=axis, keepdims=keepdims)
-    pm_res = graph("out", {"a": data})
+    pm_res = graph("out", {"arg": data})
     np.testing.assert_allclose(pm_res, np_res)
 
 
@@ -361,12 +361,12 @@ def test_translate_elem_mul(x_shape):
     np_res = a * b
     graph = pm.Node("elem_mul")
 
-    pm_a = pm.input(name="a", shape=x_shape, graph=graph)
+    pm_a = pm.input(name="arg", shape=x_shape, graph=graph)
     pm_b = pm.input(name="b", shape=x_shape, graph=graph)
     pm_o = pm.output(name="out", shape=x_shape, graph=graph)
     with graph:
         pm.elem_mul(pm_a, pm_b, pm_o)
-    pm_res = graph("out", {"a": a, "b": b})
+    pm_res = graph("out", {"arg": a, "b": b})
     np.testing.assert_allclose(pm_res, np_res)
 
 
@@ -378,14 +378,14 @@ def test_translate_vmul(x_shape):
     b = np.random.randint(-3, 3, x_shape)
     np_res = a.dot(b)
     with pm.Node("vmul") as pm_graph:
-        pm_a = pm.input(name="a", shape=x_shape)
+        pm_a = pm.input(name="arg", shape=x_shape)
         pm_b = pm.input(name="b", shape=x_shape)
         pm_o = pm.output(name="o", shape=x_shape)
         pm_s = pm.output(name="out")
         pm.elem_mul(pm_a, pm_b, pm_o)
         pm.reduce_sum(pm_o, pm_s, axes=(0,), keepdims=0)
 
-    pm_res = pm_graph("out", {"a": a, "b": b})
+    pm_res = pm_graph("out", {"arg": a, "b": b})
     np.testing.assert_allclose(pm_res, np_res)
 
 @pytest.mark.parametrize('x_shape, axis', [

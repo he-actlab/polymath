@@ -32,7 +32,7 @@ def test_broadcast(a_shape, b_shape, c_shape):
 
     from einops import repeat
     with pm.Node(name="broadcast") as graph:
-        a = pm.input("a", shape=a_shape)
+        a = pm.input("arg", shape=a_shape)
         b = pm.input("b", shape=b_shape)
         c = pm.output("c", shape=c_shape)
         a_idx, b_idx, c_idx = _get_elem_indices(a, b, c)
@@ -49,6 +49,6 @@ def test_broadcast(a_shape, b_shape, c_shape):
     a_np_t = repeat(a_np, 'i k -> i k j', j=b_shape[1])
     b_np_t = repeat(b_np, 'i k -> j i k', j=a_shape[0])
     actual_res = (a_np_t + b_np_t).squeeze()
-    graph_res = graph("c", {"a": a_np, "b": b_np})
+    graph_res = graph("c", {"arg": a_np, "b": b_np})
 
     np.testing.assert_allclose(graph_res, actual_res)

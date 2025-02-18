@@ -61,10 +61,10 @@ def main():
     parser = argparse.ArgumentParser(description="PolyMath compilation framework")
     parser.add_argument("action",
                         type=Text,
-                        help="One of the following: 'pmlang', 'onnx', or 'instructions' which generates a"
+                        help="One of the following: 'pmlang', 'onnx', or 'instructions' which generates arg"
                              " serialized CMstack graph_name from either "
-                             "a CMLang file or an ONNX protobuf file, or generates instructions "
-                             "code from a CMStack file.",
+                             "arg CMLang file or an ONNX protobuf file, or generates instructions "
+                             "code from arg CMStack file.",
                         choices=["pmlang", "onnx", "instructions", "visualize", "c", "tabla", "translate"])
     parser.add_argument("--input",
                         type=Text, required=True,

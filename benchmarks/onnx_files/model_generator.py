@@ -140,7 +140,7 @@ def add_value_info_for_constants(model : onnx.ModelProto):
         inputs = {i.name for i in graph.input}
         existing_info = {vi.name: vi for vi in graph.value_info}
         for init in graph.initializer:
-            # Check it really is a constant, not an input
+            # Check it really is arg constant, not an input
             if init.name in inputs:
                 continue
 
@@ -518,8 +518,8 @@ def create_maskrcnn_part(part_name, optimize_model, training_mode, convert_data_
     if part_name == "backbone":
         inputs = (transformed_input.tensors,)
         torch.onnx.export(model.backbone,  # model being run
-                          inputs,  # model input (or a tuple for multiple inputs)
-                          f,  # where to save the model (can be a file or file-like object)
+                          inputs,  # model input (or arg tuple for multiple inputs)
+                          f,  # where to save the model (can be arg file or file-like object)
                           do_constant_folding=True,  # whether to execute constant folding for optimization
                           input_names=["images_tensors"],
                           output_names=["feature_pool", "feature0", "feature1", "feature2", "feature3"],
@@ -532,7 +532,7 @@ def create_maskrcnn_part(part_name, optimize_model, training_mode, convert_data_
         rpn_model.eval()
         inputs = (transformed_input.tensors, features) + ({},)
         torch.onnx.export(rpn_model,  # model being run
-                          inputs,  # model input (or a tuple for multiple inputs)
+                          inputs,  # model input (or arg tuple for multiple inputs)
                           f,
                           do_constant_folding=True,  # whether to execute constant folding for optimization
                           opset_version=_onnx_opset_version,
@@ -541,7 +541,7 @@ def create_maskrcnn_part(part_name, optimize_model, training_mode, convert_data_
     elif part_name == "roi":
         inputs = (features, proposals, transformed_input.image_sizes)
         torch.onnx.export(model.roi_heads,  # model being run
-                          inputs,  # model input (or a tuple for multiple inputs)
+                          inputs,  # model input (or arg tuple for multiple inputs)
                           f,
                           do_constant_folding=True,  # whether to execute constant folding for optimization
                           opset_version=_onnx_opset_version,
@@ -584,8 +584,8 @@ def convert_torch_model(input_var, model, model_name, optimize_model, training_m
     mode = torch.onnx.TrainingMode.TRAINING if training_mode else torch.onnx.TrainingMode.EVAL
     if 'mask_rcnn' not in model_name:
         torch.onnx.export(model,  # model being run
-                          input_var,  # model input (or a tuple for multiple inputs)
-                          f,  # where to save the model (can be a file or file-like object)
+                          input_var,  # model input (or arg tuple for multiple inputs)
+                          f,  # where to save the model (can be arg file or file-like object)
                           export_params=True,  # store the trained parameter weights inside the model file
                           do_constant_folding=True,  # whether to execute constant folding for optimization
                           keep_initializers_as_inputs=True,
@@ -604,8 +604,8 @@ def convert_torch_model(input_var, model, model_name, optimize_model, training_m
         dynamic_axes = {"images_tensors": [0, 1, 2], "boxes": [0, 1], "labels": [0],
                                         "scores": [0], "masks": [0, 1, 2]}
         torch.onnx.export(model,  # model being run
-                          input_var,  # model input (or a tuple for multiple inputs)
-                          f,  # where to save the model (can be a file or file-like object)
+                          input_var,  # model input (or arg tuple for multiple inputs)
+                          f,  # where to save the model (can be arg file or file-like object)
                           do_constant_folding=True,  # whether to execute constant folding for optimization
                           # training=mode,
                           input_names=["images_tensors"],
@@ -752,7 +752,7 @@ def simplify_mrcnn_zoo(batch_size=1):
         f.write(model_proto.SerializeToString())
 
 def get_info(info_proto):
-    """Extract the shape from a ValueInfoProto."""
+    """Extract the shape from arg ValueInfoProto."""
     shape = []
     shape_name = []
     for dim in info_proto.type.tensor_type.shape.dim:
@@ -861,31 +861,39 @@ def split_mrcnn(model_name, split_part):
         extract_model(input_path, output_path, input_names, output_names)
 
 
+def resnet18_split_ex():
+    ld_path = f"{CWD}/full_dnns/resnet18.onnx"
+    st_path = f"{CWD}/full_dnns/resnet18_trimmed.onnx"
+    input_names = ["conv_13_207Y", "conv_16_213Y"]
+    output_names = ["relu_18_149Y"]
+    extract_model(ld_path, st_path, input_names, output_names)
+
 
 def main():
-    n = 1
-    ic = 4
-    oc = 8
-    h = 33
-    w = 33
-    ksize = 3
-    stride = 2
-    pad = 0
-    assert (w + 2 * pad - ksize) % stride == 0, 'width does not work'
-    # input_shape = (n, ic, h, w)
-    # input_var = torch.randn(*input_shape)
-    # l = torch.nn.Conv2d(ic, oc, ksize, stride=stride, padding=pad)
-    # out = l(input_var)
-    M = 128
-    N = 1024
-    P = 2048
-    size_limit1 = 518750
-    size_limit = 4190000
-    total_size = (M*N) + (N*P) + (M*P)*4 + P*4
-    assert total_size <= size_limit, f"Total size {total_size} is greater than limit {size_limit}"
-    # optimize_model, training_mode, convert_data_format, to_polymath, input_shape, oc, ksize, stride, pad
-    # create_custom_conv(True, True, False, False, input_shape, oc, ksize, stride, pad)
-    create_custom_matmul(True, True, False, False, M, N, P, include_bias=True)
+    resnet18_split_ex()
+    # n = 1
+    # ic = 4
+    # oc = 8
+    # h = 33
+    # w = 33
+    # ksize = 3
+    # stride = 2
+    # pad = 0
+    # assert (w + 2 * pad - ksize) % stride == 0, 'width does not work'
+    # # input_shape = (n, ic, h, w)
+    # # input_var = torch.randn(*input_shape)
+    # # l = torch.nn.Conv2d(ic, oc, ksize, stride=stride, padding=pad)
+    # # out = l(input_var)
+    # M = 128
+    # N = 1024
+    # P = 2048
+    # size_limit1 = 518750
+    # size_limit = 4190000
+    # total_size = (M*N) + (N*P) + (M*P)*4 + P*4
+    # assert total_size <= size_limit, f"Total size {total_size} is greater than limit {size_limit}"
+    # # optimize_model, training_mode, convert_data_format, to_polymath, input_shape, oc, ksize, stride, pad
+    # # create_custom_conv(True, True, False, False, input_shape, oc, ksize, stride, pad)
+    # create_custom_matmul(True, True, False, False, M, N, P, include_bias=True)
     # print(out.shape)
     # output = F.conv2d(input_var)
     # oc, ksize, stride, pad

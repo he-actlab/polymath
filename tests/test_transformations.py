@@ -2,12 +2,15 @@ import polymath as pm
 import numpy as np
 import pytest
 
+
+
 def test_unsqueeze():
     with pm.Node(name="indexop") as graph:
         m = pm.parameter(name="m")
         n = pm.parameter(name="n")
         x = pm.state("x", shape=(m, n))
         x_us = pm.unsqueeze(x, axis=1, name="res")
+
     m_ = 5
     n_ = 3
     x_ = np.random.randint(0, 10, (m_, n_))
@@ -22,6 +25,7 @@ def test_squeeze():
         m = pm.parameter(name="m")
         n = pm.parameter(name="n")
         x = pm.state("x", shape=(m, n))
+        x[0] = 5
         x_us = pm.squeeze(x, axis=None, name="res")
     m_ = 5
     n_ = 1
